@@ -3,7 +3,7 @@ import { useApp } from '../data/store';
 import { 
   Search, Send, Phone, Smile, Paperclip, X, Check, CheckCheck, 
   UserPlus, Tag, Zap, MoreVertical, Filter, Users, Layout, 
-  Smartphone, Bell, PlusCircle
+  Smartphone, Bell, PlusCircle, AlertTriangle
 } from 'lucide-react';
 
 // API Configuration (Based on User's Meta Token)

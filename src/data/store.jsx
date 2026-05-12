@@ -26,6 +26,50 @@ export function AppProvider({ children }) {
   const [theme, setThemeState] = useState(() => localStorage.getItem(THEME_KEY) || 'dark');
   const [loadingData, setLoadingData] = useState(true);
 
+  // Helper Functions (DEFINED FIRST to avoid ReferenceErrors)
+  const addToast = useCallback((message, type = 'success') => {
+    const id = Date.now().toString();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
+  }, []);
+
+  const addItem = useCallback(async (key, item) => {
+    const id = Date.now().toString();
+    const table = toSnakeCase(key);
+    const newItem = { ...item, id };
+    setData(prev => ({ ...prev, [key]: [...prev[key], newItem] }));
+    if (agencyId) {
+      await supabase.from(table).insert({ id, user_id: agencyId, data: newItem });
+    }
+    return id;
+  }, [agencyId]);
+
+  const updateItem = useCallback(async (key, id, updates) => {
+    const table = toSnakeCase(key);
+    let updatedItem = null;
+    setData(prev => {
+      const items = prev[key].map(item => {
+        if (item.id === id) {
+          updatedItem = { ...item, ...updates };
+          return updatedItem;
+        }
+        return item;
+      });
+      return { ...prev, [key]: items };
+    });
+    if (agencyId && updatedItem) {
+      await supabase.from(table).update({ data: updatedItem }).eq('id', id).eq('user_id', agencyId);
+    }
+  }, [agencyId]);
+
+  const deleteItem = useCallback(async (key, id) => {
+    const table = toSnakeCase(key);
+    setData(prev => ({ ...prev, [key]: prev[key].filter(item => item.id !== id) }));
+    if (agencyId) {
+      await supabase.from(table).delete().eq('id', id).eq('user_id', agencyId);
+    }
+  }, [agencyId]);
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem(THEME_KEY, theme);
@@ -45,23 +89,19 @@ export function AppProvider({ children }) {
         return;
       }
       setAuth(user);
-      
-      // Determine Agency ID
       const { data: profile } = await supabase.from('user_profiles').select('agency_id').eq('id', user.id).single();
       if (profile?.agency_id) {
         setAgencyId(profile.agency_id);
       } else {
-        // If no profile exists, they are the agency owner (CEO)
         setAgencyId(user.id);
       }
     };
-
     supabase.auth.getSession().then(({ data: { session } }) => handleSession(session));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => handleSession(session));
     return () => subscription.unsubscribe();
   }, []);
 
-  // Fetch Data from Supabase when user is authenticated
+  // Fetch Data from Supabase
   useEffect(() => {
     if (!agencyId) {
       setData(emptyData);
@@ -73,20 +113,16 @@ export function AppProvider({ children }) {
     Promise.all(keys.map(async (key) => {
       const table = toSnakeCase(key);
       const { data: rows, error } = await supabase.from(table).select('data').eq('user_id', agencyId);
-      if (!error && rows) {
-        return { key, val: rows.map(r => r.data) };
-      }
+      if (!error && rows) return { key, val: rows.map(r => r.data) };
       return { key, val: [] };
     })).then(results => {
       const newData = { ...emptyData };
-      results.forEach(({ key, val }) => {
-        if (val.length > 0) newData[key] = val;
-      });
+      results.forEach(({ key, val }) => { if (val.length > 0) newData[key] = val; });
       setData(newData);
       setLoadingData(false);
     });
 
-    // ENABLE REALTIME for WhatsApp and Chat
+    // Supabase Realtime
     const channel = supabase
       .channel('schema-db-changes')
       .on('postgres_changes', 
@@ -94,7 +130,7 @@ export function AppProvider({ children }) {
         (payload) => {
           if (payload.eventType === 'INSERT') {
             setData(prev => ({ ...prev, whatsappConversations: [payload.new.data, ...prev.whatsappConversations] }));
-            addToast('Nova mensagem de WhatsApp recebida!');
+            addToast('Nova mensagem recebida!');
           } else if (payload.eventType === 'UPDATE') {
             setData(prev => ({
               ...prev,
@@ -104,11 +140,10 @@ export function AppProvider({ children }) {
         }
       )
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
-  }, [agencyId]);
+  }, [agencyId, addToast]);
 
-  // INACTIVITY ALERTS LOGIC
+  // Inactivity Alerts Logic
   useEffect(() => {
     const checkInactivity = () => {
       const now = new Date();
@@ -116,16 +151,13 @@ export function AppProvider({ children }) {
         if (conv.status === 'aberta' && conv.lastInteraction) {
           const lastTime = new Date(conv.lastInteraction);
           const diffMinutes = Math.floor((now - lastTime) / 60000);
-          
-          if (diffMinutes > 30) { // Alerta após 30 minutos sem resposta
+          if (diffMinutes > 30) {
             const alertExists = data.alerts.find(a => a.relId === conv.id && a.tipo === 'atendimento_atrasado');
             if (!alertExists) {
               addItem('alerts', {
                 tipo: 'atendimento_atrasado',
                 mensagem: `O contato ${conv.nome} está há ${diffMinutes} min sem resposta!`,
-                prioridade: 'alta',
-                relId: conv.id,
-                data: now.toISOString()
+                prioridade: 'alta', relId: conv.id, data: now.toISOString()
               });
               addToast(`Alerta: Atendimento atrasado para ${conv.nome}`, 'warning');
             }
@@ -133,8 +165,7 @@ export function AppProvider({ children }) {
         }
       });
     };
-
-    const timer = setInterval(checkInactivity, 60000); // Checa a cada minuto
+    const timer = setInterval(checkInactivity, 60000);
     return () => clearInterval(timer);
   }, [data.whatsappConversations, data.alerts, addItem, addToast]);
 
@@ -146,17 +177,9 @@ export function AppProvider({ children }) {
   const signup = async (email, password) => {
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (!error && data?.user) {
-      // Check for invites
       const { data: invite } = await supabase.from('invites').select('*').eq('email', email).single();
       if (invite) {
-        // Create profile linked to agency
-        await supabase.from('user_profiles').insert({
-          id: data.user.id,
-          agency_id: invite.agency_id,
-          role: invite.role,
-          email: email
-        });
-        // Delete invite
+        await supabase.from('user_profiles').insert({ id: data.user.id, agency_id: invite.agency_id, role: invite.role, email: email });
         await supabase.from('invites').delete().eq('email', email);
       }
     }
@@ -165,67 +188,11 @@ export function AppProvider({ children }) {
 
   const logout = async () => {
     try {
-      setAuth(null);
-      setAgencyId(null);
-      setData(emptyData);
+      setAuth(null); setAgencyId(null); setData(emptyData);
       await supabase.auth.signOut();
-      addToast('Sessão encerrada com sucesso.');
-    } catch (error) {
-      console.error('Logout error:', error);
-      // Even if Supabase fails, we want to clear local state to "force" logout in UI
-      setAuth(null);
-      setAgencyId(null);
-    }
+      addToast('Sessão encerrada.');
+    } catch (error) { setAuth(null); setAgencyId(null); }
   };
-
-  const addItem = useCallback(async (key, item) => {
-    const id = Date.now().toString();
-    const table = toSnakeCase(key);
-    const newItem = { ...item, id };
-    
-    // Optimistic Update
-    setData(prev => ({ ...prev, [key]: [...prev[key], newItem] }));
-    
-    if (agencyId) {
-      await supabase.from(table).insert({ id, user_id: agencyId, data: newItem });
-    }
-    return id;
-  }, [agencyId]);
-
-  const updateItem = useCallback(async (key, id, updates) => {
-    const table = toSnakeCase(key);
-    
-    // Optimistic Update
-    let updatedItem = null;
-    setData(prev => {
-      const items = prev[key].map(item => {
-        if (item.id === id) {
-          updatedItem = { ...item, ...updates };
-          return updatedItem;
-        }
-        return item;
-      });
-      return { ...prev, [key]: items };
-    });
-
-    if (agencyId && updatedItem) {
-      await supabase.from(table).update({ data: updatedItem }).eq('id', id).eq('user_id', agencyId);
-    }
-  }, [agencyId]);
-
-  const deleteItem = useCallback(async (key, id) => {
-    const table = toSnakeCase(key);
-    setData(prev => ({ ...prev, [key]: prev[key].filter(item => item.id !== id) }));
-    if (agencyId) {
-      await supabase.from(table).delete().eq('id', id).eq('user_id', agencyId);
-    }
-  }, [agencyId]);
-
-  const addToast = useCallback((message, type = 'success') => {
-    const id = Date.now().toString();
-    setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
-  }, []);
 
   const getTeamMember = useCallback((id) => data.teamMembers.find(m => m.id === id), [data.teamMembers]);
   const getClient = useCallback((id) => data.clients.find(c => c.id === id), [data.clients]);

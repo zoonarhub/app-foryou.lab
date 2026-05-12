@@ -1,12 +1,12 @@
 import { useApp } from '../data/store';
 import { Users, DollarSign, UserPlus, FileText, TrendingUp, CheckCircle, AlertTriangle, Sun, Moon } from 'lucide-react';
-import { LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const fmt = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 }).format(v);
 const COLORS = ['#FFD600', '#22C55E', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444'];
 
 export default function Dashboard() {
-  const { clients, leads, proposals, tasks, financials, alerts, whatsappConversations, theme, toggleTheme } = useApp();
+  const { clients, leads, proposals, tasks, financials, whatsappConversations, theme, toggleTheme } = useApp();
 
   const activeClients = clients.filter(c => c.status === 'ativo');
   const mrr = activeClients.reduce((s, c) => s + (c.mrr || 0), 0);
