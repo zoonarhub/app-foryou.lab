@@ -95,7 +95,7 @@ export default function App() {
   useEffect(() => {
     window.fbAsyncInit = function () {
       window.FB.init({
-        appId: '2117661839175842', // Substitua pelo seu ID real
+        appId: '2117661839175842',
         cookie: true,
         xfbml: true,
         version: 'v18.0'
