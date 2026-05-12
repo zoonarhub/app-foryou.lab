@@ -43,6 +43,7 @@ const navItems = [
 export default function Sidebar() {
   const { theme } = useApp();
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
 
   const logoStyle = {
@@ -52,17 +53,25 @@ export default function Sidebar() {
     objectFit: 'contain'
   };
 
+  const toggleMobile = () => setMobileOpen(!mobileOpen);
+
   return (
     <>
-      <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
+      {/* Mobile Overlay */}
+      {mobileOpen && <div className="sidebar-overlay-bg" onClick={toggleMobile} />}
+
+      <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-logo">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             {collapsed
               ? <img src="/favicon.png" alt="fy." style={{ height: 32, width: 32, borderRadius: 6, objectFit: 'cover' }} />
               : <img src="/logo.png" alt="foryou.lab" style={logoStyle} />
             }
-            <button onClick={() => setCollapsed(!collapsed)} className="sidebar-toggle">
+            <button onClick={() => setCollapsed(!collapsed)} className="sidebar-toggle desktop-only">
               {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+            </button>
+            <button onClick={toggleMobile} className="sidebar-toggle mobile-only">
+              <ChevronLeft size={16} />
             </button>
           </div>
         </div>
@@ -77,16 +86,17 @@ export default function Sidebar() {
               (item.path !== '/' && location.pathname.startsWith(item.path));
             return (
               <NavLink key={item.path} to={item.path}
+                onClick={() => setMobileOpen(false)}
                 className={`nav-item ${isActive ? 'active' : ''}`}
                 title={collapsed ? item.label : undefined}>
                 <Icon size={17} />
-                {!collapsed && <span>{item.label}</span>}
+                {(!collapsed || mobileOpen) && <span>{item.label}</span>}
               </NavLink>
             );
           })}
         </nav>
 
-        {!collapsed && (
+        {(!collapsed || mobileOpen) && (
           <div className="sidebar-user-info" style={{ padding: '12px 16px', borderTop: '1px solid var(--sidebar-border)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <img src="/favicon.png" alt="Admin" className="avatar" style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover' }} />
@@ -99,16 +109,25 @@ export default function Sidebar() {
         )}
       </aside>
 
-      {/* Mobile bottom nav - only visible on mobile via CSS */}
+      {/* Mobile bottom nav */}
       <div className="mobile-nav">
         {[
           { path: '/', icon: LayoutDashboard, label: 'Home' },
           { path: '/crm', icon: Users, label: 'CRM' },
           { path: '/whatsapp', icon: MessageCircle, label: 'Chat' },
-          { path: '/projetos', icon: ClipboardList, label: 'Tarefas' },
-          { path: '/configuracoes', icon: Settings, label: 'Config' },
-        ].map(item => {
+          { path: '/projetos', icon: ClipboardList, label: 'Projetos' },
+          { onClick: toggleMobile, icon: Box, label: 'Módulos', isButton: true },
+        ].map((item, idx) => {
           const Icon = item.icon;
+          if (item.isButton) {
+            return (
+              <button key={idx} onClick={item.onClick} className={mobileOpen ? 'active' : ''} 
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 9, gap: 2, padding: '4px 8px' }}>
+                <Icon size={18} />
+                {item.label}
+              </button>
+            );
+          }
           return (
             <NavLink key={item.path} to={item.path}
               className={location.pathname === item.path ? 'active' : ''}>

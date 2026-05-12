@@ -113,7 +113,18 @@ export function AppProvider({ children }) {
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    try {
+      setAuth(null);
+      setAgencyId(null);
+      setData(emptyData);
+      await supabase.auth.signOut();
+      addToast('Sessão encerrada com sucesso.');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Even if Supabase fails, we want to clear local state to "force" logout in UI
+      setAuth(null);
+      setAgencyId(null);
+    }
   };
 
   const addItem = useCallback(async (key, item) => {
@@ -171,6 +182,7 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider value={{
       ...data, toasts, auth, theme, loadingData,
+      isAdmin: auth?.id === agencyId,
       addItem, updateItem, deleteItem,
       addToast, getTeamMember, getClient,
       login, signup, logout, toggleTheme,

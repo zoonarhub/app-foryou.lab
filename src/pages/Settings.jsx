@@ -5,13 +5,12 @@ import { supabase } from '../lib/supabase';
 import Modal from '../components/Modal';
 
 export default function Settings() {
-  const { theme, toggleTheme, auth, logout, resetData, addToast, teamMembers, addItem } = useApp();
+  const { theme, toggleTheme, auth, logout, resetData, addToast, teamMembers, addItem, isAdmin } = useApp();
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteData, setInviteData] = useState({ email: '', role: 'membro', nome: '' });
 
-  // Current user role
+  // Current user info for display
   const currentUser = teamMembers.find(tm => tm.email === auth?.email);
-  const isAdmin = currentUser?.perfil === 'admin' || currentUser?.cargo === 'CEO';
 
   const handleInvite = async () => {
     if (!inviteData.email || !inviteData.nome) {
