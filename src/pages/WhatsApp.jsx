@@ -15,7 +15,7 @@ export default function WhatsAppPage() {
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [showSettings, setShowSettings] = useState(!evolutionApiUrl);
   const [qrCode, setQrCode] = useState(null);
-  const [instanceName, setInstanceName] = useState('foryou_lab');
+  const [instanceName, setInstanceName] = useState('foryou.lab');
   const [errorMessage, setErrorMessage] = useState(null);
   
   const [configUrl, setConfigUrl] = useState(evolutionApiUrl);
