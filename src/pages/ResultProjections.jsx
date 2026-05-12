@@ -176,9 +176,17 @@ export default function ResultProjections() {
                 <div className="card" style={{padding:16}}>
                   <h4 style={{fontSize:14,fontWeight:700,marginBottom:12}}>📈 Projetado vs Realizado</h4>
                   <ResponsiveContainer width="100%" height={220}>
-                    <LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)"/><XAxis dataKey="mes" fontSize={11} stroke="#6b7280"/><YAxis fontSize={11} tickFormatter={v=>`${v/1000}k`} stroke="#6b7280"/><Tooltip formatter={v=>fmt(v)}/><Legend/>
-                      <Line type="monotone" dataKey="projetado" stroke="#FFD600" strokeWidth={2} strokeDasharray="6 3" dot={{r:3}} name="Projetado"/>
-                      <Line type="monotone" dataKey="realizado" stroke="#FFD600" strokeWidth={3} dot={{r:4,fill:'#FFD600'}} name="Realizado" connectNulls={false}/>
+                    <LineChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
+                      <XAxis dataKey="mes" fontSize={11} stroke="var(--text-muted)" />
+                      <YAxis fontSize={11} tickFormatter={v => `${v / 1000}k`} stroke="var(--text-muted)" />
+                      <Tooltip 
+                        formatter={v => fmt(v)}
+                        contentStyle={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 8, color: 'var(--text-primary)' }}
+                      />
+                      <Legend />
+                      <Line type="monotone" dataKey="projetado" stroke="var(--text-muted)" strokeWidth={2} strokeDasharray="6 3" dot={{ r: 3 }} name="Projetado" />
+                      <Line type="monotone" dataKey="realizado" stroke="var(--yellow)" strokeWidth={3} dot={{ r: 4, fill: 'var(--yellow)' }} name="Realizado" connectNulls={false} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>

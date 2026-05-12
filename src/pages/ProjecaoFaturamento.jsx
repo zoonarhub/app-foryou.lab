@@ -165,11 +165,14 @@ export default function ProjecaoFaturamento() {
               <AreaChart data={projData}>
                 <defs><linearGradient id="gradYellow" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#FFD600" stopOpacity={0.3}/><stop offset="95%" stopColor="#FFD600" stopOpacity={0}/></linearGradient></defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)"/>
-                <XAxis dataKey="mes" fontSize={11} stroke={axisColor}/>
-                <YAxis fontSize={11} tickFormatter={v=>`${(v/1000).toFixed(0)}k`} stroke={axisColor}/>
-                <Tooltip formatter={v=>fmt(v)} contentStyle={{ background:'var(--card-bg)', border:'1px solid var(--card-border)', borderRadius:8, color:'var(--text-primary)' }}/>
-                <Area type="monotone" dataKey="comInvestimento" stroke="#FFD600" strokeWidth={3} fill="url(#gradYellow)" name="Com investimento" dot={{r:4,fill:'#FFD600'}}/>
-                <Line type="monotone" dataKey="semInvestimento" stroke={axisColor} strokeWidth={2} strokeDasharray="6 3" name="Sem investimento" dot={false}/>
+                <XAxis dataKey="mes" fontSize={11} stroke="var(--text-muted)" />
+                <YAxis fontSize={11} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} stroke="var(--text-muted)" />
+                <Tooltip 
+                  formatter={v => fmt(v)}
+                  contentStyle={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 8, color: 'var(--text-primary)' }}
+                />
+                <Area type="monotone" dataKey="comInvestimento" stroke="var(--yellow)" strokeWidth={3} fill="url(#gradYellow)" name="Com investimento" dot={{ r: 4, fill: 'var(--yellow)' }} />
+                <Line type="monotone" dataKey="semInvestimento" stroke="var(--text-muted)" strokeWidth={2} strokeDasharray="6 3" name="Sem investimento" dot={false} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
