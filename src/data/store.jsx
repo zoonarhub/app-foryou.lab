@@ -85,7 +85,58 @@ export function AppProvider({ children }) {
       setData(newData);
       setLoadingData(false);
     });
+
+    // ENABLE REALTIME for WhatsApp and Chat
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'whatsapp_conversations', filter: `user_id=eq.${agencyId}` },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setData(prev => ({ ...prev, whatsappConversations: [payload.new.data, ...prev.whatsappConversations] }));
+            addToast('Nova mensagem de WhatsApp recebida!');
+          } else if (payload.eventType === 'UPDATE') {
+            setData(prev => ({
+              ...prev,
+              whatsappConversations: prev.whatsappConversations.map(c => c.id === payload.new.data.id ? payload.new.data : c)
+            }));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [agencyId]);
+
+  // INACTIVITY ALERTS LOGIC
+  useEffect(() => {
+    const checkInactivity = () => {
+      const now = new Date();
+      data.whatsappConversations.forEach(conv => {
+        if (conv.status === 'aberta' && conv.lastInteraction) {
+          const lastTime = new Date(conv.lastInteraction);
+          const diffMinutes = Math.floor((now - lastTime) / 60000);
+          
+          if (diffMinutes > 30) { // Alerta após 30 minutos sem resposta
+            const alertExists = data.alerts.find(a => a.relId === conv.id && a.tipo === 'atendimento_atrasado');
+            if (!alertExists) {
+              addItem('alerts', {
+                tipo: 'atendimento_atrasado',
+                mensagem: `O contato ${conv.nome} está há ${diffMinutes} min sem resposta!`,
+                prioridade: 'alta',
+                relId: conv.id,
+                data: now.toISOString()
+              });
+              addToast(`Alerta: Atendimento atrasado para ${conv.nome}`, 'warning');
+            }
+          }
+        }
+      });
+    };
+
+    const timer = setInterval(checkInactivity, 60000); // Checa a cada minuto
+    return () => clearInterval(timer);
+  }, [data.whatsappConversations, data.alerts, addItem, addToast]);
 
   const login = async (email, password) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });

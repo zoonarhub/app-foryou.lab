@@ -6,7 +6,7 @@ const fmt = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: '
 const COLORS = ['#FFD600', '#22C55E', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444'];
 
 export default function Dashboard() {
-  const { clients, leads, proposals, tasks, financials, theme, toggleTheme } = useApp();
+  const { clients, leads, proposals, tasks, financials, alerts, whatsappConversations, theme, toggleTheme } = useApp();
 
   const activeClients = clients.filter(c => c.status === 'ativo');
   const mrr = activeClients.reduce((s, c) => s + (c.mrr || 0), 0);
@@ -15,6 +15,11 @@ export default function Dashboard() {
     return Date.now() - d.getTime() < 30 * 86400000;
   });
   const pendingTasks = tasks.filter(t => t.status !== 'concluido');
+  
+  // Calculate Overdue WhatsApp Interactions
+  const overdueChats = whatsappConversations.filter(c => 
+    c.status === 'aberta' && c.lastInteraction && (new Date() - new Date(c.lastInteraction)) > 1800000
+  );
 
   // Chart data
   const statusData = [
@@ -40,6 +45,21 @@ export default function Dashboard() {
         </div>
       </div>
       <div className="page-body">
+        
+        {/* CRITICAL ALERTS BANNER */}
+        {overdueChats.length > 0 && (
+          <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid #EF4444', borderRadius: 12, padding: '16px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{ background: '#EF4444', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <AlertTriangle size={20} color="#fff" />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, color: '#EF4444', fontSize: 16 }}>Atenção: {overdueChats.length} atendimentos atrasados!</div>
+              <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Existem clientes aguardando resposta há mais de 30 minutos no WhatsApp.</div>
+            </div>
+            <button className="btn btn-primary" style={{ background: '#EF4444', borderColor: '#EF4444' }} onClick={() => window.location.hash = '#/whatsapp'}>Ver Conversas</button>
+          </div>
+        )}
+
         <div className="kpi-grid">
           <div className="card kpi-card">
             <div className="kpi-icon" style={{ background: 'rgba(255,214,0,.12)' }}><Users size={18} color="#FFD600" /></div>
@@ -57,9 +77,9 @@ export default function Dashboard() {
             <div className="kpi-label">Leads (30d)</div>
           </div>
           <div className="card kpi-card">
-            <div className="kpi-icon" style={{ background: 'rgba(139,92,246,.12)' }}><FileText size={18} color="#8B5CF6" /></div>
-            <div className="kpi-value">{proposals.length}</div>
-            <div className="kpi-label">Propostas</div>
+            <div className="kpi-icon" style={{ background: 'rgba(239,68,68,.12)' }}><AlertTriangle size={18} color="#EF4444" /></div>
+            <div className="kpi-value" style={{ color: overdueChats.length > 0 ? '#EF4444' : 'inherit' }}>{overdueChats.length}</div>
+            <div className="kpi-label">Atendimentos Atrasados</div>
           </div>
           <div className="card kpi-card">
             <div className="kpi-icon" style={{ background: 'rgba(245,158,11,.12)' }}><TrendingUp size={18} color="#F59E0B" /></div>
@@ -67,7 +87,7 @@ export default function Dashboard() {
             <div className="kpi-label">Conversão</div>
           </div>
           <div className="card kpi-card">
-            <div className="kpi-icon" style={{ background: 'rgba(239,68,68,.12)' }}><CheckCircle size={18} color="#EF4444" /></div>
+            <div className="kpi-icon" style={{ background: 'rgba(139,92,246,.12)' }}><CheckCircle size={18} color="#8B5CF6" /></div>
             <div className="kpi-value">{pendingTasks.length}</div>
             <div className="kpi-label">Tarefas Pendentes</div>
           </div>
