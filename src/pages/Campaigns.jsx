@@ -3,7 +3,7 @@ import { useApp } from '../data/store';
 import { 
   Target, Link as LinkIcon, RefreshCw, BarChart3, 
   AlertTriangle, Layers, TrendingUp, DollarSign, 
-  MousePointer2, Eye, PieChart, Facebook
+  MousePointer2, Eye, PieChart, Globe
 } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import axios from 'axios';
@@ -88,14 +88,14 @@ export default function Campaigns() {
         {!fbConnected ? (
           <div className="card" style={{ padding: 60, textAlign: 'center', maxWidth: 500, margin: '40px auto' }}>
             <div style={{ width: 80, height: 80, background: 'rgba(24, 119, 242, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
-              <Facebook size={40} color="#1877F2" />
+              <Globe size={40} color="#1877F2" />
             </div>
             <h3 style={{ fontSize: 24, fontWeight: 800, marginBottom: 12 }}>Conecte seu Meta Ads</h3>
             <p style={{ color: 'var(--text-secondary)', marginBottom: 32, fontSize: 14, lineHeight: 1.6 }}>
               Faça login com sua conta Business para visualizar a performance de todas as suas contas de anúncios em tempo real.
             </p>
             <button className="btn btn-primary" onClick={handleFBLogin} style={{ background: '#1877F2', borderColor: '#1877F2', padding: '14px 40px', fontSize: 16 }}>
-              <Facebook size={18} /> Login com Facebook Business
+              <Globe size={18} /> Login com Facebook Business
             </button>
           </div>
         ) : (
