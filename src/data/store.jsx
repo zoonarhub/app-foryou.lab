@@ -14,6 +14,8 @@ const emptyData = {
     { id: 'ch_comercial', nome: 'comercial', tipo: 'publico', descricao: 'Equipe comercial', criadoPor: 'tm1', icone: '#' },
     { id: 'ch_resultados', nome: 'resultados', tipo: 'publico', descricao: 'Comemorar vitórias 🏆', criadoPor: 'tm1', icone: '#' },
   ], chatMessages: [], whatsappConversations: [], integrations: [],
+  evolutionApiUrl: 'https://evo.zoonar.com.br',
+  evolutionApiKey: '54A0DAA1396B-4570-A1CF-665D425E8171',
 };
 
 const toSnakeCase = str => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
@@ -26,12 +28,16 @@ export function AppProvider({ children }) {
   const [theme, setThemeState] = useState(() => localStorage.getItem(THEME_KEY) || 'dark');
   const [loadingData, setLoadingData] = useState(true);
 
-  // Helper Functions (DEFINED FIRST to avoid ReferenceErrors)
   const addToast = useCallback((message, type = 'success') => {
     const id = Date.now().toString();
     setToasts(prev => [...prev, { id, message, type }]);
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
   }, []);
+
+  const setEvoConfig = useCallback((url, key) => {
+    setData(prev => ({ ...prev, evolutionApiUrl: url, evolutionApiKey: key }));
+    addToast('Configurações da Evolution API atualizadas!');
+  }, [addToast]);
 
   const addItem = useCallback(async (key, item) => {
     const id = Date.now().toString();
@@ -79,50 +85,44 @@ export function AppProvider({ children }) {
     setThemeState(prev => prev === 'dark' ? 'light' : 'dark');
   }, []);
 
-  // Initialize Supabase Auth
   useEffect(() => {
     const handleSession = async (session) => {
       const user = session?.user;
       if (!user) {
-        setAuth(null);
-        setAgencyId(null);
-        return;
+        setAuth(null); setAgencyId(null); return;
       }
       setAuth(user);
       const { data: profile } = await supabase.from('user_profiles').select('agency_id').eq('id', user.id).single();
-      if (profile?.agency_id) {
-        setAgencyId(profile.agency_id);
-      } else {
-        setAgencyId(user.id);
-      }
+      if (profile?.agency_id) { setAgencyId(profile.agency_id); } 
+      else { setAgencyId(user.id); }
     };
     supabase.auth.getSession().then(({ data: { session } }) => handleSession(session));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => handleSession(session));
     return () => subscription.unsubscribe();
   }, []);
 
-  // Fetch Data from Supabase
   useEffect(() => {
     if (!agencyId) {
-      setData(emptyData);
+      setData(prev => ({ ...prev, ...emptyData, evolutionApiUrl: prev.evolutionApiUrl, evolutionApiKey: prev.evolutionApiKey }));
       setLoadingData(false);
       return;
     }
     setLoadingData(true);
-    const keys = Object.keys(emptyData);
+    const keys = ['clients', 'leads', 'proposals', 'projects', 'tasks', 'financials', 'alerts', 'teamMembers', 'services', 'whatsappConversations'];
     Promise.all(keys.map(async (key) => {
       const table = toSnakeCase(key);
       const { data: rows, error } = await supabase.from(table).select('data').eq('user_id', agencyId);
       if (!error && rows) return { key, val: rows.map(r => r.data) };
       return { key, val: [] };
     })).then(results => {
-      const newData = { ...emptyData };
-      results.forEach(({ key, val }) => { if (val.length > 0) newData[key] = val; });
-      setData(newData);
+      setData(prev => {
+        const newData = { ...prev };
+        results.forEach(({ key, val }) => { if (val.length > 0) newData[key] = val; });
+        return newData;
+      });
       setLoadingData(false);
     });
 
-    // Supabase Realtime
     const channel = supabase
       .channel('schema-db-changes')
       .on('postgres_changes', 
@@ -143,32 +143,6 @@ export function AppProvider({ children }) {
     return () => { supabase.removeChannel(channel); };
   }, [agencyId, addToast]);
 
-  // Inactivity Alerts Logic
-  useEffect(() => {
-    const checkInactivity = () => {
-      const now = new Date();
-      data.whatsappConversations.forEach(conv => {
-        if (conv.status === 'aberta' && conv.lastInteraction) {
-          const lastTime = new Date(conv.lastInteraction);
-          const diffMinutes = Math.floor((now - lastTime) / 60000);
-          if (diffMinutes > 30) {
-            const alertExists = data.alerts.find(a => a.relId === conv.id && a.tipo === 'atendimento_atrasado');
-            if (!alertExists) {
-              addItem('alerts', {
-                tipo: 'atendimento_atrasado',
-                mensagem: `O contato ${conv.nome} está há ${diffMinutes} min sem resposta!`,
-                prioridade: 'alta', relId: conv.id, data: now.toISOString()
-              });
-              addToast(`Alerta: Atendimento atrasado para ${conv.nome}`, 'warning');
-            }
-          }
-        }
-      });
-    };
-    const timer = setInterval(checkInactivity, 60000);
-    return () => clearInterval(timer);
-  }, [data.whatsappConversations, data.alerts, addItem, addToast]);
-
   const login = async (email, password) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return !error;
@@ -188,7 +162,7 @@ export function AppProvider({ children }) {
 
   const logout = async () => {
     try {
-      setAuth(null); setAgencyId(null); setData(emptyData);
+      setAuth(null); setAgencyId(null);
       await supabase.auth.signOut();
       addToast('Sessão encerrada.');
     } catch (error) { setAuth(null); setAgencyId(null); }
@@ -201,7 +175,7 @@ export function AppProvider({ children }) {
     <AppContext.Provider value={{
       ...data, toasts, auth, theme, loadingData,
       isAdmin: auth?.id === agencyId,
-      addItem, updateItem, deleteItem,
+      addItem, updateItem, deleteItem, setEvoConfig,
       addToast, getTeamMember, getClient,
       login, signup, logout, toggleTheme,
     }}>

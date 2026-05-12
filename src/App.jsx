@@ -1,4 +1,4 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { AppProvider, useApp } from './data/store';
 import Sidebar from './components/Sidebar';
@@ -87,14 +87,39 @@ function AuthGuard() {
   );
 }
 
+import { GoogleOAuthProvider } from '@react-oauth/google';
+
 export default function App() {
+  const GOOGLE_CLIENT_ID = '302053902292-k5e9bpkbau4qog47ui8483psh09oop5m.apps.googleusercontent.com';
+
+  useEffect(() => {
+    window.fbAsyncInit = function () {
+      window.FB.init({
+        appId: '2117661839175842', // Substitua pelo seu ID real
+        cookie: true,
+        xfbml: true,
+        version: 'v18.0'
+      });
+    };
+
+    (function (d, s, id) {
+      var js, fjs = d.getElementsByTagName(s)[0];
+      if (d.getElementById(id)) return;
+      js = d.createElement(s); js.id = id;
+      js.src = "https://connect.facebook.net/pt_BR/sdk.js";
+      fjs.parentNode.insertBefore(js, fjs);
+    }(document, 'script', 'facebook-jssdk'));
+  }, []);
+
   return (
-    <AppProvider>
-      <Routes>
-        <Route path="/proposta/:id" element={<Suspense fallback={<PageLoader />}><PropostaPublica /></Suspense>} />
-        <Route path="/proposta-modular/:id" element={<Suspense fallback={<PageLoader />}><PropostaModularPublica /></Suspense>} />
-        <Route path="*" element={<AuthGuard />} />
-      </Routes>
-    </AppProvider>
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <AppProvider>
+        <Routes>
+          <Route path="/proposta/:id" element={<Suspense fallback={<PageLoader />}><PropostaPublica /></Suspense>} />
+          <Route path="/proposta-modular/:id" element={<Suspense fallback={<PageLoader />}><PropostaModularPublica /></Suspense>} />
+          <Route path="*" element={<AuthGuard />} />
+        </Routes>
+      </AppProvider>
+    </GoogleOAuthProvider>
   );
 }
