@@ -18,6 +18,7 @@ export default function CalendarPage() {
   const [loading, setLoading] = useState(false);
   
   const [view, setView] = useState('week'); // day, week, month, year
+  const [isViewMenuOpen, setIsViewMenuOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -161,8 +162,19 @@ export default function CalendarPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
           {/* Controls */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div style={{ background: '#141414', border: '1px solid #1F1F1F', borderRadius: 8, padding: '6px 12px', fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-              Semana <ChevronRight size={14} style={{ transform: 'rotate(90deg)' }} />
+            <div style={{ position: 'relative' }}>
+              <div onClick={() => setIsViewMenuOpen(!isViewMenuOpen)} style={{ background: '#141414', border: '1px solid #1F1F1F', borderRadius: 8, padding: '6px 12px', fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                {view === 'day' ? 'Dia' : view === 'week' ? 'Semana' : view === 'month' ? 'Mês' : 'Ano'} <ChevronRight size={14} style={{ transform: isViewMenuOpen ? 'rotate(-90deg)' : 'rotate(90deg)', transition: '0.2s' }} />
+              </div>
+              {isViewMenuOpen && (
+                <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 8, background: '#141414', border: '1px solid #1F1F1F', borderRadius: 8, overflow: 'hidden', zIndex: 100, width: 120 }}>
+                  {['day', 'week', 'month', 'year'].map(v => (
+                    <div key={v} onClick={() => { setView(v); setIsViewMenuOpen(false); }} style={{ padding: '8px 12px', fontSize: 13, cursor: 'pointer', background: view === v ? '#222' : 'transparent', color: view === v ? 'var(--yellow)' : '#FFF' }}>
+                      {v === 'day' ? 'Dia' : v === 'week' ? 'Semana' : v === 'month' ? 'Mês' : 'Ano'}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <button onClick={() => setSelectedDate(new Date())} style={{ background: '#141414', border: '1px solid #1F1F1F', color: '#FFF', borderRadius: 8, padding: '6px 16px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Hoje</button>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -219,6 +231,7 @@ export default function CalendarPage() {
                     const newDate = new Date(selectedDate);
                     newDate.setDate(day);
                     setSelectedDate(newDate);
+                    setView('day'); // Desce para a visão do dia ao clicar no mini calendário
                   }} style={{ 
                     fontSize: 12, padding: '6px 0', borderRadius: '50%', cursor: 'pointer',
                     background: isToday ? 'var(--yellow)' : 'transparent',
@@ -278,105 +291,143 @@ export default function CalendarPage() {
 
         </div>
 
-        {/* CENTER GRID (WEEK VIEW) */}
+        {/* CENTER GRID */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           
-          {/* Days Header */}
-          <div style={{ display: 'flex', borderBottom: '1px solid #1F1F1F', paddingLeft: 60 }}>
-            {weekDays.map((date, i) => {
-              const isToday = date.toDateString() === new Date().toDateString();
-              return (
-                <div key={i} style={{ flex: 1, borderRight: '1px solid #1F1F1F', padding: '16px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                  <div style={{ fontSize: 12, color: '#888', fontWeight: 500 }}>{DAYS_OF_WEEK[date.getDay()]}</div>
-                  <div style={{ 
-                    width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                    borderRadius: 8, fontSize: 15, fontWeight: 700,
-                    background: isToday ? 'var(--yellow)' : 'transparent',
-                    color: isToday ? '#000' : '#FFF'
-                  }}>
-                    {date.getDate()}
+          {/* WEEK VIEW */}
+          {view === 'week' && (
+            <>
+              <div style={{ display: 'flex', borderBottom: '1px solid #1F1F1F', paddingLeft: 60 }}>
+                {weekDays.map((date, i) => {
+                  const isToday = date.toDateString() === new Date().toDateString();
+                  return (
+                    <div key={i} style={{ flex: 1, borderRight: '1px solid #1F1F1F', padding: '16px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                      <div style={{ fontSize: 12, color: '#888', fontWeight: 500 }}>{DAYS_OF_WEEK[date.getDay()]}</div>
+                      <div style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, fontSize: 15, fontWeight: 700, background: isToday ? 'var(--yellow)' : 'transparent', color: isToday ? '#000' : '#FFF' }}>{date.getDate()}</div>
+                    </div>
+                  )
+                })}
+              </div>
+              <div style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
+                <div style={{ display: 'flex', position: 'relative', minHeight: 1440 }}>
+                  <div style={{ width: 60, flexShrink: 0, borderRight: '1px solid #1F1F1F', display: 'flex', flexDirection: 'column' }}>
+                    {Array.from({ length: 24 }).map((_, i) => (
+                      <div key={i} style={{ height: 60, borderBottom: '1px solid transparent', position: 'relative' }}><span style={{ position: 'absolute', top: -8, right: 12, fontSize: 11, color: '#666' }}>{i.toString().padStart(2, '0')}:00</span></div>
+                    ))}
+                  </div>
+                  <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', position: 'relative' }}>
+                    {Array.from({ length: 24 }).map((_, i) => (<div key={`h-${i}`} style={{ position: 'absolute', top: i * 60, left: 0, right: 0, height: 1, background: '#1F1F1F', zIndex: 0 }} />))}
+                    {weekDays.map((date, dayIndex) => {
+                      const dayEvents = events.filter(e => new Date(e.start.dateTime || e.start.date).toDateString() === date.toDateString());
+                      return (
+                        <div key={dayIndex} style={{ borderRight: '1px solid #1F1F1F', position: 'relative', height: 1440 }}>
+                          {dayEvents.map((ev, evIndex) => {
+                            let startHour = 0, startMin = 0, heightPx = 40, topPx = 0;
+                            if (ev.start.dateTime) {
+                              const sd = new Date(ev.start.dateTime); const ed = new Date(ev.end.dateTime);
+                              startHour = sd.getHours(); startMin = sd.getMinutes();
+                              heightPx = (((ed.getTime() - sd.getTime()) / 1000) / 60 / 60) * 60;
+                              topPx = (startHour * 60) + ((startMin / 60) * 60);
+                            } else { topPx = 0; heightPx = 30; }
+                            const color = CALENDAR_COLORS[evIndex % CALENDAR_COLORS.length];
+                            return (
+                              <div key={ev.id} onClick={() => toggleAlert(ev.id)} style={{ position: 'absolute', top: topPx, left: 2, right: 2, height: Math.max(heightPx - 2, 24), background: ev.hasAlert ? `${color}40` : `${color}20`, border: `1px solid ${color}40`, borderLeft: `3px solid ${color}`, borderRadius: 4, padding: '4px 6px', overflow: 'hidden', zIndex: 1, cursor: 'pointer', transition: 'all 0.2s' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}><div style={{ fontSize: 11, fontWeight: 600, color: '#FFF', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{ev.summary}</div>{ev.hasAlert && <BellRing size={12} color="#FFF" style={{ flexShrink: 0 }} />}</div>
+                                {ev.start.dateTime && heightPx > 30 && (<div style={{ fontSize: 10, color: '#AAA', marginTop: 2 }}>{startHour.toString().padStart(2, '0')}:{startMin.toString().padStart(2, '0')}</div>)}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
-              )
-            })}
-          </div>
-
-          {/* Time Grid */}
-          <div style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
-            <div style={{ display: 'flex', position: 'relative', minHeight: 1440 }}>
-              
-              {/* Y Axis (Hours) */}
-              <div style={{ width: 60, flexShrink: 0, borderRight: '1px solid #1F1F1F', display: 'flex', flexDirection: 'column' }}>
-                {Array.from({ length: 24 }).map((_, i) => {
-                  return (
-                    <div key={i} style={{ height: 60, borderBottom: '1px solid transparent', position: 'relative' }}>
-                      <span style={{ position: 'absolute', top: -8, right: 12, fontSize: 11, color: '#666' }}>
-                        {i.toString().padStart(2, '0')}:00
-                      </span>
-                    </div>
-                  )
-                })}
               </div>
+            </>
+          )}
 
-              {/* Grid Lines & Events */}
-              <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', position: 'relative' }}>
-                {/* Horizontal lines */}
-                {Array.from({ length: 24 }).map((_, i) => (
-                  <div key={`h-${i}`} style={{ position: 'absolute', top: i * 60, left: 0, right: 0, height: 1, background: '#1F1F1F', zIndex: 0 }} />
-                ))}
-
-                {/* Vertical columns and Events */}
-                {weekDays.map((date, dayIndex) => {
-                  const dayEvents = events.filter(e => new Date(e.start.dateTime || e.start.date).toDateString() === date.toDateString());
-                  
-                  return (
-                    <div key={dayIndex} style={{ borderRight: '1px solid #1F1F1F', position: 'relative', height: 1440 }}>
-                      {dayEvents.map((ev, evIndex) => {
+          {/* DAY VIEW */}
+          {view === 'day' && (
+            <>
+              <div style={{ padding: '16px', borderBottom: '1px solid #1F1F1F', textAlign: 'center', fontSize: 18, fontWeight: 700, color: '#FFF' }}>
+                {DAYS_OF_WEEK[selectedDate.getDay()]}, {selectedDate.getDate()} de {MONTHS[selectedDate.getMonth()]}
+              </div>
+              <div style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
+                <div style={{ display: 'flex', position: 'relative', minHeight: 1440 }}>
+                  <div style={{ width: 60, flexShrink: 0, borderRight: '1px solid #1F1F1F', display: 'flex', flexDirection: 'column' }}>
+                    {Array.from({ length: 24 }).map((_, i) => (
+                      <div key={i} style={{ height: 60, borderBottom: '1px solid transparent', position: 'relative' }}><span style={{ position: 'absolute', top: -8, right: 12, fontSize: 11, color: '#666' }}>{i.toString().padStart(2, '0')}:00</span></div>
+                    ))}
+                  </div>
+                  <div style={{ flex: 1, position: 'relative' }}>
+                    {Array.from({ length: 24 }).map((_, i) => (<div key={`dh-${i}`} style={{ position: 'absolute', top: i * 60, left: 0, right: 0, height: 1, background: '#1F1F1F', zIndex: 0 }} />))}
+                    {(() => {
+                      const dayEvents = events.filter(e => new Date(e.start.dateTime || e.start.date).toDateString() === selectedDate.toDateString());
+                      return dayEvents.map((ev, evIndex) => {
                         let startHour = 0, startMin = 0, heightPx = 40, topPx = 0;
-
                         if (ev.start.dateTime) {
-                          const startDate = new Date(ev.start.dateTime);
-                          const endDate = new Date(ev.end.dateTime);
-                          startHour = startDate.getHours();
-                          startMin = startDate.getMinutes();
-                          const durationMins = ((endDate.getTime() - startDate.getTime()) / 1000) / 60;
-                          heightPx = (durationMins / 60) * 60;
+                          const sd = new Date(ev.start.dateTime); const ed = new Date(ev.end.dateTime);
+                          startHour = sd.getHours(); startMin = sd.getMinutes();
+                          heightPx = (((ed.getTime() - sd.getTime()) / 1000) / 60 / 60) * 60;
                           topPx = (startHour * 60) + ((startMin / 60) * 60);
-                        } else {
-                          // Full day event
-                          topPx = 0;
-                          heightPx = 30;
-                        }
-
+                        } else { topPx = 0; heightPx = 30; }
                         const color = CALENDAR_COLORS[evIndex % CALENDAR_COLORS.length];
-
                         return (
-                          <div key={ev.id} onClick={() => toggleAlert(ev.id)} style={{ 
-                            position: 'absolute', top: topPx, left: 2, right: 2, height: Math.max(heightPx - 2, 24),
-                            background: ev.hasAlert ? `${color}40` : `${color}20`, 
-                            border: `1px solid ${color}40`, 
-                            borderLeft: `3px solid ${color}`,
-                            borderRadius: 4, padding: '4px 6px', overflow: 'hidden', zIndex: 1,
-                            cursor: 'pointer', transition: 'all 0.2s'
-                          }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                              <div style={{ fontSize: 11, fontWeight: 600, color: '#FFF', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{ev.summary}</div>
-                              {ev.hasAlert && <BellRing size={12} color="#FFF" style={{ flexShrink: 0 }} />}
-                            </div>
-                            {ev.start.dateTime && heightPx > 30 && (
-                              <div style={{ fontSize: 10, color: '#AAA', marginTop: 2 }}>
-                                {startHour.toString().padStart(2, '0')}:{startMin.toString().padStart(2, '0')}
-                              </div>
-                            )}
+                          <div key={ev.id} onClick={() => toggleAlert(ev.id)} style={{ position: 'absolute', top: topPx, left: 10, right: 10, height: Math.max(heightPx - 2, 24), background: ev.hasAlert ? `${color}40` : `${color}20`, border: `1px solid ${color}40`, borderLeft: `4px solid ${color}`, borderRadius: 6, padding: '8px 12px', overflow: 'hidden', zIndex: 1, cursor: 'pointer', transition: 'all 0.2s' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}><div style={{ fontSize: 14, fontWeight: 600, color: '#FFF' }}>{ev.summary}</div>{ev.hasAlert && <BellRing size={14} color="#FFF" style={{ flexShrink: 0 }} />}</div>
+                            {ev.start.dateTime && (<div style={{ fontSize: 12, color: '#AAA', marginTop: 4 }}>{startHour.toString().padStart(2, '0')}:{startMin.toString().padStart(2, '0')}</div>)}
                           </div>
                         )
-                      })}
-                    </div>
-                  )
-                })}
+                      });
+                    })()}
+                  </div>
+                </div>
               </div>
+            </>
+          )}
+
+          {/* MONTH VIEW */}
+          {view === 'month' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', flex: 1, background: '#1F1F1F', gap: 1 }}>
+              {DAYS_OF_WEEK.map(d => <div key={d} style={{ background: '#0A0A0A', padding: '12px 0', textAlign: 'center', fontSize: 13, fontWeight: 600, color: '#888' }}>{d}</div>)}
+              {Array.from({ length: getFirstDayOfMonth(selectedDate.getFullYear(), selectedDate.getMonth()) }).map((_, i) => <div key={`empty-${i}`} style={{ background: '#0A0A0A' }} />)}
+              {Array.from({ length: getDaysInMonth(selectedDate.getFullYear(), selectedDate.getMonth()) }).map((_, i) => {
+                const day = i + 1;
+                const dString = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day).toDateString();
+                const dayEvents = events.filter(e => new Date(e.start.dateTime || e.start.date).toDateString() === dString);
+                const isToday = day === new Date().getDate() && selectedDate.getMonth() === new Date().getMonth();
+                return (
+                  <div key={day} onClick={() => { const nd = new Date(selectedDate); nd.setDate(day); setSelectedDate(nd); setView('day'); }} style={{ background: '#0A0A0A', padding: 8, display: 'flex', flexDirection: 'column', gap: 4, cursor: 'pointer', transition: '0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#141414'} onMouseLeave={e => e.currentTarget.style.background = '#0A0A0A'}>
+                    <div style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', background: isToday ? 'var(--yellow)' : 'transparent', color: isToday ? '#000' : '#888', fontSize: 13, fontWeight: isToday ? 700 : 500, alignSelf: 'flex-end' }}>{day}</div>
+                    {dayEvents.slice(0,3).map((ev, idx) => (
+                      <div key={idx} style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: `${CALENDAR_COLORS[idx % CALENDAR_COLORS.length]}30`, color: '#FFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.summary}</div>
+                    ))}
+                    {dayEvents.length > 3 && <div style={{ fontSize: 10, color: '#888', textAlign: 'right' }}>+{dayEvents.length - 3}</div>}
+                  </div>
+                )
+              })}
             </div>
-          </div>
+          )}
+
+          {/* YEAR VIEW */}
+          {view === 'year' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 24, padding: 32, overflowY: 'auto' }}>
+              {MONTHS.map((m, mIdx) => (
+                <div key={m} onClick={() => { const nd = new Date(selectedDate); nd.setMonth(mIdx); setSelectedDate(nd); setView('month'); }} style={{ background: '#141414', border: '1px solid #1F1F1F', borderRadius: 12, padding: 16, cursor: 'pointer', transition: '0.2s' }} onMouseEnter={e => e.currentTarget.style.borderColor = '#333'} onMouseLeave={e => e.currentTarget.style.borderColor = '#1F1F1F'}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#FFF', marginBottom: 12, textAlign: 'center' }}>{m}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, textAlign: 'center' }}>
+                    {DAYS_OF_WEEK.map(d => <div key={d} style={{ fontSize: 9, color: '#666', fontWeight: 600, marginBottom: 4 }}>{d.substring(0,1)}</div>)}
+                    {Array.from({ length: getFirstDayOfMonth(selectedDate.getFullYear(), mIdx) }).map((_, i) => <div key={`e-${i}`} />)}
+                    {Array.from({ length: getDaysInMonth(selectedDate.getFullYear(), mIdx) }).map((_, i) => {
+                      const day = i + 1;
+                      const isToday = day === new Date().getDate() && mIdx === new Date().getMonth();
+                      return <div key={day} style={{ fontSize: 10, padding: '4px 0', color: isToday ? 'var(--yellow)' : '#888', fontWeight: isToday ? 800 : 400 }}>{day}</div>
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
         </div>
 
