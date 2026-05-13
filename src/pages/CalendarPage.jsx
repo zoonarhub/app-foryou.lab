@@ -66,6 +66,12 @@ export default function CalendarPage() {
     }
   };
 
+  const toggleAlert = (eventId) => {
+    setEvents(events.map(ev => ev.id === eventId ? { ...ev, hasAlert: !ev.hasAlert } : ev));
+    const isAlerting = !events.find(e => e.id === eventId).hasAlert;
+    addToast(isAlerting ? 'Alerta ativado para este evento!' : 'Alerta desativado.');
+  };
+
   const handleLogout = () => {
     saveGoogleToken(null);
     setEvents([]);
@@ -281,16 +287,15 @@ export default function CalendarPage() {
 
           {/* Time Grid */}
           <div style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
-            <div style={{ display: 'flex', position: 'relative', minHeight: 1200 }}>
+            <div style={{ display: 'flex', position: 'relative', minHeight: 1440 }}>
               
               {/* Y Axis (Hours) */}
               <div style={{ width: 60, flexShrink: 0, borderRight: '1px solid #1F1F1F', display: 'flex', flexDirection: 'column' }}>
-                {Array.from({ length: 11 }).map((_, i) => {
-                  const hour = i + 8; // 08:00 to 18:00
+                {Array.from({ length: 24 }).map((_, i) => {
                   return (
-                    <div key={i} style={{ height: 100, borderBottom: '1px solid transparent', position: 'relative' }}>
+                    <div key={i} style={{ height: 60, borderBottom: '1px solid transparent', position: 'relative' }}>
                       <span style={{ position: 'absolute', top: -8, right: 12, fontSize: 11, color: '#666' }}>
-                        {hour.toString().padStart(2, '0')}:00
+                        {i.toString().padStart(2, '0')}:00
                       </span>
                     </div>
                   )
@@ -300,8 +305,8 @@ export default function CalendarPage() {
               {/* Grid Lines & Events */}
               <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', position: 'relative' }}>
                 {/* Horizontal lines */}
-                {Array.from({ length: 11 }).map((_, i) => (
-                  <div key={`h-${i}`} style={{ position: 'absolute', top: i * 100, left: 0, right: 0, height: 1, background: '#1F1F1F', zIndex: 0 }} />
+                {Array.from({ length: 24 }).map((_, i) => (
+                  <div key={`h-${i}`} style={{ position: 'absolute', top: i * 60, left: 0, right: 0, height: 1, background: '#1F1F1F', zIndex: 0 }} />
                 ))}
 
                 {/* Vertical columns and Events */}
@@ -309,38 +314,42 @@ export default function CalendarPage() {
                   const dayEvents = events.filter(e => new Date(e.start.dateTime || e.start.date).toDateString() === date.toDateString());
                   
                   return (
-                    <div key={dayIndex} style={{ borderRight: '1px solid #1F1F1F', position: 'relative', height: 1100 }}>
+                    <div key={dayIndex} style={{ borderRight: '1px solid #1F1F1F', position: 'relative', height: 1440 }}>
                       {dayEvents.map((ev, evIndex) => {
-                        if (!ev.start.dateTime) return null; // Skip full day events for now
-                        const startDate = new Date(ev.start.dateTime);
-                        const endDate = new Date(ev.end.dateTime);
-                        
-                        const startHour = startDate.getHours();
-                        const startMin = startDate.getMinutes();
-                        const endHour = endDate.getHours();
-                        const endMin = endDate.getMinutes();
+                        let startHour = 0, startMin = 0, heightPx = 40, topPx = 0;
 
-                        // Map 08:00 to top: 0. Each hour is 100px.
-                        const topPx = ((startHour - 8) * 100) + ((startMin / 60) * 100);
-                        const durationMins = ((endDate.getTime() - startDate.getTime()) / 1000) / 60;
-                        const heightPx = (durationMins / 60) * 100;
-
-                        // Only render if within our 08:00 - 18:00 bounds (roughly)
-                        if (startHour < 7 || startHour > 19) return null;
+                        if (ev.start.dateTime) {
+                          const startDate = new Date(ev.start.dateTime);
+                          const endDate = new Date(ev.end.dateTime);
+                          startHour = startDate.getHours();
+                          startMin = startDate.getMinutes();
+                          const durationMins = ((endDate.getTime() - startDate.getTime()) / 1000) / 60;
+                          heightPx = (durationMins / 60) * 60;
+                          topPx = (startHour * 60) + ((startMin / 60) * 60);
+                        } else {
+                          // Full day event
+                          topPx = 0;
+                          heightPx = 30;
+                        }
 
                         const color = CALENDAR_COLORS[evIndex % CALENDAR_COLORS.length];
 
                         return (
-                          <div key={ev.id} style={{ 
+                          <div key={ev.id} onClick={() => toggleAlert(ev.id)} style={{ 
                             position: 'absolute', top: topPx, left: 2, right: 2, height: Math.max(heightPx - 2, 24),
-                            background: `${color}20`, border: `1px solid ${color}40`, borderLeft: `3px solid ${color}`,
+                            background: ev.hasAlert ? `${color}40` : `${color}20`, 
+                            border: `1px solid ${color}40`, 
+                            borderLeft: `3px solid ${color}`,
                             borderRadius: 4, padding: '4px 6px', overflow: 'hidden', zIndex: 1,
-                            cursor: 'pointer'
+                            cursor: 'pointer', transition: 'all 0.2s'
                           }}>
-                            <div style={{ fontSize: 11, fontWeight: 600, color: '#FFF', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{ev.summary}</div>
-                            {heightPx > 40 && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                              <div style={{ fontSize: 11, fontWeight: 600, color: '#FFF', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{ev.summary}</div>
+                              {ev.hasAlert && <BellRing size={12} color="#FFF" style={{ flexShrink: 0 }} />}
+                            </div>
+                            {ev.start.dateTime && heightPx > 30 && (
                               <div style={{ fontSize: 10, color: '#AAA', marginTop: 2 }}>
-                                {startHour}:{startMin.toString().padStart(2, '0')} - {endHour}:{endMin.toString().padStart(2, '0')}
+                                {startHour.toString().padStart(2, '0')}:{startMin.toString().padStart(2, '0')}
                               </div>
                             )}
                           </div>
