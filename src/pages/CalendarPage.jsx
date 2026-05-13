@@ -21,6 +21,10 @@ export default function CalendarPage() {
   const [isViewMenuOpen, setIsViewMenuOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
 
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newEvent, setNewEvent] = useState({ title: '', date: '', startTime: '', endTime: '', description: '' });
 
@@ -221,11 +225,56 @@ export default function CalendarPage() {
 
           {/* Actions */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <button onClick={() => addToast('Busca global em desenvolvimento...', 'warning')} style={{ background: 'transparent', border: 'none', color: '#888', cursor: 'pointer' }}><Search size={18} /></button>
-            <button onClick={() => addToast('Painel de Alertas em desenvolvimento...', 'warning')} style={{ background: 'transparent', border: 'none', color: '#888', cursor: 'pointer', position: 'relative' }}>
-              <Bell size={18} />
-              <div style={{ position: 'absolute', top: 0, right: 0, width: 6, height: 6, background: 'var(--yellow)', borderRadius: '50%' }} />
-            </button>
+            
+            {/* Search */}
+            <div style={{ position: 'relative' }}>
+              {isSearchOpen ? (
+                <div style={{ display: 'flex', alignItems: 'center', background: '#141414', border: '1px solid var(--yellow)', borderRadius: 8, padding: '6px 12px', width: 240 }}>
+                  <Search size={14} color="#888" style={{ marginRight: 8 }} />
+                  <input autoFocus type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onBlur={() => setTimeout(() => setIsSearchOpen(false), 200)} placeholder="Buscar eventos..." style={{ background: 'transparent', border: 'none', color: '#FFF', fontSize: 13, outline: 'none', width: '100%' }} />
+                </div>
+              ) : (
+                <button onClick={() => setIsSearchOpen(true)} style={{ background: 'transparent', border: 'none', color: '#888', cursor: 'pointer' }}><Search size={18} /></button>
+              )}
+              {isSearchOpen && searchQuery && (
+                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 8, background: '#141414', border: '1px solid #1F1F1F', borderRadius: 8, width: 300, maxHeight: 300, overflowY: 'auto', zIndex: 100, boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }}>
+                  {events.filter(e => e.summary?.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 8).map(ev => (
+                    <div key={ev.id} onClick={() => { setSelectedDate(new Date(ev.start.dateTime || ev.start.date)); setView('day'); setIsSearchOpen(false); setSearchQuery(''); }} style={{ padding: 12, borderBottom: '1px solid #1F1F1F', cursor: 'pointer' }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#FFF' }}>{ev.summary}</div>
+                      <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>{new Date(ev.start.dateTime || ev.start.date).toLocaleDateString()}</div>
+                    </div>
+                  ))}
+                  {events.filter(e => e.summary?.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+                    <div style={{ padding: 16, fontSize: 12, color: '#888', textAlign: 'center' }}>Nenhum evento encontrado</div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Notifications */}
+            <div style={{ position: 'relative' }}>
+              <button onClick={() => setIsNotificationsOpen(!isNotificationsOpen)} style={{ background: 'transparent', border: 'none', color: '#888', cursor: 'pointer', position: 'relative' }}>
+                <Bell size={18} color={isNotificationsOpen ? '#FFF' : '#888'} />
+                {events.filter(e => e.hasAlert).length > 0 && <div style={{ position: 'absolute', top: 0, right: 0, width: 6, height: 6, background: 'var(--yellow)', borderRadius: '50%' }} />}
+              </button>
+              {isNotificationsOpen && (
+                <div style={{ position: 'absolute', top: '100%', right: -10, marginTop: 12, background: '#141414', border: '1px solid #1F1F1F', borderRadius: 12, width: 320, maxHeight: 400, overflowY: 'auto', zIndex: 100, boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }}>
+                  <div style={{ padding: '16px', borderBottom: '1px solid #1F1F1F', fontSize: 14, fontWeight: 600 }}>Alertas Ativos</div>
+                  {events.filter(e => e.hasAlert).slice(0, 5).map(ev => (
+                    <div key={ev.id} style={{ padding: 16, borderBottom: '1px solid #1F1F1F', display: 'flex', gap: 12 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--yellow)', marginTop: 4, flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#FFF' }}>{ev.summary}</div>
+                        <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>{new Date(ev.start.dateTime || ev.start.date).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</div>
+                      </div>
+                    </div>
+                  ))}
+                  {events.filter(e => e.hasAlert).length === 0 && (
+                    <div style={{ padding: 24, fontSize: 12, color: '#888', textAlign: 'center' }}>Nenhum alerta ativo</div>
+                  )}
+                </div>
+              )}
+            </div>
             {googleAccessToken ? (
               <button onClick={() => setIsModalOpen(true)} style={{ background: 'var(--yellow)', color: '#000', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
                 <Plus size={16} /> Novo evento
