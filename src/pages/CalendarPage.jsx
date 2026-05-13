@@ -66,7 +66,7 @@ export default function CalendarPage() {
           },
         }
       );
-      const fetched = (response.data.items || []).map(ev => ({ ...ev, hasAlert: false }));
+      const fetched = (response.data.items || []).map(ev => ({ ...ev, hasAlert: true }));
       setEvents(fetched);
     } catch (err) {
       if (err.response?.status === 401) {
