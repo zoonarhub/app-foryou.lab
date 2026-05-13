@@ -11,15 +11,25 @@ import {
   MapPin,
   Users,
   ExternalLink,
-  LogOut
+  LogOut, 
+  RefreshCw 
 } from 'lucide-react';
 import axios from 'axios';
+import { useGoogleLogin } from '@react-oauth/google';
 
 export default function CalendarPage() {
   const { addToast, googleAccessToken, saveGoogleToken } = useApp();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
+
+  const loginWithGoogle = useGoogleLogin({
+    onSuccess: tokenResponse => {
+      saveGoogleToken(tokenResponse.access_token);
+      addToast('Agenda sincronizada com sucesso!');
+    },
+    scope: 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events'
+  });
 
   useEffect(() => {
     if (googleAccessToken) {
@@ -89,10 +99,13 @@ export default function CalendarPage() {
             <p style={{ color: 'var(--text-secondary)', marginBottom: 32, lineHeight: 1.6 }}>
               Conecte sua conta do Google para visualizar e gerenciar seus compromissos diretamente pelo Foryou.lab.
             </p>
-            {/* O botão de login real é injetado pelo GoogleOAuthProvider no App.jsx */}
             <div id="google-login-button">
-               {/* O componente de login real deve ser usado aqui se não estiver global */}
-               <p style={{ fontSize: 13, opacity: 0.7 }}>Acesse a Central de Integrações para conectar sua conta.</p>
+              <button 
+                onClick={() => loginWithGoogle()}
+                style={{ background: '#4285F4', color: '#fff', border: 'none', padding: '14px 28px', borderRadius: 12, fontWeight: 800, fontSize: 16, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 10 }}
+              >
+                Conectar Conta do Google
+              </button>
             </div>
           </div>
         ) : (

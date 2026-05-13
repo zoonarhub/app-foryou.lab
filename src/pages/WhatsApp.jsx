@@ -61,21 +61,27 @@ export default function WhatsAppPage() {
 
   const fetchChats = async () => {
     setLoadingChats(true);
-    const endpoints = [`/chat/findChats/${instanceName}`, `/chat/fetchChats/${instanceName}`];
+    const methods = [
+      { m: 'post', u: `/chat/findChats/${instanceName}`, d: { where: {} } },
+      { m: 'get', u: `/chat/findChats/${instanceName}` },
+      { m: 'get', u: `/chat/fetchChats/${instanceName}` },
+    ];
     let found = false;
 
-    for (const ep of endpoints) {
+    for (const req of methods) {
       if (found) break;
       try {
-        const response = await axios.get(`${evolutionApiUrl}${ep}`, {
+        const response = await axios({
+          method: req.m,
+          url: `${evolutionApiUrl}${req.u}`,
+          data: req.d,
           headers: { 'apikey': evolutionApiKey }
         });
-        // Extração resiliente de dados
         const data = response.data?.records || response.data?.data || response.data || [];
         setChats(Array.isArray(data) ? data : []);
         found = true;
       } catch (e) {
-        console.error(`Falha no endpoint ${ep}`);
+        console.error(`Falha no endpoint ${req.u}`);
       }
     }
 
