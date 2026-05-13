@@ -18,6 +18,9 @@ export default function CalendarPage() {
   const [view, setView] = useState('month'); // day, week, month, year
   const [selectedDate, setSelectedDate] = useState(new Date());
 
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newEvent, setNewEvent] = useState({ title: '', date: '', startTime: '', endTime: '', description: '' });
+
   const loginWithGoogle = useGoogleLogin({
     onSuccess: tokenResponse => {
       saveGoogleToken(tokenResponse.access_token);
@@ -75,6 +78,39 @@ export default function CalendarPage() {
     addToast(isAlerting ? 'Alerta ativado para este evento!' : 'Alerta desativado.');
   };
 
+  const handleCreateEvent = async (e) => {
+    e.preventDefault();
+    if (!newEvent.title || !newEvent.date || !newEvent.startTime || !newEvent.endTime) {
+      return addToast('Preencha os campos obrigatórios', 'warning');
+    }
+    setLoading(true);
+    try {
+      const startDateTime = `${newEvent.date}T${newEvent.startTime}:00`;
+      const endDateTime = `${newEvent.date}T${newEvent.endTime}:00`;
+
+      await axios.post(
+        'https://www.googleapis.com/calendar/v3/calendars/primary/events',
+        {
+          summary: newEvent.title,
+          description: newEvent.description,
+          start: { dateTime: new Date(startDateTime).toISOString(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+          end: { dateTime: new Date(endDateTime).toISOString(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }
+        },
+        { headers: { Authorization: `Bearer ${googleAccessToken}` } }
+      );
+
+      addToast('Evento criado com sucesso no Google Agenda!');
+      setIsModalOpen(false);
+      setNewEvent({ title: '', date: '', startTime: '', endTime: '', description: '' });
+      fetchCalendarEvents(googleAccessToken);
+    } catch (err) {
+      console.error(err);
+      addToast('Erro ao criar evento.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Calendar Logic
   const getDaysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
   const getFirstDayOfMonth = (y, m) => new Date(y, m, 1).getDay();
@@ -115,7 +151,7 @@ export default function CalendarPage() {
               <LogOut size={16} />
             </button>
           )}
-          <button className="btn btn-primary"><Plus size={16} /> Novo Evento</button>
+          <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}><Plus size={16} /> Novo Evento</button>
         </div>
       </div>
 
@@ -299,6 +335,45 @@ export default function CalendarPage() {
           </div>
         )}
       </div>
+
+      {isModalOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div className="card" style={{ width: 450, padding: 32, borderRadius: 16 }}>
+            <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 24 }}>Criar Novo Evento</h3>
+            <form onSubmit={handleCreateEvent} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 8 }}>Título do Evento</label>
+                <input required type="text" value={newEvent.title} onChange={e => setNewEvent({...newEvent, title: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: '1px solid var(--card-border)', background: 'var(--bg-color)', color: 'var(--text-primary)', outline: 'none' }} placeholder="Ex: Reunião de Alinhamento" />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 8 }}>Data</label>
+                <input required type="date" value={newEvent.date} onChange={e => setNewEvent({...newEvent, date: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: '1px solid var(--card-border)', background: 'var(--bg-color)', color: 'var(--text-primary)', outline: 'none' }} />
+              </div>
+              <div style={{ display: 'flex', gap: 16 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 8 }}>Início</label>
+                  <input required type="time" value={newEvent.startTime} onChange={e => setNewEvent({...newEvent, startTime: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: '1px solid var(--card-border)', background: 'var(--bg-color)', color: 'var(--text-primary)', outline: 'none' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 8 }}>Fim</label>
+                  <input required type="time" value={newEvent.endTime} onChange={e => setNewEvent({...newEvent, endTime: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: '1px solid var(--card-border)', background: 'var(--bg-color)', color: 'var(--text-primary)', outline: 'none' }} />
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 8 }}>Descrição (opcional)</label>
+                <textarea rows="3" value={newEvent.description} onChange={e => setNewEvent({...newEvent, description: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: '1px solid var(--card-border)', background: 'var(--bg-color)', color: 'var(--text-primary)', outline: 'none', resize: 'none' }} placeholder="Detalhes da reunião..."></textarea>
+              </div>
+              <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)} style={{ flex: 1 }}>Cancelar</button>
+                <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={loading}>
+                  {loading ? 'Salvando...' : 'Criar Evento'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
+
   );
 }
