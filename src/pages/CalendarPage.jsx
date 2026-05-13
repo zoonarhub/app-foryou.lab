@@ -24,10 +24,11 @@ export default function CalendarPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newEvent, setNewEvent] = useState({ title: '', date: '', startTime: '', endTime: '', description: '' });
 
-  const [activeCalendars, setActiveCalendars] = useState(['Trabalho', 'Time de Marketing', 'Desenvolvimento', 'Reuniões', 'Pessoal']);
+  const [calendars, setCalendars] = useState([]);
+  const [activeCalendars, setActiveCalendars] = useState([]);
   
-  const toggleCalendar = (name) => {
-    setActiveCalendars(prev => prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]);
+  const toggleCalendar = (id) => {
+    setActiveCalendars(prev => prev.includes(id) ? prev.filter(n => n !== id) : [...prev, id]);
   };
 
   const upcomingEvents = events
@@ -53,29 +54,50 @@ export default function CalendarPage() {
   });
 
   useEffect(() => {
-    if (googleAccessToken) fetchCalendarEvents(googleAccessToken);
-  }, [googleAccessToken, selectedDate, view]);
+    if (googleAccessToken) {
+      fetchCalendars(googleAccessToken);
+    }
+  }, [googleAccessToken]);
 
-  const fetchCalendarEvents = async (token) => {
+  useEffect(() => {
+    if (googleAccessToken && activeCalendars.length > 0) {
+      fetchCalendarEvents(googleAccessToken, activeCalendars);
+    } else {
+      setEvents([]);
+    }
+  }, [googleAccessToken, selectedDate, view, activeCalendars]);
+
+  const fetchCalendars = async (token) => {
+    try {
+      const res = await axios.get('https://www.googleapis.com/calendar/v3/users/me/calendarList', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const cals = res.data.items || [];
+      setCalendars(cals);
+      setActiveCalendars(cals.map(c => c.id));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchCalendarEvents = async (token, activeIds) => {
     setLoading(true);
     try {
       const start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
       const end = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0);
       
-      const response = await axios.get(
-        'https://www.googleapis.com/calendar/v3/calendars/primary/events',
-        {
+      const promises = activeIds.map(calId => 
+        axios.get(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events`, {
           headers: { Authorization: `Bearer ${token}` },
-          params: {
-            timeMin: start.toISOString(),
-            timeMax: end.toISOString(),
-            maxResults: 100,
-            singleEvents: true,
-            orderBy: 'startTime',
-          },
-        }
+          params: { timeMin: start.toISOString(), timeMax: end.toISOString(), maxResults: 100, singleEvents: true, orderBy: 'startTime' }
+        }).then(res => {
+          const cal = calendars.find(c => c.id === calId);
+          return (res.data.items || []).map(ev => ({ ...ev, hasAlert: true, _calendarColor: cal?.backgroundColor || '#3B82F6' }));
+        }).catch(() => [])
       );
-      const fetched = (response.data.items || []).map(ev => ({ ...ev, hasAlert: true }));
+
+      const results = await Promise.all(promises);
+      const fetched = results.flat();
       setEvents(fetched);
     } catch (err) {
       if (err.response?.status === 401) {
@@ -234,6 +256,7 @@ export default function CalendarPage() {
               {Array.from({ length: getDaysInMonth(selectedDate.getFullYear(), selectedDate.getMonth()) }).map((_, i) => {
                 const day = i + 1;
                 const isToday = day === new Date().getDate() && selectedDate.getMonth() === new Date().getMonth();
+                const isSelected = day === selectedDate.getDate();
                 return (
                   <div key={day} onClick={() => {
                     const newDate = new Date(selectedDate);
@@ -242,9 +265,9 @@ export default function CalendarPage() {
                     setView('day'); // Desce para a visão do dia ao clicar no mini calendário
                   }} style={{ 
                     fontSize: 12, padding: '6px 0', borderRadius: '50%', cursor: 'pointer',
-                    background: isToday ? 'var(--yellow)' : 'transparent',
-                    color: isToday ? '#000' : '#CCC',
-                    fontWeight: isToday ? 700 : 400
+                    background: isSelected ? 'var(--yellow)' : 'transparent',
+                    color: isSelected ? '#000' : isToday ? '#FFF' : '#CCC',
+                    fontWeight: isSelected || isToday ? 700 : 400
                   }}>
                     {day}
                   </div>
@@ -259,24 +282,14 @@ export default function CalendarPage() {
               Meus calendários <Plus size={14} style={{ cursor: 'pointer' }} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {[
-                { name: 'Trabalho', color: '#F59E0B' },
-                { name: 'Time de Marketing', color: '#8B5CF6' },
-                { name: 'Desenvolvimento', color: '#3B82F6' },
-                { name: 'Reuniões', color: '#10B981' },
-                { name: 'Pessoal', color: '#EF4444' }
-              ].map(cal => (
-                <div key={cal.name} onClick={() => toggleCalendar(cal.name)} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: '#CCC', cursor: 'pointer' }}>
-                  <div style={{ width: 14, height: 14, borderRadius: 3, background: activeCalendars.includes(cal.name) ? cal.color : 'transparent', border: `1px solid ${cal.color}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {activeCalendars.includes(cal.name) && <CheckSquare size={10} color="#000" />}
+              {calendars.filter(c => c.accessRole === 'owner').map(cal => (
+                <div key={cal.id} onClick={() => toggleCalendar(cal.id)} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: '#CCC', cursor: 'pointer' }}>
+                  <div style={{ width: 14, height: 14, borderRadius: 3, background: activeCalendars.includes(cal.id) ? cal.backgroundColor : 'transparent', border: `1px solid ${cal.backgroundColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {activeCalendars.includes(cal.id) && <CheckSquare size={10} color="#000" />}
                   </div>
-                  {cal.name}
+                  {cal.summary}
                 </div>
               ))}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: '#888' }}>
-                <Square size={14} color="#555" />
-                Feriados
-              </div>
             </div>
           </div>
 
@@ -286,14 +299,14 @@ export default function CalendarPage() {
               Calendários compartilhados <Plus size={14} style={{ cursor: 'pointer' }} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: '#CCC' }}>
-                <div style={{ width: 14, height: 14, borderRadius: 3, background: '#F59E0B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CheckSquare size={10} color="#000" /></div>
-                Foryou Lab
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: '#CCC' }}>
-                <div style={{ width: 14, height: 14, borderRadius: 3, background: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CheckSquare size={10} color="#000" /></div>
-                Clientes
-              </div>
+              {calendars.filter(c => c.accessRole !== 'owner').map(cal => (
+                <div key={cal.id} onClick={() => toggleCalendar(cal.id)} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: '#CCC', cursor: 'pointer' }}>
+                  <div style={{ width: 14, height: 14, borderRadius: 3, background: activeCalendars.includes(cal.id) ? cal.backgroundColor : 'transparent', border: `1px solid ${cal.backgroundColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {activeCalendars.includes(cal.id) && <CheckSquare size={10} color="#000" />}
+                  </div>
+                  {cal.summary}
+                </div>
+              ))}
             </div>
           </div>
 
@@ -337,7 +350,7 @@ export default function CalendarPage() {
                               heightPx = (((ed.getTime() - sd.getTime()) / 1000) / 60 / 60) * 60;
                               topPx = (startHour * 60) + ((startMin / 60) * 60);
                             } else { topPx = 0; heightPx = 30; }
-                            const color = CALENDAR_COLORS[evIndex % CALENDAR_COLORS.length];
+                            const color = ev._calendarColor || CALENDAR_COLORS[evIndex % CALENDAR_COLORS.length];
                             return (
                               <div key={ev.id} onClick={() => toggleAlert(ev.id)} style={{ position: 'absolute', top: topPx, left: 2, right: 2, height: Math.max(heightPx - 2, 24), background: ev.hasAlert ? `${color}40` : `${color}20`, border: `1px solid ${color}40`, borderLeft: `3px solid ${color}`, borderRadius: 4, padding: '4px 6px', overflow: 'hidden', zIndex: 1, cursor: 'pointer', transition: 'all 0.2s' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}><div style={{ fontSize: 11, fontWeight: 600, color: '#FFF', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{ev.summary}</div>{ev.hasAlert && <BellRing size={12} color="#FFF" style={{ flexShrink: 0 }} />}</div>
@@ -379,7 +392,7 @@ export default function CalendarPage() {
                           heightPx = (((ed.getTime() - sd.getTime()) / 1000) / 60 / 60) * 60;
                           topPx = (startHour * 60) + ((startMin / 60) * 60);
                         } else { topPx = 0; heightPx = 30; }
-                        const color = CALENDAR_COLORS[evIndex % CALENDAR_COLORS.length];
+                        const color = ev._calendarColor || CALENDAR_COLORS[evIndex % CALENDAR_COLORS.length];
                         return (
                           <div key={ev.id} onClick={() => toggleAlert(ev.id)} style={{ position: 'absolute', top: topPx, left: 10, right: 10, height: Math.max(heightPx - 2, 24), background: ev.hasAlert ? `${color}40` : `${color}20`, border: `1px solid ${color}40`, borderLeft: `4px solid ${color}`, borderRadius: 6, padding: '8px 12px', overflow: 'hidden', zIndex: 1, cursor: 'pointer', transition: 'all 0.2s' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}><div style={{ fontSize: 14, fontWeight: 600, color: '#FFF' }}>{ev.summary}</div>{ev.hasAlert && <BellRing size={14} color="#FFF" style={{ flexShrink: 0 }} />}</div>
