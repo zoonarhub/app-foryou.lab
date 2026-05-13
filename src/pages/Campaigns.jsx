@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../data/store';
 import { 
   RefreshCw, DollarSign, Target, Users, MousePointer2, 
-  TrendingUp, Activity, Heart, Globe, Calendar, SlidersHorizontal, Download, Filter
+  TrendingUp, Activity, Heart, Globe, Calendar, SlidersHorizontal, Download, Filter, BarChart3
 } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 
