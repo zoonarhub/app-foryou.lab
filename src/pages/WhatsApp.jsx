@@ -3,7 +3,7 @@ import { useApp } from '../data/store';
 import { 
   Smartphone, AlertTriangle, QrCode, RefreshCw, Settings, CheckCircle, LogOut,
   Send, Search, User, Phone, Smile, Paperclip, MoreVertical, MessageSquare,
-  Circle, ShieldCheck, Home, Users, Hash, ArrowLeft, Plus, Filter, LayoutGrid, CheckSquare, SearchCode
+  Circle, ShieldCheck, Home, Users, Hash, ArrowLeft, Plus, Filter, LayoutGrid, CheckSquare, SearchCode, MoreHorizontal
 } from 'lucide-react';
 import Modal from '../components/Modal';
 import axios from 'axios';
