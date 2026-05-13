@@ -40,6 +40,10 @@ export default function CalendarPage() {
     .sort((a, b) => new Date(a.start.dateTime) - new Date(b.start.dateTime))
     .slice(0, 3);
 
+  const activeAlerts = events
+    .filter(e => e.hasAlert && new Date(e.start.dateTime || e.start.date) >= new Date())
+    .sort((a, b) => new Date(a.start.dateTime || a.start.date) - new Date(b.start.dateTime || b.start.date));
+
   let nextEventText = '';
   if (upcomingEvents.length > 0) {
     const diffMs = new Date(upcomingEvents[0].start.dateTime) - new Date();
@@ -255,13 +259,13 @@ export default function CalendarPage() {
             <div style={{ position: 'relative' }}>
               <button onClick={() => setIsNotificationsOpen(!isNotificationsOpen)} style={{ background: 'transparent', border: 'none', color: '#888', cursor: 'pointer', position: 'relative' }}>
                 <Bell size={18} color={isNotificationsOpen ? '#FFF' : '#888'} />
-                {events.filter(e => e.hasAlert).length > 0 && <div style={{ position: 'absolute', top: 0, right: 0, width: 6, height: 6, background: 'var(--yellow)', borderRadius: '50%' }} />}
+                {activeAlerts.length > 0 && <div style={{ position: 'absolute', top: 0, right: 0, width: 6, height: 6, background: 'var(--yellow)', borderRadius: '50%' }} />}
               </button>
               {isNotificationsOpen && (
                 <div style={{ position: 'absolute', top: '100%', right: -10, marginTop: 12, background: '#141414', border: '1px solid #1F1F1F', borderRadius: 12, width: 320, maxHeight: 400, overflowY: 'auto', zIndex: 100, boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }}>
                   <div style={{ padding: '16px', borderBottom: '1px solid #1F1F1F', fontSize: 14, fontWeight: 600 }}>Alertas Ativos</div>
-                  {events.filter(e => e.hasAlert).slice(0, 5).map(ev => (
-                    <div key={ev.id} style={{ padding: 16, borderBottom: '1px solid #1F1F1F', display: 'flex', gap: 12 }}>
+                  {activeAlerts.slice(0, 5).map(ev => (
+                    <div key={ev.id} onClick={() => toggleAlert(ev.id)} style={{ padding: 16, borderBottom: '1px solid #1F1F1F', display: 'flex', gap: 12, cursor: 'pointer', transition: '0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#1A1A1A'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                       <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--yellow)', marginTop: 4, flexShrink: 0 }} />
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: '#FFF' }}>{ev.summary}</div>
@@ -269,7 +273,7 @@ export default function CalendarPage() {
                       </div>
                     </div>
                   ))}
-                  {events.filter(e => e.hasAlert).length === 0 && (
+                  {activeAlerts.length === 0 && (
                     <div style={{ padding: 24, fontSize: 12, color: '#888', textAlign: 'center' }}>Nenhum alerta ativo</div>
                   )}
                 </div>
