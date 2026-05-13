@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../data/store';
 import { Plug, Check, X, Copy, ExternalLink, Key, RefreshCw } from 'lucide-react';
 import Modal from '../components/Modal';
+import { useGoogleLogin } from '@react-oauth/google';
 
 const integrationsList = [
   { id: 'whatsapp', name: 'WhatsApp', desc: 'Evolution API — mensagens e automação', icon: '💬', category: 'Comunicação', connectType: 'qrcode' },
@@ -14,7 +15,7 @@ const integrationsList = [
 ];
 
 export default function Integrations() {
-  const { addToast } = useApp();
+  const { addToast, googleAccessToken, saveGoogleToken } = useApp();
   const [connections, setConnections] = useState(() => {
     try { return JSON.parse(localStorage.getItem('foryoulab_integrations') || '{}'); } catch { return {}; }
   });
@@ -22,9 +23,66 @@ export default function Integrations() {
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [showLogs, setShowLogs] = useState(null);
 
-  const save = (c) => { setConnections(c); localStorage.setItem('foryoulab_integrations', JSON.stringify(c)); };
+  const [fbConnected, setFbConnected] = useState(() => !!localStorage.getItem('fb_ads_token'));
+
+  // Sync real status for Google & FB
+  useEffect(() => {
+    const newConn = { ...connections };
+    if (googleAccessToken) {
+      newConn.google_calendar = { status: 'connected', connectedAt: new Date().toISOString(), lastSync: new Date().toISOString() };
+    } else {
+      delete newConn.google_calendar;
+    }
+
+    if (fbConnected) {
+      newConn.facebook_ads = { status: 'connected', connectedAt: new Date().toISOString(), lastSync: new Date().toISOString() };
+    } else {
+      delete newConn.facebook_ads;
+    }
+    setConnections(newConn);
+    // Don't save this mapped status to localStorage so we always depend on the real tokens.
+  }, [googleAccessToken, fbConnected]);
+
+  const save = (c) => { 
+    setConnections(c); 
+    localStorage.setItem('foryoulab_integrations', JSON.stringify(c)); 
+  };
+
+  const loginWithGoogle = useGoogleLogin({
+    onSuccess: tokenResponse => {
+      saveGoogleToken(tokenResponse.access_token);
+      addToast('Google Calendar conectado com sucesso!');
+    },
+    scope: 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events'
+  });
+
+  const handleFBLogin = () => {
+    if (!window.FB) return addToast('SDK do Facebook não carregado. Desative o AdBlock.', 'error');
+    window.FB.login((response) => {
+      if (response.authResponse) {
+        const token = response.authResponse.accessToken;
+        localStorage.setItem('fb_ads_token', token);
+        setFbConnected(true);
+        addToast('Meta Ads conectado com sucesso!');
+      } else {
+        addToast('Login do Facebook cancelado.', 'warning');
+      }
+    }, { 
+      scope: 'ads_management,ads_read,business_management,pages_read_engagement,pages_show_list',
+      auth_type: 'rerequest' 
+    });
+  };
 
   const connect = (id, type) => {
+    if (id === 'google_calendar') {
+      loginWithGoogle();
+      return;
+    }
+    if (id === 'facebook_ads') {
+      handleFBLogin();
+      return;
+    }
+
     if (type === 'oauth') {
       addToast(`Redirecionando para autenticação ${integrationsList.find(i => i.id === id)?.name}...`, 'info');
       setTimeout(() => {
@@ -48,6 +106,18 @@ export default function Integrations() {
   };
 
   const disconnect = (id) => {
+    if (id === 'google_calendar') {
+      saveGoogleToken(null);
+      addToast('Google Calendar desconectado.', 'warning');
+      return;
+    }
+    if (id === 'facebook_ads') {
+      localStorage.removeItem('fb_ads_token');
+      setFbConnected(false);
+      addToast('Facebook Ads desconectado.', 'warning');
+      return;
+    }
+
     const c = { ...connections }; delete c[id]; save(c);
     addToast('Desconectado!', 'warning');
   };
