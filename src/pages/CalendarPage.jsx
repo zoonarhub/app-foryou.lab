@@ -23,6 +23,18 @@ export default function CalendarPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newEvent, setNewEvent] = useState({ title: '', date: '', startTime: '', endTime: '', description: '' });
 
+  const [activeCalendars, setActiveCalendars] = useState(['Trabalho', 'Time de Marketing', 'Desenvolvimento', 'Reuniões', 'Pessoal']);
+  
+  const toggleCalendar = (name) => {
+    setActiveCalendars(prev => prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]);
+  };
+
+  // Compute Upcoming Events dynamically
+  const upcomingEvents = events
+    .filter(ev => ev.start.dateTime && new Date(ev.start.dateTime) >= new Date())
+    .sort((a, b) => new Date(a.start.dateTime) - new Date(b.start.dateTime))
+    .slice(0, 3);
+
   const loginWithGoogle = useGoogleLogin({
     onSuccess: tokenResponse => {
       saveGoogleToken(tokenResponse.access_token);
@@ -161,8 +173,8 @@ export default function CalendarPage() {
 
           {/* Actions */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <button style={{ background: 'transparent', border: 'none', color: '#888', cursor: 'pointer' }}><Search size={18} /></button>
-            <button style={{ background: 'transparent', border: 'none', color: '#888', cursor: 'pointer', position: 'relative' }}>
+            <button onClick={() => addToast('Busca global em desenvolvimento...', 'warning')} style={{ background: 'transparent', border: 'none', color: '#888', cursor: 'pointer' }}><Search size={18} /></button>
+            <button onClick={() => addToast('Painel de Alertas em desenvolvimento...', 'warning')} style={{ background: 'transparent', border: 'none', color: '#888', cursor: 'pointer', position: 'relative' }}>
               <Bell size={18} />
               <div style={{ position: 'absolute', top: 0, right: 0, width: 6, height: 6, background: 'var(--yellow)', borderRadius: '50%' }} />
             </button>
@@ -203,7 +215,11 @@ export default function CalendarPage() {
                 const day = i + 1;
                 const isToday = day === new Date().getDate() && selectedDate.getMonth() === new Date().getMonth();
                 return (
-                  <div key={day} style={{ 
+                  <div key={day} onClick={() => {
+                    const newDate = new Date(selectedDate);
+                    newDate.setDate(day);
+                    setSelectedDate(newDate);
+                  }} style={{ 
                     fontSize: 12, padding: '6px 0', borderRadius: '50%', cursor: 'pointer',
                     background: isToday ? 'var(--yellow)' : 'transparent',
                     color: isToday ? '#000' : '#CCC',
@@ -229,9 +245,9 @@ export default function CalendarPage() {
                 { name: 'Reuniões', color: '#10B981' },
                 { name: 'Pessoal', color: '#EF4444' }
               ].map(cal => (
-                <div key={cal.name} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: '#CCC' }}>
-                  <div style={{ width: 14, height: 14, borderRadius: 3, background: cal.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <CheckSquare size={10} color="#000" />
+                <div key={cal.name} onClick={() => toggleCalendar(cal.name)} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: '#CCC', cursor: 'pointer' }}>
+                  <div style={{ width: 14, height: 14, borderRadius: 3, background: activeCalendars.includes(cal.name) ? cal.color : 'transparent', border: `1px solid ${cal.color}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {activeCalendars.includes(cal.name) && <CheckSquare size={10} color="#000" />}
                   </div>
                   {cal.name}
                 </div>
@@ -374,24 +390,36 @@ export default function CalendarPage() {
               <div style={{ fontSize: 11, color: '#888' }}>em 45 min</div>
             </div>
             
-            {events.slice(0,1).map(ev => (
-              <div key="next" style={{ background: '#141414', border: '1px solid #1F1F1F', borderRadius: 8, padding: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#3B82F6' }} />
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#FFF' }}>{ev.summary || "Reunião de alinhamento"}</div>
+            {upcomingEvents.length === 0 ? (
+              <div style={{ fontSize: 12, color: '#666', textAlign: 'center', padding: '20px 0' }}>Sem próximos eventos</div>
+            ) : upcomingEvents.map((ev, index) => {
+              const start = new Date(ev.start.dateTime);
+              const end = new Date(ev.end.dateTime);
+              return (
+                <div key={ev.id} style={{ background: '#141414', border: '1px solid #1F1F1F', borderRadius: 8, padding: 16, marginBottom: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: CALENDAR_COLORS[index % CALENDAR_COLORS.length] }} />
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#FFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.summary}</div>
+                  </div>
+                  <div style={{ fontSize: 12, color: '#888', display: 'flex', flexDirection: 'column', gap: 6, paddingLeft: 16 }}>
+                    <div>
+                      {start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                    </div>
+                    {(ev.location || ev.hangoutLink) && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <MapPin size={12}/> {ev.location || 'Reunião Remota'}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div style={{ fontSize: 12, color: '#888', display: 'flex', flexDirection: 'column', gap: 6, paddingLeft: 16 }}>
-                  <div>09:45 - 10:30 AM</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><MapPin size={12}/> Sala Foryou Lab</div>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
 
           {/* Share Availability */}
           <div>
             <div style={{ fontSize: 13, fontWeight: 600, color: '#FFF', marginBottom: 12 }}>Compartilhar disponibilidade</div>
-            <button style={{ width: '100%', background: '#141414', border: '1px solid #1F1F1F', color: '#CCC', padding: '10px', borderRadius: 8, fontSize: 13, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
+            <button onClick={() => addToast('Link de agendamento copiado!', 'success')} style={{ width: '100%', background: '#141414', border: '1px solid #1F1F1F', color: '#CCC', padding: '10px', borderRadius: 8, fontSize: 13, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
               Compartilhar agenda <span style={{ background: '#222', padding: '2px 6px', borderRadius: 4, fontSize: 10 }}>S</span>
             </button>
           </div>
