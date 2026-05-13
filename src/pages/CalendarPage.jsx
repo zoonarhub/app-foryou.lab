@@ -163,6 +163,12 @@ export default function CalendarPage() {
     setSelectedDate(newDate);
   };
 
+  const changeMonth = (amount) => {
+    const newDate = new Date(selectedDate);
+    newDate.setMonth(newDate.getMonth() + amount);
+    setSelectedDate(newDate);
+  };
+
   const getDaysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
   const getFirstDayOfMonth = (y, m) => new Date(y, m, 1).getDay();
 
@@ -244,8 +250,8 @@ export default function CalendarPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div style={{ fontSize: 14, fontWeight: 600 }}>{MONTHS[selectedDate.getMonth()]} {selectedDate.getFullYear()}</div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <ChevronLeft size={14} color="#888" style={{ cursor: 'pointer' }} onClick={() => changeDate(-1)} />
-                <ChevronRight size={14} color="#888" style={{ cursor: 'pointer' }} onClick={() => changeDate(1)} />
+                <ChevronLeft size={14} color="#888" style={{ cursor: 'pointer' }} onClick={() => changeMonth(-1)} />
+                <ChevronRight size={14} color="#888" style={{ cursor: 'pointer' }} onClick={() => changeMonth(1)} />
               </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, textAlign: 'center' }}>
