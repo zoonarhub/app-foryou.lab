@@ -322,12 +322,149 @@ export default function CalendarPage() {
                 </div>
               )}
 
-              {/* WEEK & YEAR PLACEHOLDERS */}
-              {(view === 'week' || view === 'year') && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: 40, opacity: 0.5 }}>
-                  <CalendarIcon size={64} style={{ marginBottom: 16 }} />
-                  <h3>Visão {view === 'week' ? 'Semanal' : 'Anual'} em Sincronização</h3>
-                  <p>Módulo de visualização expandida sendo carregado com a Graph API.</p>
+              {/* WEEK VIEW */}
+              {view === 'week' && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', height: '100%', overflowY: 'auto' }}>
+                  {Array.from({ length: 7 }).map((_, i) => {
+                    // Calculate date for each day of the week (starting from Sunday)
+                    const startOfWeek = new Date(selectedDate);
+                    startOfWeek.setDate(selectedDate.getDate() - selectedDate.getDay() + i);
+                    const dayEvents = events.filter(e => {
+                      const eDate = new Date(e.start.dateTime || e.start.date).toDateString();
+                      return eDate === startOfWeek.toDateString();
+                    });
+                    const isToday = new Date().toDateString() === startOfWeek.toDateString();
+
+                    return (
+                      <div key={i} style={{ borderRight: i < 6 ? '1px solid var(--card-border)' : 'none', display: 'flex', flexDirection: 'column', minHeight: 600 }}>
+                        <div style={{ 
+                          padding: '12px 8px', 
+                          textAlign: 'center', 
+                          background: isToday ? 'rgba(255, 214, 0, 0.1)' : 'transparent',
+                          borderBottom: '1px solid var(--card-border)'
+                        }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: isToday ? 'var(--yellow)' : 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 4 }}>
+                            {DAYS_OF_WEEK[i]}
+                          </div>
+                          <div style={{ 
+                            fontSize: 18, 
+                            fontWeight: 800, 
+                            color: isToday ? 'var(--yellow)' : 'var(--text-primary)',
+                            display: 'inline-flex',
+                            width: 32, height: 32,
+                            alignItems: 'center', justifyContent: 'center',
+                            borderRadius: '50%',
+                            background: isToday ? 'var(--yellow)' : 'transparent',
+                            color: isToday ? '#000' : 'var(--text-primary)'
+                          }}>
+                            {startOfWeek.getDate()}
+                          </div>
+                        </div>
+                        <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 8, flex: 1, background: 'var(--card-bg)' }}>
+                          {dayEvents.map(ev => (
+                            <div 
+                              key={ev.id} 
+                              onClick={() => {
+                                setSelectedDate(startOfWeek);
+                                setView('day');
+                              }}
+                              style={{ 
+                                padding: '8px 10px', 
+                                background: 'rgba(255, 214, 0, 0.05)', 
+                                borderLeft: '3px solid var(--yellow)', 
+                                borderRadius: 4,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--yellow)', marginBottom: 2 }}>
+                                {new Date(ev.start.dateTime || ev.start.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                              <div style={{ fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {ev.summary}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* YEAR VIEW */}
+              {view === 'year' && (
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(4, 1fr)', 
+                  gap: 24, 
+                  padding: 32, 
+                  height: '100%', 
+                  overflowY: 'auto',
+                  background: 'var(--bg-color)'
+                }}>
+                  {MONTHS.map((month, mIndex) => {
+                    const firstDay = new Date(selectedDate.getFullYear(), mIndex, 1).getDay();
+                    const days = new Date(selectedDate.getFullYear(), mIndex + 1, 0).getDate();
+                    const isCurrentMonth = new Date().getMonth() === mIndex && new Date().getFullYear() === selectedDate.getFullYear();
+
+                    return (
+                      <div 
+                        key={month} 
+                        onClick={() => {
+                          const newDate = new Date(selectedDate);
+                          newDate.setMonth(mIndex);
+                          setSelectedDate(newDate);
+                          setView('month');
+                        }}
+                        style={{ 
+                          background: 'var(--card-bg)', 
+                          borderRadius: 12, 
+                          padding: 16, 
+                          cursor: 'pointer',
+                          border: isCurrentMonth ? '1px solid var(--yellow)' : '1px solid var(--card-border)',
+                          transition: 'transform 0.2s',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+                        onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                      >
+                        <h4 style={{ 
+                          fontSize: 14, 
+                          fontWeight: 800, 
+                          marginBottom: 12, 
+                          color: isCurrentMonth ? 'var(--yellow)' : 'var(--text-primary)',
+                          textAlign: 'center'
+                        }}>
+                          {month}
+                        </h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
+                          {DAYS_OF_WEEK.map(d => (
+                            <div key={d} style={{ fontSize: 8, fontWeight: 700, color: 'var(--text-muted)', textAlign: 'center', marginBottom: 4 }}>
+                              {d[0]}
+                            </div>
+                          ))}
+                          {Array.from({ length: firstDay }).map((_, i) => <div key={i} />)}
+                          {Array.from({ length: days }).map((_, i) => {
+                            const day = i + 1;
+                            const isToday = isCurrentMonth && new Date().getDate() === day;
+                            return (
+                              <div key={day} style={{ 
+                                fontSize: 9, 
+                                textAlign: 'center', 
+                                padding: '2px 0',
+                                borderRadius: '50%',
+                                background: isToday ? 'var(--yellow)' : 'transparent',
+                                color: isToday ? '#000' : 'var(--text-secondary)',
+                                fontWeight: isToday ? 800 : 400
+                              }}>
+                                {day}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
