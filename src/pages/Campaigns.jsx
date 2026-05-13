@@ -5,6 +5,7 @@ import {
   TrendingUp, Activity, Heart, Globe, Calendar, SlidersHorizontal, Download, Filter, BarChart3
 } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import axios from 'axios';
 
 // --- MOCK DATA PARA DEMONSTRAÇÃO DO LAYOUT CRIATIVIVO ---
 const mockKPIs = {
@@ -37,6 +38,49 @@ export default function Campaigns() {
   const [activeMetrics, setActiveMetrics] = useState(['investimento', 'alcance']);
   const [selectedCampaigns, setSelectedCampaigns] = useState(['1', '2']);
   const [view, setView] = useState('performance'); // performance | funnel
+  const [fbConnected, setFbConnected] = useState(() => !!localStorage.getItem('fb_ads_token'));
+  const [syncing, setSyncing] = useState(false);
+  const [adAccounts, setAdAccounts] = useState([]);
+  const [activeAccount, setActiveAccount] = useState(null);
+
+  const fetchAdAccounts = async (token) => {
+    setSyncing(true);
+    try {
+      const response = await axios.get(`https://graph.facebook.com/v18.0/me/adaccounts`, {
+        params: { access_token: token, fields: 'name,account_id,account_status,amount_spent,currency' }
+      });
+      const accounts = response.data.data.map(acc => ({
+        id: acc.id, name: acc.name, status: acc.account_status === 1 ? 'active' : 'paused',
+        spend: parseFloat(acc.amount_spent || 0) / 100
+      }));
+      setAdAccounts(accounts);
+      if (accounts.length > 0) setActiveAccount(accounts[0]);
+    } catch (err) {
+      addToast('Erro ao carregar contas do Facebook', 'error');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleFBLogin = () => {
+    if (!window.FB) return addToast('SDK do Facebook não carregado', 'error');
+    window.FB.login((response) => {
+      if (response.authResponse) {
+        const token = response.authResponse.accessToken;
+        localStorage.setItem('fb_ads_token', token);
+        setFbConnected(true);
+        fetchAdAccounts(token);
+        addToast('Conectado ao Meta Ads com sucesso!');
+      } else {
+        addToast('Login cancelado ou não autorizado', 'warning');
+      }
+    }, { scope: 'ads_management,ads_read,business_management' });
+  };
+
+  useEffect(() => {
+    const token = localStorage.getItem('fb_ads_token');
+    if (token) fetchAdAccounts(token);
+  }, []);
 
   const toggleMetric = (metric) => {
     setActiveMetrics(prev => 
@@ -67,19 +111,48 @@ export default function Campaigns() {
           </div>
           <div>
             <h2 style={{ fontSize: 20 }}>Meta Ads</h2>
-            <div className="breadcrumb" style={{ fontSize: 12 }}>Criativivo Testes (Principal)</div>
+            {fbConnected && activeAccount ? (
+              <select 
+                value={activeAccount.id} 
+                onChange={e => setActiveAccount(adAccounts.find(a => a.id === e.target.value))}
+                style={{ fontSize: 12, background: 'transparent', border: 'none', color: 'var(--text-secondary)', outline: 'none', cursor: 'pointer', padding: 0 }}
+              >
+                {adAccounts.map(act => <option key={act.id} value={act.id}>{act.name} ({act.id})</option>)}
+              </select>
+            ) : (
+              <div className="breadcrumb" style={{ fontSize: 12 }}>Criativivo Testes (Principal)</div>
+            )}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 12 }}>
-          <button className="btn btn-secondary btn-sm"><Download size={14} /> Baixar PDF da visão geral</button>
+          {fbConnected && (
+            <button className="btn btn-secondary btn-sm" onClick={() => fetchAdAccounts(localStorage.getItem('fb_ads_token'))} disabled={syncing}>
+              <RefreshCw size={14} className={syncing ? 'spin' : ''} /> {syncing ? 'Sincronizando...' : 'Atualizar Dados'}
+            </button>
+          )}
+          <button className="btn btn-secondary btn-sm"><Download size={14} /> Baixar PDF</button>
           <button className="btn btn-secondary btn-sm"><Calendar size={14} /> 11/08/2026 - 17/08/2026</button>
-          <button className="btn btn-secondary btn-sm"><SlidersHorizontal size={14} /> Organizar</button>
         </div>
       </div>
 
       <div className="page-body" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
         
-        {/* KPI GRID (Criativivo Style) */}
+        {!fbConnected ? (
+          <div className="card" style={{ padding: 60, textAlign: 'center', maxWidth: 500, margin: '40px auto' }}>
+            <div style={{ width: 80, height: 80, background: 'rgba(24, 119, 242, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
+              <Globe size={40} color="#1877F2" />
+            </div>
+            <h3 style={{ fontSize: 24, fontWeight: 800, marginBottom: 12 }}>Conecte seu Meta Ads</h3>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: 32, fontSize: 14, lineHeight: 1.6 }}>
+              Faça login com sua conta Business para acessar o painel de performance avançado, gráficos interativos e funis de conversão de todas as suas contas.
+            </p>
+            <button className="btn btn-primary" onClick={handleFBLogin} style={{ background: '#1877F2', borderColor: '#1877F2', padding: '14px 40px', fontSize: 16 }}>
+              <Globe size={18} /> Login com Facebook Business
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* KPI GRID (Criativivo Style) */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16 }}>
           {[
             { title: 'Investimento', value: fmtBRL(mockKPIs.spend), icon: DollarSign, color: '#3B82F6' },
@@ -217,6 +290,8 @@ export default function Campaigns() {
           </div>
 
         </div>
+        </>
+        )}
       </div>
     </>
   );
