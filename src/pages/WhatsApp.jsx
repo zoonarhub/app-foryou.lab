@@ -63,17 +63,22 @@ export default function WhatsAppPage() {
     if (!newInstanceName.trim()) return addToast('Nome obrigatório', 'error');
     setLoading(true);
     try {
+      // Evolution API breaks if instance names have spaces or special characters
+      const formattedName = newInstanceName.trim().replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
+      
       await axios.post(`${evolutionApiUrl}/instance/create`, {
-        instanceName: newInstanceName,
+        instanceName: formattedName,
         qrcode: true,
         integration: "WHATSAPP-BAILEYS"
       }, { headers: { 'apikey': evolutionApiKey } });
+      
       addToast('Workspace criado com sucesso!');
       setShowCreateModal(false);
       setNewInstanceName('');
       fetchInstances();
     } catch (e) {
-      addToast('Erro ao criar workspace', 'error');
+      const errorMsg = e.response?.data?.message || e.response?.data?.error || e.message;
+      addToast(`Erro ao criar: ${errorMsg}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -157,7 +162,7 @@ export default function WhatsAppPage() {
   };
 
   return (
-    <div style={{ display: 'flex', height: 'calc(100vh - 60px)', margin: -24, background: 'var(--bg-dark)', color: 'var(--text-primary)', fontFamily: 'Inter, sans-serif' }}>
+    <div style={{ display: 'flex', height: 'calc(100vh - 120px)', margin: -20, background: 'var(--bg-dark)', color: 'var(--text-primary)', fontFamily: 'Inter, sans-serif', borderRadius: 16, overflow: 'hidden' }}>
       
       {activeTab !== 'workspaces' && (
         <div style={{ width: 240, borderRight: '1px solid var(--card-border)', background: 'var(--card-bg)', padding: '24px 16px', display: 'flex', flexDirection: 'column' }}>
