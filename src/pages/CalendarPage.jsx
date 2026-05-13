@@ -30,11 +30,19 @@ export default function CalendarPage() {
     setActiveCalendars(prev => prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]);
   };
 
-  // Compute Upcoming Events dynamically
   const upcomingEvents = events
     .filter(ev => ev.start.dateTime && new Date(ev.start.dateTime) >= new Date())
     .sort((a, b) => new Date(a.start.dateTime) - new Date(b.start.dateTime))
     .slice(0, 3);
+
+  let nextEventText = '';
+  if (upcomingEvents.length > 0) {
+    const diffMs = new Date(upcomingEvents[0].start.dateTime) - new Date();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 60) nextEventText = `em ${diffMins} min`;
+    else if (diffMins < 1440) nextEventText = `em ${Math.floor(diffMins/60)}h ${diffMins%60}m`;
+    else nextEventText = `em ${Math.floor(diffMins/1440)} dias`;
+  }
 
   const loginWithGoogle = useGoogleLogin({
     onSuccess: tokenResponse => {
@@ -432,13 +440,13 @@ export default function CalendarPage() {
         </div>
 
         {/* RIGHT SIDEBAR */}
-        <div style={{ width: 280, borderLeft: '1px solid #1F1F1F', padding: 24, display: 'flex', flexDirection: 'column', gap: 32 }}>
+        <div style={{ width: 280, borderLeft: '1px solid #1F1F1F', padding: 24, display: 'flex', flexDirection: 'column', gap: 32, overflowY: 'auto' }}>
           
           {/* Upcoming */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: '#FFF' }}>Próximos</div>
-              <div style={{ fontSize: 11, color: '#888' }}>em 45 min</div>
+              <div style={{ fontSize: 11, color: '#888' }}>{nextEventText}</div>
             </div>
             
             {upcomingEvents.length === 0 ? (
@@ -454,6 +462,9 @@ export default function CalendarPage() {
                   </div>
                   <div style={{ fontSize: 12, color: '#888', display: 'flex', flexDirection: 'column', gap: 6, paddingLeft: 16 }}>
                     <div>
+                      {start.toDateString() === new Date().toDateString() ? '' : (
+                        start.toDateString() === new Date(new Date().setDate(new Date().getDate()+1)).toDateString() ? 'Amanhã • ' : `${start.getDate().toString().padStart(2, '0')}/${(start.getMonth()+1).toString().padStart(2, '0')} • `
+                      )}
                       {start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - {end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
                     </div>
                     {(ev.location || ev.hangoutLink) && (
