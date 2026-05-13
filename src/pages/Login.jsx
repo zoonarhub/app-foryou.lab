@@ -40,8 +40,7 @@ export default function Login() {
         <div style={{ marginBottom: 28, textAlign: 'center' }}>
           <img src="/logo.png" alt="foryou.lab" style={{ 
             height: 64, 
-            filter: theme === 'dark' ? 'invert(1)' : 'none', 
-            mixBlendMode: theme === 'dark' ? 'screen' : 'multiply', 
+            filter: theme === 'dark' ? 'brightness(0) invert(1) contrast(200%)' : 'none', 
             objectFit: 'contain',
             marginLeft: '-12px'
           }} />

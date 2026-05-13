@@ -46,8 +46,8 @@ function PageLoader() {
 function AuthGuard() {
   const { auth, loadingData } = useApp();
 
-  if (!auth) return <Login />;
   if (loadingData) return <PageLoader />;
+  if (!auth) return <Login />;
 
   return (
     <div className="app-layout">
