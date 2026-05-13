@@ -49,7 +49,14 @@ export default function Campaigns() {
       setAdAccounts(accounts);
       if (accounts.length > 0) setActiveAccount(accounts[0]);
     } catch (err) {
-      addToast('Erro ao carregar contas do Facebook', 'error');
+      console.error('Meta API Error:', err.response?.data || err.message);
+      if (err.response?.status === 401) {
+        localStorage.removeItem('fb_ads_token');
+        setFbConnected(false);
+        addToast('Sessão expirada. Faça login novamente.', 'warning');
+      } else {
+        addToast('Erro ao carregar contas do Facebook', 'error');
+      }
     } finally {
       setSyncing(false);
     }
@@ -162,10 +169,14 @@ export default function Campaigns() {
         localStorage.setItem('fb_ads_token', token);
         setFbConnected(true);
         fetchAdAccounts(token);
+        addToast('Conectado ao Meta Ads!');
       } else {
         addToast('Login cancelado ou não autorizado', 'warning');
       }
-    }, { scope: 'ads_management,ads_read,business_management' });
+    }, { 
+      scope: 'ads_management,ads_read,business_management,pages_read_engagement,pages_show_list',
+      auth_type: 'rerequest' 
+    });
   };
 
   useEffect(() => {
