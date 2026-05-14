@@ -5,11 +5,12 @@ import {
   DollarSign, BarChart3, ChevronDown, CheckCircle, AlertTriangle, AlertCircle,
   Eye, EyeOff, Pin, StickyNote, Play, Pause, XCircle, Settings, Award, ArrowRight,
   MousePointer2, Plus, RefreshCw, BarChart, Activity, Edit2, Save, X, ToggleLeft, ToggleRight,
-  Link, Smartphone, Monitor
+  Link, Smartphone, Monitor, Download
 } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart as RechartsBarChart, Bar, Cell } from 'recharts';
 import axios from 'axios';
 import Modal from '../components/Modal';
+import { useGoogleLogin } from '@react-oauth/google';
 
 // ==========================================
 // UTILS & HELPERS
@@ -44,6 +45,7 @@ export default function CampaignsPage() {
   const [adAccounts, setAdAccounts] = useState([]);
   const [activeAccount, setActiveAccount] = useState(null);
   const [datePreset, setDatePreset] = useState('last_30d');
+  const [googleConnected, setGoogleConnected] = useState(() => !!localStorage.getItem('google_ads_token'));
   
   // Real Data
   const [realKPIs, setRealKPIs] = useState(null);
@@ -172,6 +174,16 @@ export default function CampaignsPage() {
     }, { scope: 'ads_management,ads_read,business_management', auth_type: 'rerequest' });
   };
 
+  const handleGoogleLogin = useGoogleLogin({
+    onSuccess: tokenResponse => {
+      localStorage.setItem('google_ads_token', tokenResponse.access_token);
+      setGoogleConnected(true);
+      addToast('Conectado ao Google Ads com sucesso!');
+    },
+    onError: () => addToast('Erro ao conectar com Google Ads', 'error'),
+    scope: 'https://www.googleapis.com/auth/adwords'
+  });
+
   // OPERATIONAL FUNCTIONS
   const updateCampaignLocally = (id, updates) => {
     setRealCampaigns(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
@@ -240,6 +252,7 @@ export default function CampaignsPage() {
           { id: 'meta', icon: Target, label: 'Meta Ads' },
           { id: 'google', icon: Search, label: 'Google Ads' },
           { id: 'utm', icon: MousePointer2, label: 'UTM & Vendas' },
+          { id: 'relatorios', icon: Activity, label: 'Relatórios' },
         ].map(tab => (
           <div 
             key={tab.id} onClick={() => setActiveMainTab(tab.id)}
@@ -257,13 +270,15 @@ export default function CampaignsPage() {
 
       {/* 3. CONTEÚDO */}
       <div style={{ flex: 1, overflowY: 'auto', padding: 24, paddingBottom: 60 }}>
-        {!fbConnected ? (
+        {!fbConnected && activeMainTab !== 'google' && activeMainTab !== 'relatorios' ? (
           <EmptyState handleFBLogin={handleFBLogin} />
         ) : (
           <>
             {activeMainTab === 'dashboard' && <DashboardTab kpis={realKPIs} chartData={realChartData} campaigns={realCampaigns} />}
             {activeMainTab === 'meta' && <MetaAdsTab activeMetaTab={activeMetaTab} setActiveMetaTab={setActiveMetaTab} campaigns={realCampaigns} onToggleStatus={handleToggleStatus} onUpdateBudget={handleUpdateBudget} onSaveNote={handleSaveNote} />}
             {activeMainTab === 'utm' && <UtmSalesTab />}
+            {activeMainTab === 'google' && <GoogleAdsTab connected={googleConnected} handleLogin={handleGoogleLogin} />}
+            {activeMainTab === 'relatorios' && <ReportGeneratorTab campaigns={realCampaigns} />}
           </>
         )}
       </div>
@@ -637,6 +652,96 @@ function UtmSalesTab() {
             ))}
           </tbody>
         </table>
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// GOOGLE ADS TAB
+// ==========================================
+function GoogleAdsTab({ connected, handleLogin }) {
+  if (!connected) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center' }}>
+        <div style={{ width: 80, height: 80, background: 'rgba(255, 214, 0, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+          <Search size={40} color={COLORS.yellow} />
+        </div>
+        <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 12 }}>Conecte seu Google Ads</h2>
+        <p style={{ color: COLORS.textMuted, maxWidth: 400, marginBottom: 32, lineHeight: 1.6 }}>Para integrar e gerenciar suas campanhas de Pesquisa, YouTube e Display.</p>
+        <button onClick={() => handleLogin()} style={{ background: '#FFF', color: '#000', border: 'none', borderRadius: 8, padding: '12px 24px', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="G" style={{ width: 18 }} />
+          Conectar Google Ads
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div style={{ padding: 40, textAlign: 'center', color: COLORS.textMuted, background: COLORS.cardBg, borderRadius: 12, border: `1px solid ${COLORS.cardBorder}` }}>
+      <h2 style={{ fontSize: 20, color: '#FFF' }}>Google Ads Conectado ✅</h2>
+      <p style={{ marginTop: 16 }}>O extrator de dados da API do Google está em sincronização com o motor do Foryou.Lab.</p>
+    </div>
+  );
+}
+
+// ==========================================
+// REPORT GENERATOR TAB (DashGoo / Reportei killer)
+// ==========================================
+function ReportGeneratorTab({ campaigns }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 24, height: '100%' }}>
+      {/* Configuration Panel */}
+      <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, padding: 24 }}>
+        <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 8 }}><Activity size={20} color={COLORS.yellow} /> Gerador de Relatório</h3>
+        
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ fontSize: 12, color: COLORS.textMuted, fontWeight: 600, marginBottom: 8, display: 'block' }}>PERÍODO DE ANÁLISE</label>
+          <select style={{ width: '100%', background: COLORS.bgDark, border: `1px solid ${COLORS.cardBorder}`, color: '#FFF', padding: '12px', borderRadius: 8, outline: 'none' }}>
+            <option>Últimos 30 Dias</option>
+            <option>Últimos 7 Dias</option>
+            <option>Mês Atual</option>
+          </select>
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ fontSize: 12, color: COLORS.textMuted, fontWeight: 600, marginBottom: 8, display: 'block' }}>FONTES DE DADOS</label>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}><input type="checkbox" defaultChecked /> Meta Ads</label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}><input type="checkbox" defaultChecked /> Google Ads</label>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 24 }}>
+          <label style={{ fontSize: 12, color: COLORS.textMuted, fontWeight: 600, marginBottom: 8, display: 'block' }}>CAMPANHAS SELECIONADAS ({campaigns.length})</label>
+          <div style={{ maxHeight: 200, overflowY: 'auto', background: COLORS.bgDark, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 8, padding: 8 }}>
+            {campaigns.map(c => (
+              <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, padding: '6px 4px', borderBottom: `1px solid ${COLORS.cardBorder}` }}>
+                <input type="checkbox" defaultChecked /> {c.name}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <button style={{ width: '100%', background: COLORS.yellow, color: '#000', border: 'none', padding: 12, borderRadius: 8, fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer' }}>
+          <Activity size={18} /> Gerar Dashboard Dinâmico
+        </button>
+      </div>
+
+      {/* Preview Panel */}
+      <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, padding: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+        <div style={{ position: 'absolute', top: 24, right: 24 }}>
+          <button style={{ background: 'transparent', border: `1px solid ${COLORS.cardBorder}`, color: '#FFF', padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <Download size={14} /> Exportar PDF Client-Ready
+          </button>
+        </div>
+        
+        <div style={{ width: 80, height: 80, background: 'rgba(34, 197, 94, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+          <Activity size={40} color={COLORS.green} />
+        </div>
+        <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 12 }}>Visualização do Relatório</h2>
+        <p style={{ color: COLORS.textMuted, maxWidth: 400, textAlign: 'center', lineHeight: 1.6 }}>
+          Configure os parâmetros ao lado para gerar o relatório consolidado. O documento incluirá o Funil de Vendas, Gráficos de Tendência e as Notas Rápidas de otimização em formato executivo.
+        </p>
       </div>
     </div>
   );
