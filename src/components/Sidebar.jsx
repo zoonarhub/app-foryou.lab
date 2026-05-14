@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, UserPlus, Handshake, FlaskConical,
   ClipboardList, FileText, DollarSign, BarChart3, MessageCircle,
   Megaphone, Calendar, UserCog, Bot, Plug, Settings, Crown,
-  ChevronLeft, ChevronRight, TrendingUp, ClipboardCheck, AlertTriangle, Stethoscope, Box, MessageSquare, Target
+  ChevronLeft, ChevronRight, TrendingUp, ClipboardCheck, AlertTriangle, Stethoscope, Box, MessageSquare, Target, Activity
 } from 'lucide-react';
 import { useState } from 'react';
 import { useApp } from '../data/store';
