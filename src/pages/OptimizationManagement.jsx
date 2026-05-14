@@ -3,9 +3,10 @@ import { useApp } from '../data/store';
 import { 
   Activity, Clock, CheckCircle, AlertCircle, Plus, Search, 
   History, Calendar, StickyNote, ChevronRight, LayoutDashboard,
-  Filter, ArrowRight, Check, X
+  Filter, ArrowRight, Check, X, Megaphone, Smartphone
 } from 'lucide-react';
 import Modal from '../components/Modal';
+import { supabase } from '../lib/supabase';
 
 const COLORS = {
   yellow: '#FFD600', green: '#22C55E', red: '#EF4444',
@@ -14,55 +15,125 @@ const COLORS = {
 };
 
 export default function OptimizationManagement() {
-  const { addToast } = useApp();
-  const [optimizations, setOptimizations] = useState(() => {
-    const saved = localStorage.getItem('foryou_optimization_data');
-    return saved ? JSON.parse(saved) : {};
-  });
+  const { addToast, user } = useApp();
+  const [trackings, setTrackings] = useState([]);
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedCampaign, setSelectedCampaign] = useState(null);
-  const [comment, setComment] = useState('');
+  // Modais
+  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+  const [isOptModalOpen, setIsOptModalOpen] = useState(false);
+  
+  // States de Formulário
+  const [newTracking, setNewTracking] = useState({ name: '', platform: 'meta' });
+  const [selectedTracking, setSelectedTracking] = useState(null);
+  const [optComment, setOptComment] = useState('');
   const [search, setSearch] = useState('');
 
-  // Mock de campanhas para demonstração (em produção, viria da API/Store)
-  const [campaigns] = useState([
-    { id: '1', name: 'Performance Max - E-commerce Junho', created: '2024-05-10', status: 'active' },
-    { id: '2', name: 'Meta Ads - LAL Leads 1%', created: '2024-04-15', status: 'active' },
-    { id: '3', name: 'Youtube Ads - Branding Institucional', created: '2024-05-01', status: 'active' },
-    { id: '4', name: 'Search - Palavras Chave Fundo de Funil', created: '2024-05-05', status: 'active' }
-  ]);
-
   useEffect(() => {
-    localStorage.setItem('foryou_optimization_data', JSON.stringify(optimizations));
-  }, [optimizations]);
+    if (user) {
+      fetchData();
+    }
+  }, [user]);
 
-  const handleRegisterOptimization = () => {
-    if (!comment.trim()) return addToast('Descreva o que foi feito!', 'warning');
-    
-    const now = new Date().toISOString();
-    setOptimizations(prev => ({
-      ...prev,
-      [selectedCampaign.id]: {
-        lastOpt: now,
-        history: [{ date: now, comment }, ...(prev[selectedCampaign.id]?.history || [])]
-      }
-    }));
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // Carregar campanhas monitoradas
+      const { data: tData, error: tError } = await supabase
+        .from('campaign_trackings')
+        .select('*')
+        .order('last_optimized_at', { ascending: false });
 
-    addToast('Otimização registrada!');
-    setIsModalOpen(false);
-    setComment('');
+      if (tError) throw tError;
+      setTrackings(tData || []);
+
+      // Carregar últimos logs de otimização
+      const { data: lData, error: lError } = await supabase
+        .from('optimization_logs')
+        .select('*, campaign_trackings(name)')
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (lError) throw lError;
+      setLogs(lData || []);
+    } catch (err) {
+      console.error(err);
+      addToast('Erro ao carregar dados do banco.', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const getStatus = (id) => {
-    const data = optimizations[id];
-    if (!data) return { label: 'Pendente', color: COLORS.yellow, overdue: true, days: '∞' };
-    const diff = Math.floor((new Date() - new Date(data.lastOpt)) / (1000 * 60 * 60 * 24));
+  const handleCreateTracking = async () => {
+    if (!newTracking.name.trim()) return addToast('Nome é obrigatório!', 'warning');
+    
+    try {
+      const { data, error } = await supabase
+        .from('campaign_trackings')
+        .insert([{
+          name: newTracking.name,
+          platform: newTracking.platform,
+          user_id: user.id,
+          status: 'active',
+          last_optimized_at: new Date().toISOString()
+        }])
+        .select();
+
+      if (error) throw error;
+      
+      addToast('Campanha cadastrada para monitoramento!');
+      setIsRegisterModalOpen(false);
+      setNewTracking({ name: '', platform: 'meta' });
+      fetchData();
+    } catch (err) {
+      addToast('Erro ao cadastrar.', 'error');
+    }
+  };
+
+  const handleSaveOptimization = async () => {
+    if (!optComment.trim()) return addToast('Descreva a otimização!', 'warning');
+    
+    try {
+      const now = new Date().toISOString();
+      
+      // 1. Inserir Log
+      const { error: lError } = await supabase
+        .from('optimization_logs')
+        .insert([{
+          tracking_id: selectedTracking.id,
+          comment: optComment,
+          user_id: user.id,
+          created_at: now
+        }]);
+
+      if (lError) throw lError;
+
+      // 2. Atualizar Data de Otimização na Campanha
+      const { error: tError } = await supabase
+        .from('campaign_trackings')
+        .update({ last_optimized_at: now })
+        .eq('id', selectedTracking.id);
+
+      if (tError) throw tError;
+
+      addToast('Otimização salva com sucesso!');
+      setIsOptModalOpen(false);
+      setOptComment('');
+      fetchData();
+    } catch (err) {
+      addToast('Erro ao salvar log.', 'error');
+    }
+  };
+
+  const getStatus = (item) => {
+    const diff = Math.floor((new Date() - new Date(item.last_optimized_at)) / (1000 * 60 * 60 * 24));
     if (diff >= 7) return { label: 'Atrasado', color: COLORS.red, overdue: true, days: diff };
+    if (diff >= 4) return { label: 'Atenção', color: COLORS.yellow, overdue: false, days: diff };
     return { label: 'Em dia', color: COLORS.green, overdue: false, days: diff };
   };
 
-  const filteredCampaigns = campaigns.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
+  const filteredTrackings = trackings.filter(t => t.name.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div style={{ padding: 32, background: COLORS.bgDark, minHeight: '100%', color: COLORS.text, fontFamily: 'Inter, sans-serif' }}>
@@ -73,61 +144,66 @@ export default function OptimizationManagement() {
           <h1 style={{ fontSize: 28, fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
             <Activity color={COLORS.yellow} size={32} /> Gestão de Otimizações
           </h1>
-          <p style={{ color: COLORS.textMuted, marginTop: 4 }}>Controle de ciclos e histórico de melhorias em campanhas.</p>
+          <p style={{ color: COLORS.textMuted, marginTop: 4 }}>Controle de ciclos e histórico de melhorias.</p>
         </div>
         
-        <div style={{ display: 'flex', alignItems: 'center', background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, padding: '8px 16px', width: 300 }}>
-          <Search size={18} color={COLORS.textMuted} style={{ marginRight: 12 }} />
-          <input 
-            type="text" placeholder="Filtrar campanhas..." 
-            value={search} onChange={e => setSearch(e.target.value)}
-            style={{ background: 'transparent', border: 'none', color: '#FFF', outline: 'none', width: '100%' }} 
-          />
+        <div style={{ display: 'flex', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, padding: '8px 16px', width: 260 }}>
+            <Search size={18} color={COLORS.textMuted} style={{ marginRight: 12 }} />
+            <input 
+              type="text" placeholder="Buscar..." 
+              value={search} onChange={e => setSearch(e.target.value)}
+              style={{ background: 'transparent', border: 'none', color: '#FFF', outline: 'none', width: '100%' }} 
+            />
+          </div>
+          <button 
+            onClick={() => setIsRegisterModalOpen(true)}
+            style={{ background: COLORS.yellow, color: '#000', border: 'none', borderRadius: 12, padding: '0 24px', fontWeight: 800, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
+          >
+            <Plus size={18} /> Cadastrar Novo
+          </button>
         </div>
       </div>
 
-      {/* DASHBOARD MINI CARDS */}
+      {/* STATS */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
-        <StatCard label="Total de Campanhas" value={campaigns.length} icon={LayoutDashboard} />
-        <StatCard label="Em Dia" value={campaigns.filter(c => !getStatus(c.id).overdue).length} icon={CheckCircle} color={COLORS.green} />
-        <StatCard label="Atrasadas" value={campaigns.filter(c => getStatus(c.id).overdue).length} icon={AlertCircle} color={COLORS.red} />
-        <StatCard label="Otimizações (30d)" value={Object.values(optimizations).reduce((acc, curr) => acc + curr.history.length, 0)} icon={History} />
+        <StatCard label="Monitorando" value={trackings.length} icon={LayoutDashboard} />
+        <StatCard label="Em Dia" value={trackings.filter(t => !getStatus(t).overdue).length} icon={CheckCircle} color={COLORS.green} />
+        <StatCard label="Atrasadas" value={trackings.filter(t => getStatus(t).overdue).length} icon={AlertCircle} color={COLORS.red} />
+        <StatCard label="Total Logs" value={logs.length} icon={History} />
       </div>
 
-      {/* CAMPAIGN LIST */}
+      {/* TABLE */}
       <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 16, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
           <thead>
             <tr style={{ background: '#1a1a1a', borderBottom: `1px solid ${COLORS.cardBorder}` }}>
-              <th style={{ padding: '16px 24px', fontSize: 12, fontWeight: 700, color: COLORS.textMuted }}>CAMPANHA</th>
-              <th style={{ padding: '16px 24px', fontSize: 12, fontWeight: 700, color: COLORS.textMuted }}>DATA CRIAÇÃO</th>
-              <th style={{ padding: '16px 24px', fontSize: 12, fontWeight: 700, color: COLORS.textMuted }}>ÚLTIMA OTIMIZAÇÃO</th>
-              <th style={{ padding: '16px 24px', fontSize: 12, fontWeight: 700, color: COLORS.textMuted }}>PRÓXIMA (PREVISTA)</th>
-              <th style={{ padding: '16px 24px', fontSize: 12, fontWeight: 700, color: COLORS.textMuted }}>STATUS</th>
-              <th style={{ padding: '16px 24px', fontSize: 12, fontWeight: 700, color: COLORS.textMuted }}>AÇÃO</th>
+              <th style={{ padding: '16px 24px', fontSize: 12, color: COLORS.textMuted }}>CONTA / CAMPANHA</th>
+              <th style={{ padding: '16px 24px', fontSize: 12, color: COLORS.textMuted }}>PLATAFORMA</th>
+              <th style={{ padding: '16px 24px', fontSize: 12, color: COLORS.textMuted }}>ÚLTIMA OTIMIZAÇÃO</th>
+              <th style={{ padding: '16px 24px', fontSize: 12, color: COLORS.textMuted }}>STATUS</th>
+              <th style={{ padding: '16px 24px', fontSize: 12, color: COLORS.textMuted }}>AÇÃO</th>
             </tr>
           </thead>
           <tbody>
-            {filteredCampaigns.map(c => {
-              const status = getStatus(c.id);
-              const opt = optimizations[c.id];
-              const nextDate = opt ? new Date(new Date(opt.lastOpt).getTime() + 7 * 24 * 60 * 60 * 1000) : new Date();
-              
+            {loading ? (
+               <tr><td colSpan="5" style={{ padding: 40, textAlign: 'center', color: COLORS.textMuted }}>Carregando dados reais...</td></tr>
+            ) : filteredTrackings.map(t => {
+              const status = getStatus(t);
               return (
-                <tr key={c.id} style={{ borderBottom: `1px solid ${COLORS.cardBorder}`, transition: '0.2s' }}>
+                <tr key={t.id} style={{ borderBottom: `1px solid ${COLORS.cardBorder}`, transition: '0.2s' }}>
                   <td style={{ padding: '20px 24px' }}>
-                    <div style={{ fontWeight: 700, fontSize: 14 }}>{c.name}</div>
-                    <div style={{ fontSize: 11, color: COLORS.textMuted }}>ID: {c.id}</div>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>{t.name}</div>
+                    <div style={{ fontSize: 11, color: COLORS.textMuted }}>Monitorado desde {new Date(t.created_at).toLocaleDateString()}</div>
                   </td>
-                  <td style={{ padding: '20px 24px', fontSize: 13 }}>{new Date(c.created).toLocaleDateString()}</td>
-                  <td style={{ padding: '20px 24px', fontSize: 13 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Clock size={14} color={COLORS.textMuted} />
-                      {opt ? new Date(opt.lastOpt).toLocaleDateString() : 'Pendente'}
+                  <td style={{ padding: '20px 24px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, textTransform: 'capitalize' }}>
+                      {t.platform === 'meta' ? <Megaphone size={14} color="#1877F2"/> : <Search size={14} color="#4285F4"/>}
+                      {t.platform}
                     </div>
                   </td>
-                  <td style={{ padding: '20px 24px', fontSize: 13, color: status.overdue ? COLORS.red : COLORS.text }}>
-                    {nextDate.toLocaleDateString()}
+                  <td style={{ padding: '20px 24px', fontSize: 13 }}>
+                    {new Date(t.last_optimized_at).toLocaleDateString()}
                   </td>
                   <td style={{ padding: '20px 24px' }}>
                     <div style={{ 
@@ -135,20 +211,15 @@ export default function OptimizationManagement() {
                       borderRadius: 20, fontSize: 11, fontWeight: 800,
                       background: `${status.color}15`, color: status.color, border: `1px solid ${status.color}30`
                     }}>
-                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: status.color }} />
-                      {status.label.toUpperCase()}
+                      {status.label.toUpperCase()} ({status.days}d)
                     </div>
                   </td>
                   <td style={{ padding: '20px 24px' }}>
                     <button 
-                      onClick={() => { setSelectedCampaign(c); setIsModalOpen(true); }}
-                      style={{ 
-                        background: COLORS.yellow, color: '#000', border: 'none', borderRadius: 8, 
-                        padding: '8px 16px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', gap: 6
-                      }}
+                      onClick={() => { setSelectedTracking(t); setIsOptModalOpen(true); }}
+                      style={{ background: COLORS.yellow, color: '#000', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
                     >
-                      Otimizar <ArrowRight size={14} />
+                      Otimizar Agora
                     </button>
                   </td>
                 </tr>
@@ -158,51 +229,53 @@ export default function OptimizationManagement() {
         </table>
       </div>
 
-      {/* OPTIMIZATION MODAL */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`Nova Otimização: ${selectedCampaign?.name}`}>
+      {/* REGISTER MODAL */}
+      <Modal isOpen={isRegisterModalOpen} onClose={() => setIsRegisterModalOpen(false)} title="Monitorar Nova Campanha">
         <div style={{ padding: 24 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#1a1a1a', padding: 16, borderRadius: 12, marginBottom: 24, border: `1px solid ${COLORS.cardBorder}` }}>
-            <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,214,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <StickyNote color={COLORS.yellow} size={20} />
-            </div>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 700 }}>O que foi alterado?</div>
-              <div style={{ fontSize: 12, color: COLORS.textMuted }}>Registre o histórico para consulta futura.</div>
-            </div>
-          </div>
-
-          <textarea 
-            rows={6} value={comment} onChange={e => setComment(e.target.value)}
-            placeholder="Ex: Pausamos criativos saturados, ajustamos lance manual no conjunto X e testamos novo público de interesse..."
-            style={{ 
-              width: '100%', background: '#0a0a0a', border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12,
-              padding: 16, color: '#FFF', fontSize: 14, outline: 'none', marginBottom: 24, resize: 'none'
-            }}
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Nome da Conta / Campanha</label>
+          <input 
+            type="text" value={newTracking.name} onChange={e => setNewTracking({...newTracking, name: e.target.value})}
+            placeholder="Ex: Cliente X - Performance Max"
+            style={{ width: '100%', background: '#0a0a0a', border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, padding: 16, color: '#FFF', marginBottom: 20 }}
           />
-
-          <div style={{ display: 'flex', gap: 12 }}>
-            <button onClick={() => setIsModalOpen(false)} style={{ flex: 1, background: '#222', color: '#FFF', border: 'none', borderRadius: 8, padding: 14, fontWeight: 700, cursor: 'pointer' }}>Cancelar</button>
-            <button onClick={handleRegisterOptimization} style={{ flex: 2, background: COLORS.yellow, color: '#000', border: 'none', borderRadius: 8, padding: 14, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-              <Check size={18} /> Salvar Otimização
-            </button>
-          </div>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Plataforma</label>
+          <select 
+            value={newTracking.platform} onChange={e => setNewTracking({...newTracking, platform: e.target.value})}
+            style={{ width: '100%', background: '#0a0a0a', border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, padding: 16, color: '#FFF', marginBottom: 24 }}
+          >
+            <option value="meta">Meta Ads</option>
+            <option value="google">Google Ads</option>
+            <option value="tiktok">TikTok Ads</option>
+          </select>
+          <button onClick={handleCreateTracking} style={{ width: '100%', background: COLORS.yellow, color: '#000', border: 'none', borderRadius: 8, padding: 14, fontWeight: 800, cursor: 'pointer' }}>Cadastrar para Ciclo de 7 Dias</button>
         </div>
       </Modal>
 
-      {/* HISTORY (OPCIONAL) */}
+      {/* OPTIMIZATION MODAL */}
+      <Modal isOpen={isOptModalOpen} onClose={() => setIsOptModalOpen(false)} title={`Registrar Otimização: ${selectedTracking?.name}`}>
+        <div style={{ padding: 24 }}>
+          <textarea 
+            rows={6} value={optComment} onChange={e => setOptComment(e.target.value)}
+            placeholder="Descreva as alterações feitas (públicos, lances, novos criativos...)"
+            style={{ width: '100%', background: '#0a0a0a', border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, padding: 16, color: '#FFF', fontSize: 14, outline: 'none', marginBottom: 24 }}
+          />
+          <button onClick={handleSaveOptimization} style={{ width: '100%', background: COLORS.yellow, color: '#000', border: 'none', borderRadius: 8, padding: 14, fontWeight: 800, cursor: 'pointer' }}>Salvar no Histórico</button>
+        </div>
+      </Modal>
+
+      {/* RECENT LOGS */}
       <div style={{ marginTop: 40 }}>
-        <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 20 }}>Histórico Recente</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-          {Object.entries(optimizations).slice(0, 3).map(([id, data]) => {
-            const camp = campaigns.find(c => c.id === id);
-            return (
-              <div key={id} style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, padding: 20 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.yellow, marginBottom: 8 }}>{camp?.name}</div>
-                <div style={{ fontSize: 13, lineHeight: 1.5, color: COLORS.textMuted }}>"{data.history[0].comment}"</div>
-                <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 12 }}>{new Date(data.history[0].date).toLocaleString()}</div>
+        <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 20 }}>Últimas Atividades de Otimização</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
+          {logs.map(log => (
+            <div key={log.id} style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, padding: 20 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.yellow, marginBottom: 8 }}>{log.campaign_trackings?.name}</div>
+              <div style={{ fontSize: 13, color: COLORS.textMuted, lineHeight: 1.5 }}>"{log.comment}"</div>
+              <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Clock size={12}/> {new Date(log.created_at).toLocaleString()}
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       </div>
 
