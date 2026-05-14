@@ -5,7 +5,7 @@ import {
   DollarSign, BarChart3, ChevronDown, CheckCircle, AlertTriangle, AlertCircle,
   Eye, EyeOff, Pin, StickyNote, Play, Pause, XCircle, Settings, Award, ArrowRight,
   MousePointer2, Plus, RefreshCw, BarChart, Activity, Edit2, Save, X, ToggleLeft, ToggleRight,
-  Link, Smartphone, Monitor, Download
+  Link, Smartphone, Monitor, Download, Bell
 } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart as RechartsBarChart, Bar, Cell } from 'recharts';
 import axios from 'axios';
@@ -252,6 +252,7 @@ export default function CampaignsPage() {
           { id: 'meta', icon: Target, label: 'Meta Ads' },
           { id: 'google', icon: Search, label: 'Google Ads' },
           { id: 'utm', icon: MousePointer2, label: 'UTM & Vendas' },
+          { id: 'alertas', icon: Bell, label: 'Alertas' },
           { id: 'relatorios', icon: Activity, label: 'Relatórios' },
         ].map(tab => (
           <div 
@@ -278,6 +279,7 @@ export default function CampaignsPage() {
             {activeMainTab === 'meta' && <MetaAdsTab activeMetaTab={activeMetaTab} setActiveMetaTab={setActiveMetaTab} campaigns={realCampaigns} onToggleStatus={handleToggleStatus} onUpdateBudget={handleUpdateBudget} onSaveNote={handleSaveNote} />}
             {activeMainTab === 'utm' && <UtmSalesTab />}
             {activeMainTab === 'google' && <GoogleAdsTab connected={googleConnected} handleLogin={handleGoogleLogin} />}
+            {activeMainTab === 'alertas' && <AlertsTab campaigns={realCampaigns} />}
             {activeMainTab === 'relatorios' && <ReportGeneratorTab campaigns={realCampaigns} />}
           </>
         )}
@@ -658,28 +660,47 @@ function UtmSalesTab() {
 }
 
 // ==========================================
-// GOOGLE ADS TAB
+// ALERTS TAB (Intelligence Hub)
 // ==========================================
-function GoogleAdsTab({ connected, handleLogin }) {
-  if (!connected) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center' }}>
-        <div style={{ width: 80, height: 80, background: 'rgba(255, 214, 0, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
-          <Search size={40} color={COLORS.yellow} />
-        </div>
-        <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 12 }}>Conecte seu Google Ads</h2>
-        <p style={{ color: COLORS.textMuted, maxWidth: 400, marginBottom: 32, lineHeight: 1.6 }}>Para integrar e gerenciar suas campanhas de Pesquisa, YouTube e Display.</p>
-        <button onClick={() => handleLogin()} style={{ background: '#FFF', color: '#000', border: 'none', borderRadius: 8, padding: '12px 24px', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-          <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="G" style={{ width: 18 }} />
-          Conectar Google Ads
-        </button>
-      </div>
-    );
-  }
+function AlertsTab({ campaigns }) {
+  const alerts = useMemo(() => {
+    const list = [];
+    campaigns.forEach(c => {
+      if (c.status === 'ativo') {
+        if (c.roas > 0 && c.roas < 1.5) list.push({ id: `roas-${c.id}`, type: 'warning', title: 'ROAS Baixo Detectado', message: `A campanha "${c.name}" está com ROAS de ${c.roas.toFixed(2)}x (Meta: 2.0x). Considere otimizar criativos.`, icon: AlertTriangle });
+        if (c.cpl > 25) list.push({ id: `cpl-${c.id}`, type: 'error', title: 'CPL Acima do Limite', message: `O custo por lead em "${c.name}" subiu para ${fmtBRL(c.cpl)}. Risco de queima de orçamento.`, icon: AlertCircle });
+        if (c.spend > c.budget * 0.9) list.push({ id: `budget-${c.id}`, type: 'info', title: 'Orçamento Próximo ao Limite', message: `"${c.name}" já consumiu 90% do orçamento diário.`, icon: DollarSign });
+      }
+    });
+    return list;
+  }, [campaigns]);
+
   return (
-    <div style={{ padding: 40, textAlign: 'center', color: COLORS.textMuted, background: COLORS.cardBg, borderRadius: 12, border: `1px solid ${COLORS.cardBorder}` }}>
-      <h2 style={{ fontSize: 20, color: '#FFF' }}>Google Ads Conectado ✅</h2>
-      <p style={{ marginTop: 16 }}>O extrator de dados da API do Google está em sincronização com o motor do Foryou.Lab.</p>
+    <div style={{ maxWidth: 800, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ marginBottom: 8 }}>
+        <h3 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 4px 0' }}>Alertas de Performance</h3>
+        <p style={{ fontSize: 13, color: COLORS.textMuted }}>Detecção automática de anomalias baseada em metas de ROAS e CPL.</p>
+      </div>
+
+      {alerts.length === 0 ? (
+        <div style={{ padding: 40, textAlign: 'center', background: COLORS.cardBg, borderRadius: 12, border: `1px solid ${COLORS.cardBorder}`, color: COLORS.textMuted }}>
+          <CheckCircle size={32} color={COLORS.green} style={{ marginBottom: 16 }} />
+          <div>Nenhum alerta crítico detectado no momento. Sua conta está saudável!</div>
+        </div>
+      ) : (
+        alerts.map(alert => (
+          <div key={alert.id} style={{ background: COLORS.cardBg, border: `1px solid ${alert.type === 'error' ? COLORS.red : alert.type === 'warning' ? COLORS.yellow : COLORS.cardBorder}`, borderRadius: 12, padding: 20, display: 'flex', gap: 20, alignItems: 'center' }}>
+            <div style={{ width: 48, height: 48, background: alert.type === 'error' ? 'rgba(239, 68, 68, 0.1)' : alert.type === 'warning' ? 'rgba(255, 214, 0, 0.1)' : 'rgba(255,255,255,0.05)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <alert.icon size={24} color={alert.type === 'error' ? COLORS.red : alert.type === 'warning' ? COLORS.yellow : COLORS.textMuted} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, color: alert.type === 'error' ? COLORS.red : alert.type === 'warning' ? COLORS.yellow : '#FFF' }}>{alert.title}</div>
+              <div style={{ fontSize: 13, color: COLORS.textMuted, lineHeight: 1.5 }}>{alert.message}</div>
+            </div>
+            <button style={{ background: COLORS.bgDark, border: `1px solid ${COLORS.cardBorder}`, color: '#FFF', padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Otimizar Agora</button>
+          </div>
+        ))
+      )}
     </div>
   );
 }
@@ -688,6 +709,28 @@ function GoogleAdsTab({ connected, handleLogin }) {
 // REPORT GENERATOR TAB (DashGoo / Reportei killer)
 // ==========================================
 function ReportGeneratorTab({ campaigns }) {
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [reportData, setReportData] = useState(null);
+
+  const handleGenerate = () => {
+    setIsGenerating(true);
+    setTimeout(() => {
+      const totals = campaigns.reduce((acc, c) => ({
+        spend: acc.spend + c.spend,
+        results: acc.results + c.results,
+        revenue: acc.revenue + c.revenue
+      }), { spend: 0, results: 0, revenue: 0 });
+      
+      setReportData({
+        ...totals,
+        roas: totals.spend > 0 ? totals.revenue / totals.spend : 0,
+        count: campaigns.length,
+        period: 'Últimos 30 dias'
+      });
+      setIsGenerating(false);
+    }, 1500);
+  };
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 24, height: '100%' }}>
       {/* Configuration Panel */}
@@ -705,43 +748,89 @@ function ReportGeneratorTab({ campaigns }) {
 
         <div style={{ marginBottom: 20 }}>
           <label style={{ fontSize: 12, color: COLORS.textMuted, fontWeight: 600, marginBottom: 8, display: 'block' }}>FONTES DE DADOS</label>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}><input type="checkbox" defaultChecked /> Meta Ads</label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}><input type="checkbox" defaultChecked /> Google Ads</label>
+          <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}><input type="checkbox" defaultChecked /> Meta Ads</label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}><input type="checkbox" defaultChecked /> Google Ads</label>
           </div>
         </div>
 
         <div style={{ marginBottom: 24 }}>
-          <label style={{ fontSize: 12, color: COLORS.textMuted, fontWeight: 600, marginBottom: 8, display: 'block' }}>CAMPANHAS SELECIONADAS ({campaigns.length})</label>
+          <label style={{ fontSize: 12, color: COLORS.textMuted, fontWeight: 600, marginBottom: 8, display: 'block' }}>SELECIONAR CAMPANHAS ({campaigns.length})</label>
           <div style={{ maxHeight: 200, overflowY: 'auto', background: COLORS.bgDark, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 8, padding: 8 }}>
             {campaigns.map(c => (
-              <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, padding: '6px 4px', borderBottom: `1px solid ${COLORS.cardBorder}` }}>
+              <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, padding: '6px 4px', borderBottom: `1px solid ${COLORS.cardBorder}`, cursor: 'pointer' }}>
                 <input type="checkbox" defaultChecked /> {c.name}
               </label>
             ))}
           </div>
         </div>
 
-        <button style={{ width: '100%', background: COLORS.yellow, color: '#000', border: 'none', padding: 12, borderRadius: 8, fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer' }}>
-          <Activity size={18} /> Gerar Dashboard Dinâmico
+        <button 
+          onClick={handleGenerate}
+          disabled={isGenerating}
+          style={{ width: '100%', background: COLORS.yellow, color: '#000', border: 'none', padding: 12, borderRadius: 8, fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: isGenerating ? 'not-allowed' : 'pointer', opacity: isGenerating ? 0.7 : 1 }}
+        >
+          {isGenerating ? <RefreshCw size={18} className="spin" /> : <Activity size={18} />} 
+          {isGenerating ? 'Processando Dados...' : 'Gerar Dashboard Dinâmico'}
         </button>
       </div>
 
       {/* Preview Panel */}
-      <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, padding: 40, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-        <div style={{ position: 'absolute', top: 24, right: 24 }}>
-          <button style={{ background: 'transparent', border: `1px solid ${COLORS.cardBorder}`, color: '#FFF', padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-            <Download size={14} /> Exportar PDF Client-Ready
-          </button>
-        </div>
-        
-        <div style={{ width: 80, height: 80, background: 'rgba(34, 197, 94, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
-          <Activity size={40} color={COLORS.green} />
-        </div>
-        <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 12 }}>Visualização do Relatório</h2>
-        <p style={{ color: COLORS.textMuted, maxWidth: 400, textAlign: 'center', lineHeight: 1.6 }}>
-          Configure os parâmetros ao lado para gerar o relatório consolidado. O documento incluirá o Funil de Vendas, Gráficos de Tendência e as Notas Rápidas de otimização em formato executivo.
-        </p>
+      <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, padding: reportData ? 24 : 40, display: 'flex', flexDirection: 'column', alignItems: reportData ? 'flex-start' : 'center', justifyContent: reportData ? 'flex-start' : 'center', position: 'relative', overflowY: 'auto' }}>
+        {reportData && (
+          <div style={{ position: 'absolute', top: 24, right: 24 }}>
+            <button style={{ background: COLORS.yellow, border: 'none', color: '#000', padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <Download size={14} /> Exportar PDF
+            </button>
+          </div>
+        )}
+
+        {!reportData ? (
+          <>
+            <div style={{ width: 80, height: 80, background: 'rgba(34, 197, 94, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+              <Activity size={40} color={COLORS.green} />
+            </div>
+            <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 12 }}>Visualização do Relatório</h2>
+            <p style={{ color: COLORS.textMuted, maxWidth: 400, textAlign: 'center', lineHeight: 1.6 }}>
+              Configure os parâmetros ao lado para gerar o relatório consolidado. O documento incluirá o Funil de Vendas, Gráficos de Tendência e as Notas Rápidas de otimização.
+            </p>
+          </>
+        ) : (
+          <div style={{ width: '100%' }}>
+            <div style={{ borderBottom: `1px solid ${COLORS.cardBorder}`, paddingBottom: 20, marginBottom: 24, width: '100%' }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: COLORS.yellow, letterSpacing: 1, marginBottom: 4 }}>RELATÓRIO CONSOLIDADO</div>
+              <h2 style={{ fontSize: 24, fontWeight: 800, margin: 0 }}>Performance Geral de Tráfego</h2>
+              <div style={{ fontSize: 13, color: COLORS.textMuted, marginTop: 4 }}>{reportData.period} • {reportData.count} Campanhas Analisadas</div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 32, width: '100%' }}>
+              <div style={{ background: COLORS.bgDark, padding: 20, borderRadius: 12, border: `1px solid ${COLORS.cardBorder}` }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.textMuted, marginBottom: 8 }}>INVESTIMENTO</div>
+                <div style={{ fontSize: 20, fontWeight: 800 }}>{fmtBRL(reportData.spend)}</div>
+              </div>
+              <div style={{ background: COLORS.bgDark, padding: 20, borderRadius: 12, border: `1px solid ${COLORS.cardBorder}` }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.textMuted, marginBottom: 8 }}>RETORNO (ROAS)</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.green }}>{reportData.roas.toFixed(2)}x</div>
+              </div>
+              <div style={{ background: COLORS.bgDark, padding: 20, borderRadius: 12, border: `1px solid ${COLORS.cardBorder}` }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.textMuted, marginBottom: 8 }}>RESULTADO LÍQUIDO</div>
+                <div style={{ fontSize: 20, fontWeight: 800 }}>{fmtBRL(reportData.revenue)}</div>
+              </div>
+            </div>
+
+            <div style={{ background: COLORS.bgDark, padding: 24, borderRadius: 12, border: `1px solid ${COLORS.cardBorder}`, width: '100%' }}>
+               <h4 style={{ fontSize: 14, fontWeight: 700, marginBottom: 20 }}>Funil de Conversão do Relatório</h4>
+               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <FunnelBar label="Investimento" value={reportData.spend} max={reportData.spend} color={COLORS.yellow} suffix="100%" />
+                  <FunnelBar label="Conversões" value={reportData.results} max={reportData.results * 2} color={COLORS.green} suffix="-" />
+               </div>
+            </div>
+            
+            <div style={{ marginTop: 32, padding: 20, background: 'rgba(255, 214, 0, 0.05)', borderRadius: 12, border: `1px dashed ${COLORS.yellow}`, color: COLORS.yellow, fontSize: 13, fontWeight: 600, textAlign: 'center' }}>
+              Este é um rascunho visual do dashboard. Clique em "Exportar PDF" para gerar o documento final.
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
