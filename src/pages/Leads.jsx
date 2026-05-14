@@ -9,14 +9,33 @@ const statusBadge = { novo: 'badge-gray', contato_feito: 'badge-blue', reuniao: 
 
 const calcScore = (l) => {
   let s = 0;
-  if (l.nome) s += 10; if (l.empresa) s += 10; if (l.email) s += 10; if (l.whatsapp) s += 15;
-  if (l.faturamento) s += 10; if (l.segmento) s += 5; if (l.origem) s += 5;
-  if (l.temInstagram) s += 5; if (l.temSite) s += 5; if (l.investeTrafego) s += 10;
-  if (l.temperatura === 'quente') s += 15; else if (l.temperatura === 'morno') s += 5;
+  if (l.nome) s += 5; if (l.empresa) s += 5; if (l.email) s += 5; if (l.whatsapp) s += 10;
+  if (l.segmento) s += 5;
+  
+  // Pontuação por Faturamento (Prioridade Máxima)
+  if (String(l.faturamento).includes('200k')) s += 30;
+  else if (String(l.faturamento).includes('80k')) s += 20;
+  else if (String(l.faturamento).includes('30k')) s += 10;
+
+  // Pontuação por Estrutura
+  if (l.temInstagram) s += 5; 
+  if (l.temSite) s += 5; 
+  if (l.investeTrafego) s += 10;
+  if (l.temEquipeVendas) s += 10;
+  if (l.usaCRM) s += 5;
+
+  if (l.temperatura === 'quente') s += 10;
   return Math.min(s, 100);
 };
 
-const emptyLead = { nome: '', empresa: '', email: '', whatsapp: '', segmento: '', temperatura: 'morno', origem: '', faturamento: '', status: 'novo', temInstagram: false, temSite: false, investeTrafego: false, observacoes: '' };
+const emptyLead = { 
+  nome: '', empresa: '', email: '', whatsapp: '', segmento: '', 
+  cidade: '', estado: '', tamanhoNegocio: '', faturamento: '',
+  temperatura: 'morno', origem: 'Landing Page', status: 'novo', 
+  temInstagram: false, temSite: false, investeTrafego: false, 
+  temEquipeVendas: false, usaCRM: false,
+  desafio: '', infoComplementar: false, observacoes: '' 
+};
 
 export default function Leads() {
   const { leads, teamMembers, updateItem, addItem, deleteItem, addToast } = useApp();
@@ -138,26 +157,41 @@ export default function Leads() {
         </div>
         <div className="form-row">
           <div className="form-group"><label className="form-label">Segmento</label><input className="form-input" value={formData.segmento} onChange={e => setFormData({...formData, segmento: e.target.value})} /></div>
-          <div className="form-group"><label className="form-label">Faturamento</label><input className="form-input" value={formData.faturamento || ''} onChange={e => setFormData({...formData, faturamento: e.target.value})} /></div>
+          <div className="form-group"><label className="form-label">Faturamento Mensal</label><input className="form-input" value={formData.faturamento || ''} onChange={e => setFormData({...formData, faturamento: e.target.value})} /></div>
         </div>
         <div className="form-row">
+          <div className="form-group"><label className="form-label">Cidade</label><input className="form-input" value={formData.cidade || ''} onChange={e => setFormData({...formData, cidade: e.target.value})} /></div>
+          <div className="form-group"><label className="form-label">Estado</label><input className="form-input" value={formData.estado || ''} onChange={e => setFormData({...formData, estado: e.target.value})} /></div>
+        </div>
+        <div className="form-row">
+          <div className="form-group"><label className="form-label">Tamanho do Negócio</label>
+            <select className="form-select" value={formData.tamanhoNegocio || ''} onChange={e => setFormData({...formData, tamanhoNegocio: e.target.value})}>
+              <option value="">Selecione...</option>
+              <option value="individual">Individual / Autônomo</option>
+              <option value="pequeno">Pequena Empresa (1-10)</option>
+              <option value="medio">Média Empresa (11-50)</option>
+              <option value="grande">Grande Empresa (50+)</option>
+            </select></div>
           <div className="form-group"><label className="form-label">Temperatura</label>
             <select className="form-select" value={formData.temperatura} onChange={e => setFormData({...formData, temperatura: e.target.value})}>
               <option value="quente">🔥 Quente</option><option value="morno">⚡ Morno</option><option value="frio">❄️ Frio</option>
             </select></div>
-          <div className="form-group"><label className="form-label">Origem</label>
-            <select className="form-select" value={formData.origem} onChange={e => setFormData({...formData, origem: e.target.value})}>
-              <option value="">Selecione...</option><option>Instagram</option><option>Google Ads</option><option>Indicação</option><option>WhatsApp</option><option>Site</option>
-            </select></div>
         </div>
-        <div style={{ display: 'flex', gap: 20, marginBottom: 16 }}>
-          {[['temInstagram', 'Tem Instagram'], ['temSite', 'Tem Site'], ['investeTrafego', 'Investe em Tráfego']].map(([k, label]) => (
+        <div className="form-group">
+          <label className="form-label">Origem</label>
+          <select className="form-select" value={formData.origem} onChange={e => setFormData({...formData, origem: e.target.value})}>
+            <option value="">Selecione...</option><option>Instagram</option><option>Google Ads</option><option>Indicação</option><option>WhatsApp</option><option>Site</option>
+          </select>
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, marginBottom: 16 }}>
+          {[['temInstagram', 'Instagram'], ['temSite', 'Site'], ['investeTrafego', 'Tráfego'], ['temEquipeVendas', 'Equipe Vendas'], ['usaCRM', 'Usa CRM'], ['infoComplementar', 'Info Comp.']].map(([k, label]) => (
             <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer', color: 'var(--text-primary)' }}>
               <input type="checkbox" checked={formData[k] || false} onChange={e => setFormData({...formData, [k]: e.target.checked})} style={{ accentColor: '#FFD600' }} />{label}
             </label>
           ))}
         </div>
-        <div className="form-group"><label className="form-label">Observações</label><textarea className="form-textarea" value={formData.observacoes || ''} onChange={e => setFormData({...formData, observacoes: e.target.value})} /></div>
+        <div className="form-group"><label className="form-label">Qual seu maior desafio hoje?</label><textarea className="form-textarea" rows={3} value={formData.desafio || ''} onChange={e => setFormData({...formData, desafio: e.target.value})} /></div>
+        <div className="form-group"><label className="form-label">Observações Internas</label><textarea className="form-textarea" value={formData.observacoes || ''} onChange={e => setFormData({...formData, observacoes: e.target.value})} /></div>
       </Modal>
 
       <Modal isOpen={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="⚠️ Confirmar Exclusão" size="sm"
