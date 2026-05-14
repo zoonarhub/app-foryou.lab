@@ -162,7 +162,7 @@ export default function WhatsAppPage() {
   };
 
   return (
-    <div style={{ display: 'flex', height: 'calc(100vh - 120px)', margin: -20, background: 'var(--bg-dark)', color: 'var(--text-primary)', fontFamily: 'Inter, sans-serif', borderRadius: 16, overflow: 'hidden' }}>
+    <div style={{ display: 'flex', height: '100%', background: 'var(--bg-dark)', color: 'var(--text-primary)', fontFamily: 'Inter, sans-serif', borderRadius: 16, overflow: 'hidden' }}>
       
       {activeTab !== 'workspaces' && (
         <div style={{ width: 240, borderRight: '1px solid var(--card-border)', background: 'var(--card-bg)', padding: '24px 16px', display: 'flex', flexDirection: 'column' }}>
