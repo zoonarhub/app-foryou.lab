@@ -41,6 +41,7 @@ export function AppProvider({ children }) {
       if (!user) {
         setAuth(null);
         setAgencyId(null);
+        setLoadingData(false); // Libera o carregamento para mostrar o Login
         return;
       }
       setAuth(user);
@@ -51,6 +52,10 @@ export function AppProvider({ children }) {
       } else {
         setAgencyId(user.id);
       }
+      // Se já temos o agencyId mas por algum motivo o fetchData não rodar, garantimos o fim do loading
+      if (!profile?.agency_id && user.id) {
+         setLoadingData(false);
+      }
     };
 
     supabase.auth.getSession().then(({ data: { session } }) => handleSession(session));
@@ -60,7 +65,10 @@ export function AppProvider({ children }) {
 
   // Fetch Data from Supabase
   const fetchData = useCallback(async () => {
-    if (!agencyId) return;
+    if (!agencyId) {
+      setLoadingData(false);
+      return;
+    }
     setLoadingData(true);
     
     const keys = Object.keys(emptyData);
