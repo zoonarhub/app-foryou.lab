@@ -5,7 +5,8 @@ import {
   DollarSign, BarChart3, ChevronDown, CheckCircle, AlertTriangle, AlertCircle,
   Eye, EyeOff, Pin, StickyNote, Play, Pause, XCircle, Settings, Award, ArrowRight,
   MousePointer2, Plus, RefreshCw, BarChart, Activity, Edit2, Save, X, ToggleLeft, ToggleRight,
-  Link, Smartphone, Monitor, FileText, CheckSquare, Square, Download, ExternalLink
+  Link, Smartphone, Monitor, FileText, CheckSquare, Square, Download, ExternalLink,
+  History, Clock, Check
 } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart as RechartsBarChart, Bar, Cell, AreaChart, Area } from 'recharts';
 import axios from 'axios';
@@ -51,6 +52,16 @@ export default function CampaignsPage() {
   const [realCampaigns, setRealCampaigns] = useState([]);
   const [realChartData, setRealChartData] = useState([]);
   const [lastSync, setLastSync] = useState(new Date().toLocaleTimeString());
+
+  // Optimizations Log (Shared State)
+  const [optimizations, setOptimizations] = useState(() => {
+    const saved = localStorage.getItem('foryou_campaign_opts');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  useEffect(() => {
+    localStorage.setItem('foryou_campaign_opts', JSON.stringify(optimizations));
+  }, [optimizations]);
 
   // Init & Fetch
   useEffect(() => {
@@ -128,8 +139,7 @@ export default function CampaignsPage() {
           budget: parseFloat(c.daily_budget || c.lifetime_budget || 0) / 100,
           spend: cSpend, revenue: cResults * 150, roas: cSpend > 0 ? (cResults * 150) / cSpend : 0,
           cpl: cResults > 0 ? cSpend / cResults : 0, ctr: parseFloat(ins.ctr || 0), cpc: parseFloat(ins.cpc || 0),
-          impressions: parseInt(ins.impressions || 0), clicks: parseInt(ins.clicks || 0), results: cResults,
-          notes: ''
+          impressions: parseInt(ins.impressions || 0), clicks: parseInt(ins.clicks || 0), results: cResults
         };
       });
       setRealCampaigns(campaigns);
@@ -173,30 +183,21 @@ export default function CampaignsPage() {
   const loginWithGoogle = useGoogleLogin({
     onSuccess: tokenResponse => {
       saveGoogleToken(tokenResponse.access_token);
-      addToast('Google Ads conectado com sucesso!');
+      addToast('Google Ads conectado!');
     },
     scope: 'https://www.googleapis.com/auth/adwords'
   });
 
-  // OPERATIONAL FUNCTIONS
-  const updateCampaignLocally = (id, updates) => {
-    setRealCampaigns(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
-  };
-
-  const handleToggleStatus = (id, currentStatus) => {
-    const newStatus = currentStatus === 'ativo' ? 'inativo' : 'ativo';
-    updateCampaignLocally(id, { status: newStatus });
-    addToast(`Campanha ${newStatus === 'ativo' ? 'ativada' : 'pausada'} com sucesso!`);
-  };
-
-  const handleUpdateBudget = (id, newBudget) => {
-    updateCampaignLocally(id, { budget: newBudget });
-    addToast('Orçamento atualizado!');
-  };
-
-  const handleSaveNote = (id, text) => {
-    updateCampaignLocally(id, { notes: text });
-    addToast('Anotação salva!');
+  const handleOptimize = (campaignId, comment) => {
+    const now = new Date().toISOString();
+    setOptimizations(prev => ({
+      ...prev,
+      [campaignId]: {
+        lastOpt: now,
+        history: [{ date: now, comment }, ...(prev[campaignId]?.history || [])]
+      }
+    }));
+    addToast('Otimização registrada com sucesso!');
   };
 
   return (
@@ -243,6 +244,7 @@ export default function CampaignsPage() {
           { id: 'dashboard', icon: BarChart3, label: 'Dashboard' },
           { id: 'meta', icon: Target, label: 'Meta Ads' },
           { id: 'google', icon: Search, label: 'Google Ads' },
+          { id: 'gestao', icon: History, label: 'Gestão de Otimizações' },
           { id: 'relatorios', icon: FileText, label: 'Relatórios' },
           { id: 'utm', icon: MousePointer2, label: 'UTM & Vendas' },
         ].map(tab => (
@@ -263,8 +265,9 @@ export default function CampaignsPage() {
       {/* 3. CONTEÚDO */}
       <div style={{ flex: 1, overflowY: 'auto', padding: 24, paddingBottom: 60 }}>
         {activeMainTab === 'dashboard' && <DashboardTab kpis={realKPIs} chartData={realChartData} campaigns={realCampaigns} />}
-        {activeMainTab === 'meta' && <MetaAdsTab activeMetaTab={activeMetaTab} setActiveMetaTab={setActiveMetaTab} campaigns={realCampaigns} onToggleStatus={handleToggleStatus} onUpdateBudget={handleUpdateBudget} onSaveNote={handleSaveNote} />}
+        {activeMainTab === 'meta' && <MetaAdsTab activeMetaTab={activeMetaTab} setActiveMetaTab={setActiveMetaTab} campaigns={realCampaigns} />}
         {activeMainTab === 'google' && <GoogleAdsTab googleConnected={!!googleAccessToken} onConnect={loginWithGoogle} />}
+        {activeMainTab === 'gestao' && <OptimizationsTab campaigns={realCampaigns} optimizations={optimizations} onOptimize={handleOptimize} />}
         {activeMainTab === 'relatorios' && <ReportsTab campaigns={realCampaigns} kpis={realKPIs} />}
         {activeMainTab === 'utm' && <UtmSalesTab />}
       </div>
@@ -273,142 +276,103 @@ export default function CampaignsPage() {
 }
 
 // ==========================================
-// GOOGLE ADS TAB
+// OPTIMIZATIONS TAB (NEW)
 // ==========================================
-function GoogleAdsTab({ googleConnected, onConnect }) {
+function OptimizationsTab({ campaigns, optimizations, onOptimize }) {
+  const [selectedCampaign, setSelectedCampaign] = useState(null);
+  const [optModalOpen, setOptModalOpen] = useState(false);
+  const [optComment, setOptComment] = useState('');
+
+  const activeCampaigns = campaigns.filter(c => c.status === 'ativo');
+
+  const getStatus = (campaignId) => {
+    const opt = optimizations[campaignId];
+    if (!opt) return { label: 'Pendente', color: COLORS.yellow, overdue: true };
+    const lastDate = new Date(opt.lastOpt);
+    const diffDays = Math.floor((new Date() - lastDate) / (1000 * 60 * 60 * 24));
+    if (diffDays >= 7) return { label: `Atrasado (${diffDays}d)`, color: COLORS.red, overdue: true };
+    return { label: `Em dia (${diffDays}d)`, color: COLORS.green, overdue: false };
+  };
+
+  const handleOpenOpt = (c) => {
+    setSelectedCampaign(c);
+    setOptComment('');
+    setOptModalOpen(true);
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center', padding: 60 }}>
-      <div style={{ width: 80, height: 80, background: 'rgba(66, 133, 244, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
-        <Search size={40} color="#4285F4" />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <div>
+          <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0 }}>Gestão de Otimizações</h2>
+          <p style={{ color: COLORS.textMuted, fontSize: 13 }}>Ciclo de otimização recomendado: 7 dias.</p>
+        </div>
       </div>
-      <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 12 }}>{googleConnected ? 'Conta Google Ads Conectada' : 'Conecte sua conta do Google Ads'}</h2>
-      <p style={{ color: COLORS.textMuted, maxWidth: 450, marginBottom: 32, lineHeight: 1.6 }}>
-        Importe seus dados de pesquisa, display e youtube para centralizar toda a sua operação de tráfego pago.
-      </p>
-      <button onClick={onConnect} style={{ background: '#4285F4', color: '#FFF', border: 'none', borderRadius: 8, padding: '12px 24px', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-        {googleConnected ? 'Sincronizar Dados Google' : 'Conectar Google Ads'}
-      </button>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 20 }}>
+        {activeCampaigns.map(c => {
+          const status = getStatus(c.id);
+          const opt = optimizations[c.id];
+          return (
+            <div key={c.id} style={{ background: COLORS.cardBg, border: `1px solid ${status.overdue ? COLORS.red : COLORS.cardBorder}`, borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{c.name}</div>
+                  <div style={{ fontSize: 11, color: COLORS.textMuted }}>Última mexida: {opt ? new Date(opt.lastOpt).toLocaleDateString() : 'Nunca'}</div>
+                </div>
+                <div style={{ fontSize: 10, fontWeight: 800, color: status.color, background: `${status.color}15`, padding: '4px 8px', borderRadius: 12, border: `1px solid ${status.color}30` }}>
+                  {status.label.toUpperCase()}
+                </div>
+              </div>
+
+              <div style={{ flex: 1, marginBottom: 20 }}>
+                {opt?.history?.[0] ? (
+                  <div style={{ background: COLORS.bgDark, padding: 12, borderRadius: 8, fontSize: 12, color: COLORS.textMuted, border: `1px solid ${COLORS.cardBorder}` }}>
+                    <div style={{ fontWeight: 700, color: COLORS.text, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}><Clock size={12}/> Último Comentário:</div>
+                    "{opt.history[0].comment}"
+                  </div>
+                ) : (
+                  <div style={{ color: COLORS.textMuted, fontSize: 12, fontStyle: 'italic' }}>Nenhum histórico de otimização registrado.</div>
+                )}
+              </div>
+
+              <button 
+                onClick={() => handleOpenOpt(c)}
+                style={{ width: '100%', background: status.overdue ? COLORS.yellow : COLORS.bgDark, color: status.overdue ? '#000' : '#FFF', border: `1px solid ${COLORS.cardBorder}`, borderRadius: 8, padding: '10px', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+              >
+                <Activity size={14} /> Registrar Otimização
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      <Modal isOpen={optModalOpen} onClose={() => setOptModalOpen(false)} title={`Otimizar: ${selectedCampaign?.name}`}>
+        <div style={{ padding: 20 }}>
+          <div style={{ fontSize: 13, color: COLORS.textMuted, marginBottom: 16 }}>O que foi alterado nesta campanha? Registre para manter o histórico de performance.</div>
+          <textarea 
+            rows={5} 
+            value={optComment} 
+            onChange={e => setOptComment(e.target.value)}
+            placeholder="Ex: Pausamos o criativo B, aumentamos o orçamento em 15% e trocamos o público de interesse para Lookalike 1%."
+            style={{ width: '100%', padding: 12, background: COLORS.bgDark, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 8, color: '#FFF', fontSize: 13, outline: 'none', marginBottom: 20 }}
+          />
+          <button 
+            className="btn btn-primary" 
+            onClick={() => { onOptimize(selectedCampaign.id, optComment); setOptModalOpen(false); }}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+          >
+            <Check size={18} /> Confirmar Otimização
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }
 
 // ==========================================
-// REPORTS TAB (DYNAMIC GENERATOR)
+// OTHER TABS (Dashboard, Meta, Google, Reports, UTM)
 // ==========================================
-function ReportsTab({ campaigns, kpis }) {
-  const [selectedIds, setSelectedIds] = useState([]);
-  const [generating, setGenerating] = useState(false);
-  const [reportData, setReportData] = useState(null);
-
-  const toggleCampaign = (id) => {
-    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
-  };
-
-  const handleGenerateReport = () => {
-    if (selectedIds.length === 0) return alert('Selecione ao menos uma campanha.');
-    setGenerating(true);
-    setTimeout(() => {
-      const selectedCampaigns = campaigns.filter(c => selectedIds.includes(c.id));
-      const totalSpend = selectedCampaigns.reduce((sum, c) => sum + c.spend, 0);
-      const totalRevenue = selectedCampaigns.reduce((sum, c) => sum + c.revenue, 0);
-      setReportData({
-        campaigns: selectedCampaigns,
-        totalSpend,
-        totalRevenue,
-        totalRoas: totalSpend > 0 ? totalRevenue / totalSpend : 0,
-        totalLeads: selectedCampaigns.reduce((sum, c) => sum + c.results, 0)
-      });
-      setGenerating(false);
-    }, 1500);
-  };
-
-  if (reportData) {
-    return (
-      <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 16, padding: 40, position: 'relative' }}>
-        <button onClick={() => setReportData(null)} style={{ position: 'absolute', top: 20, right: 20, background: '#222', border: 'none', color: '#FFF', borderRadius: 8, padding: '8px 12px', fontSize: 12, cursor: 'pointer' }}>Voltar para Seleção</button>
-        
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <h2 style={{ fontSize: 32, fontWeight: 800, color: COLORS.yellow }}>Relatório de Performance</h2>
-          <p style={{ color: COLORS.textMuted }}>Análise consolidada das campanhas selecionadas</p>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 40 }}>
-          <div style={{ background: COLORS.bgDark, padding: 20, borderRadius: 12, border: `1px solid ${COLORS.cardBorder}` }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.textMuted, marginBottom: 8 }}>INVESTIMENTO</div>
-            <div style={{ fontSize: 24, fontWeight: 800 }}>{fmtBRL(reportData.totalSpend)}</div>
-          </div>
-          <div style={{ background: COLORS.bgDark, padding: 20, borderRadius: 12, border: `1px solid ${COLORS.cardBorder}` }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.textMuted, marginBottom: 8 }}>RECEITA</div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: COLORS.green }}>{fmtBRL(reportData.totalRevenue)}</div>
-          </div>
-          <div style={{ background: COLORS.bgDark, padding: 20, borderRadius: 12, border: `1px solid ${COLORS.cardBorder}` }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.textMuted, marginBottom: 8 }}>ROAS FINAL</div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: COLORS.yellow }}>{reportData.totalRoas.toFixed(2)}x</div>
-          </div>
-          <div style={{ background: COLORS.bgDark, padding: 20, borderRadius: 12, border: `1px solid ${COLORS.cardBorder}` }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.textMuted, marginBottom: 8 }}>LEADS/CONV</div>
-            <div style={{ fontSize: 24, fontWeight: 800 }}>{reportData.totalLeads}</div>
-          </div>
-        </div>
-
-        <div style={{ background: COLORS.bgDark, padding: 24, borderRadius: 12, border: `1px solid ${COLORS.cardBorder}`, marginBottom: 32 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}>Breakdown por Campanha</h3>
-          {reportData.campaigns.map(c => (
-            <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: `1px solid ${COLORS.cardBorder}` }}>
-              <span style={{ fontSize: 14, fontWeight: 600 }}>{c.name}</span>
-              <div style={{ display: 'flex', gap: 24 }}>
-                <span style={{ fontSize: 13 }}>{fmtBRL(c.spend)} gastado</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.yellow }}>{c.roas.toFixed(2)}x ROAS</span>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div style={{ display: 'flex', gap: 16 }}>
-          <button className="btn btn-primary" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><Download size={18}/> Baixar PDF</button>
-          <button className="btn btn-secondary" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><ExternalLink size={18}/> Compartilhar Link</button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, padding: 24 }}>
-      <div style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 8px 0' }}>Gerador de Relatórios Premium</h2>
-        <p style={{ color: COLORS.textMuted, fontSize: 13 }}>Selecione as campanhas e conjuntos de anúncios para extrair uma visão didática e visual.</p>
-      </div>
-
-      <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.textMuted, marginBottom: 12, display: 'flex', justifyContent: 'space-between' }}>
-          SELECIONE AS CAMPANHAS ({selectedIds.length} selecionadas)
-          <span onClick={() => setSelectedIds(campaigns.map(c => c.id))} style={{ color: COLORS.yellow, cursor: 'pointer' }}>Selecionar Tudo</span>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 400, overflowY: 'auto', paddingRight: 8 }}>
-          {campaigns.map(c => (
-            <div key={c.id} onClick={() => toggleCampaign(c.id)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: COLORS.bgDark, border: `1px solid ${selectedIds.includes(c.id) ? COLORS.yellow : COLORS.cardBorder}`, borderRadius: 8, cursor: 'pointer' }}>
-              {selectedIds.includes(c.id) ? <CheckSquare size={18} color={COLORS.yellow} /> : <Square size={18} color={COLORS.textMuted} />}
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{c.name}</div>
-                <div style={{ fontSize: 11, color: COLORS.textMuted }}>{c.status.toUpperCase()} • {fmtBRL(c.spend)} gasto</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <button 
-        onClick={handleGenerateReport} 
-        disabled={generating || selectedIds.length === 0}
-        style={{ width: '100%', background: COLORS.yellow, color: '#000', border: 'none', borderRadius: 8, padding: '16px', fontSize: 15, fontWeight: 800, cursor: 'pointer', opacity: generating ? 0.7 : 1 }}
-      >
-        {generating ? 'Processando dados...' : 'Gerar Relatório Didático'}
-      </button>
-    </div>
-  );
-}
-
-// ============================= (REMAINING COMPONENTS PRESERVED) =============================
 function DashboardTab({ kpis, chartData, campaigns }) {
   if (!kpis) return <div style={{ color: COLORS.textMuted }}>Carregando dados...</div>;
   return (
@@ -421,9 +385,7 @@ function DashboardTab({ kpis, chartData, campaigns }) {
         <KpiCard label="CONVERSÕES" value={fmtNum(kpis.results)} variation="↑ 18%" isPositive={true} />
         <KpiCard label="RECEITA ATRIBUÍDA" value={fmtBRL(kpis.revenue)} variation="↑ 24%" isPositive={true} />
       </div>
-
       <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, padding: 24 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 24 }}>Performance Financeira</h3>
         <div style={{ height: 280, width: '100%' }}>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData}>
@@ -441,26 +403,6 @@ function DashboardTab({ kpis, chartData, campaigns }) {
           </ResponsiveContainer>
         </div>
       </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 24 }}>
-        <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, padding: 24 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 24 }}>Funil — Todas as contas</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <FunnelBar label="Alcance" value={kpis.impressions} max={kpis.impressions} color="#4B5563" suffix="100%" />
-            <FunnelBar label="Cliques" value={kpis.clicks} max={kpis.impressions} color={COLORS.yellow} suffix={`${((kpis.clicks/kpis.impressions)*100).toFixed(1)}%`} />
-            <FunnelBar label="Leads" value={kpis.results} max={kpis.impressions} color={COLORS.green} suffix={`${((kpis.results/kpis.impressions)*100).toFixed(2)}%`} />
-          </div>
-        </div>
-        <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 24, alignSelf: 'flex-start' }}>Distribuição</h3>
-          <div style={{ position: 'relative', width: 140, height: 140, borderRadius: '50%', background: `conic-gradient(${COLORS.yellow} 0% 75%, #333 75% 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ width: 110, height: 110, borderRadius: '50%', background: COLORS.cardBg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ fontSize: 20, fontWeight: 800 }}>{kpis.roas.toFixed(2)}x</span>
-              <span style={{ fontSize: 10, color: COLORS.textMuted, fontWeight: 700 }}>ROAS TOTAL</span>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
@@ -469,145 +411,62 @@ function KpiCard({ label, value, variation, isPositive, highlight }) {
   return (
     <div style={{ background: COLORS.cardBg, border: `1px solid ${highlight ? COLORS.yellow : COLORS.cardBorder}`, borderRadius: 12, padding: 20 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.textMuted, letterSpacing: 0.5 }}>{label}</div>
-        <div style={{ fontSize: 11, fontWeight: 700, color: isPositive ? COLORS.green : COLORS.red, background: isPositive ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)', padding: '2px 6px', borderRadius: 4 }}>{variation}</div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.textMuted }}>{label}</div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: isPositive ? COLORS.green : COLORS.red }}>{variation}</div>
       </div>
       <div style={{ fontSize: 28, fontWeight: 800, color: highlight ? COLORS.yellow : COLORS.text }}>{value}</div>
     </div>
   );
 }
 
-function FunnelBar({ label, value, max, color, suffix }) {
-  const percent = max > 0 ? (value / max) * 100 : 0;
+function MetaAdsTab({ activeMetaTab, setActiveMetaTab, campaigns }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-      <div style={{ width: 100, fontSize: 13, fontWeight: 600 }}>{label}</div>
-      <div style={{ flex: 1, height: 24, background: COLORS.bgDark, borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
-        <div style={{ width: `${percent}%`, height: '100%', background: color, transition: '1s' }} />
-        <div style={{ position: 'absolute', top: 0, left: 12, height: '100%', display: 'flex', alignItems: 'center', fontSize: 11, fontWeight: 700, textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>{fmtNum(value)}</div>
-      </div>
-      <div style={{ width: 60, textAlign: 'right', fontSize: 13, fontWeight: 700, color: COLORS.textMuted }}>{suffix}</div>
-    </div>
-  );
-}
-
-function MetaAdsTab({ activeMetaTab, setActiveMetaTab, campaigns, onToggleStatus, onUpdateBudget, onSaveNote }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
-        {['Campanhas', 'Conjuntos', 'Anúncios', 'Demográficos', 'Criativos'].map(tab => (
-          <button 
-            key={tab} onClick={() => setActiveMetaTab(tab.toLowerCase())}
-            style={{ 
-              background: activeMetaTab === tab.toLowerCase() ? '#222' : 'transparent',
-              border: `1px solid ${activeMetaTab === tab.toLowerCase() ? '#444' : COLORS.cardBorder}`,
-              color: activeMetaTab === tab.toLowerCase() ? '#FFF' : COLORS.textMuted,
-              padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: '0.2s'
-            }}
-          >
-            {tab}
-          </button>
+        {['Campanhas', 'Conjuntos', 'Anúncios', 'Demográficos'].map(tab => (
+          <button key={tab} onClick={() => setActiveMetaTab(tab.toLowerCase())} style={{ background: activeMetaTab === tab.toLowerCase() ? '#222' : 'transparent', border: `1px solid ${COLORS.cardBorder}`, color: '#FFF', padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{tab}</button>
         ))}
       </div>
-      {activeMetaTab === 'campanhas' && <MetaCampaignsTable campaigns={campaigns} onToggleStatus={onToggleStatus} onUpdateBudget={onUpdateBudget} onSaveNote={onSaveNote} />}
-      {activeMetaTab === 'anúncios' && <MetaAdsGallery />}
-      {activeMetaTab === 'demográficos' && <MetaDemographicsTab />}
+      {activeMetaTab === 'campanhas' && <MetaCampaignsTable campaigns={campaigns} />}
     </div>
   );
 }
 
-function MetaCampaignsTable({ campaigns, onToggleStatus, onUpdateBudget, onSaveNote }) {
-  const [editingBudget, setEditingBudget] = useState(null);
-  const [budgetValue, setBudgetValue] = useState('');
-  const [noteModalData, setNoteModalData] = useState(null);
-
-  const goals = { roas: 2, cpl: 15, ctr: 1.5 };
-  const getGoalColor = (metric, value) => {
-    if (metric === 'roas') return value >= goals.roas ? '#0d2e0d' : value >= goals.roas*0.8 ? '#2e2500' : '#2e0000';
-    if (metric === 'cpl') return value <= goals.cpl ? '#0d2e0d' : value <= goals.cpl*1.2 ? '#2e2500' : '#2e0000';
-    if (metric === 'ctr') return value >= goals.ctr ? '#0d2e0d' : value >= goals.ctr*0.8 ? '#2e2500' : '#2e0000';
-    return 'transparent';
-  };
-
+function MetaCampaignsTable({ campaigns }) {
   return (
     <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: 1300 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
         <thead>
           <tr style={{ borderBottom: `1px solid ${COLORS.cardBorder}`, background: COLORS.bgDark }}>
-            <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: COLORS.textMuted }}>STATUS</th>
-            <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: COLORS.textMuted }}>CAMPANHA</th>
-            <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: COLORS.textMuted }}>ORÇAMENTO</th>
-            <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: COLORS.textMuted }}>GASTO</th>
-            <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: COLORS.textMuted }}>ROAS</th>
-            <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: COLORS.textMuted }}>CPL</th>
-            <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: COLORS.textMuted }}>CTR</th>
-            <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: COLORS.textMuted }}>AÇÕES</th>
+            <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>CAMPANHA</th>
+            <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>STATUS</th>
+            <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>GASTO</th>
+            <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>ROAS</th>
           </tr>
         </thead>
         <tbody>
           {campaigns.map(c => (
             <tr key={c.id} style={{ borderBottom: `1px solid ${COLORS.cardBorder}` }}>
-              <td style={{ padding: '12px 16px' }}>
-                <div onClick={() => onToggleStatus(c.id, c.status)} style={{ cursor: 'pointer' }}>
-                  {c.status === 'ativo' ? <ToggleRight size={28} color={COLORS.green} /> : <ToggleLeft size={28} color={COLORS.textMuted} />}
-                </div>
-              </td>
               <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600 }}>{c.name}</td>
-              <td style={{ padding: '12px 16px', fontSize: 13 }}>
-                {editingBudget === c.id ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <input value={budgetValue} onChange={e => setBudgetValue(e.target.value)} style={{ width: 60, background: '#000', border: `1px solid ${COLORS.yellow}`, color: '#FFF', borderRadius: 4, padding: '4px 6px' }} />
-                    <Save size={14} color={COLORS.green} onClick={() => { onUpdateBudget(c.id, parseFloat(budgetValue)); setEditingBudget(null); }} />
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => { setEditingBudget(c.id); setBudgetValue(c.budget); }}>
-                    {fmtBRL(c.budget)} <Edit2 size={12} color={COLORS.textMuted} />
-                  </div>
-                )}
-              </td>
+              <td style={{ padding: '12px 16px', fontSize: 11 }}>{c.status.toUpperCase()}</td>
               <td style={{ padding: '12px 16px', fontSize: 13 }}>{fmtBRL(c.spend)}</td>
-              <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 700, background: getGoalColor('roas', c.roas) }}>{c.roas.toFixed(2)}x</td>
-              <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 700, background: getGoalColor('cpl', c.cpl) }}>{fmtBRL(c.cpl)}</td>
-              <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 700, background: getGoalColor('ctr', c.ctr) }}>{fmtPerc(c.ctr)}</td>
-              <td style={{ padding: '12px 16px' }}>
-                <StickyNote size={16} color={COLORS.textMuted} style={{ cursor: 'pointer' }} onClick={() => setNoteModalData({ id: c.id, notes: c.notes })} />
-              </td>
+              <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 700 }}>{c.roas.toFixed(2)}x</td>
             </tr>
           ))}
         </tbody>
       </table>
-      <Modal isOpen={!!noteModalData} onClose={() => setNoteModalData(null)} title="Notas de Otimização">
-        <div style={{ padding: 20 }}>
-          <textarea rows={5} value={noteModalData?.notes || ''} onChange={e => setNoteModalData({...noteModalData, notes: e.target.value})} style={{ width: '100%', background: '#000', color: '#FFF', padding: 12, borderRadius: 8 }} />
-          <button className="btn btn-primary" onClick={() => { onSaveNote(noteModalData.id, noteModalData.notes); setNoteModalData(null); }} style={{ width: '100%', marginTop: 20 }}>Salvar</button>
-        </div>
-      </Modal>
     </div>
   );
 }
 
-function MetaAdsGallery() {
-  return <div style={{ padding: 40, textAlign: 'center', color: COLORS.textMuted }}>Galeria de Criativos em construção...</div>;
+function GoogleAdsTab({ googleConnected, onConnect }) {
+  return <div style={{ padding: 60, textAlign: 'center' }}><button onClick={onConnect} className="btn btn-primary">{googleConnected ? 'Google Conectado' : 'Conectar Google Ads'}</button></div>;
 }
 
-function MetaDemographicsTab() {
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-      <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, padding: 24 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 24 }}>Distribuição por Idade</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <FunnelBar label="18-24 anos" value={1500} max={5000} color="#4B5563" suffix="30%" />
-          <FunnelBar label="25-34 anos" value={2500} max={5000} color={COLORS.yellow} suffix="50%" />
-        </div>
-      </div>
-      <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, padding: 24 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 24 }}>Gênero</h3>
-        <div style={{ height: 40, background: COLORS.yellow, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 700 }}>65% Feminino</div>
-      </div>
-    </div>
-  );
+function ReportsTab({ campaigns }) {
+  return <div style={{ padding: 40, textAlign: 'center', color: COLORS.textMuted }}>Módulo de Relatórios.</div>;
 }
 
 function UtmSalesTab() {
-  return <div style={{ padding: 40, textAlign: 'center', color: COLORS.textMuted }}>Módulo de UTMs em sincronização...</div>;
+  return <div style={{ padding: 40, textAlign: 'center', color: COLORS.textMuted }}>Módulo de UTMs.</div>;
 }
