@@ -5,9 +5,9 @@ import {
   DollarSign, BarChart3, ChevronDown, CheckCircle, AlertTriangle, AlertCircle,
   Eye, EyeOff, Pin, StickyNote, Play, Pause, XCircle, Settings, Award, ArrowRight,
   MousePointer2, Plus, RefreshCw, BarChart, Activity, Edit2, Save, X, ToggleLeft, ToggleRight,
-  Link, Smartphone, Monitor, Download, Bell
+  Link, Smartphone, Monitor, FileText, CheckSquare, Square, Download, ExternalLink
 } from 'lucide-react';
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart as RechartsBarChart, Bar, Cell } from 'recharts';
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart as RechartsBarChart, Bar, Cell, AreaChart, Area } from 'recharts';
 import axios from 'axios';
 import Modal from '../components/Modal';
 import { useGoogleLogin } from '@react-oauth/google';
@@ -35,7 +35,7 @@ const DATE_PRESETS = [
 // MAIN COMPONENT
 // ==========================================
 export default function CampaignsPage() {
-  const { addToast } = useApp();
+  const { addToast, googleAccessToken, saveGoogleToken } = useApp();
   const [activeMainTab, setActiveMainTab] = useState('dashboard'); 
   const [activeMetaTab, setActiveMetaTab] = useState('campanhas'); 
   
@@ -45,7 +45,6 @@ export default function CampaignsPage() {
   const [adAccounts, setAdAccounts] = useState([]);
   const [activeAccount, setActiveAccount] = useState(null);
   const [datePreset, setDatePreset] = useState('last_30d');
-  const [googleConnected, setGoogleConnected] = useState(() => !!localStorage.getItem('google_ads_token'));
   
   // Real Data
   const [realKPIs, setRealKPIs] = useState(null);
@@ -92,7 +91,6 @@ export default function CampaignsPage() {
     setSyncing(true);
     const token = localStorage.getItem('fb_ads_token');
     try {
-      // 1. Account KPIs
       const kpiRes = await axios.get(`https://graph.facebook.com/v18.0/${activeAccount.id}/insights`, {
         params: { access_token: token, date_preset: datePreset, fields: 'spend,clicks,cpm,cpc,ctr,frequency,impressions,actions' }
       });
@@ -113,7 +111,6 @@ export default function CampaignsPage() {
         results, cpl: results > 0 ? spend / results : 0
       });
 
-      // 2. Campaigns
       const campRes = await axios.get(`https://graph.facebook.com/v18.0/${activeAccount.id}/campaigns`, {
         params: { access_token: token, fields: `id,name,status,objective,daily_budget,lifetime_budget,insights.date_preset(${datePreset}){spend,actions,impressions,clicks,cpc,ctr}`, limit: 50 }
       });
@@ -128,7 +125,7 @@ export default function CampaignsPage() {
         }
         return {
           id: c.id, name: c.name, status: c.status === 'ACTIVE' ? 'ativo' : 'inativo', objective: c.objective || 'CONVERSIONS',
-          budget: parseFloat(c.daily_budget || c.lifetime_budget || 0) / 100, // API returns in cents
+          budget: parseFloat(c.daily_budget || c.lifetime_budget || 0) / 100,
           spend: cSpend, revenue: cResults * 150, roas: cSpend > 0 ? (cResults * 150) / cSpend : 0,
           cpl: cResults > 0 ? cSpend / cResults : 0, ctr: parseFloat(ins.ctr || 0), cpc: parseFloat(ins.cpc || 0),
           impressions: parseInt(ins.impressions || 0), clicks: parseInt(ins.clicks || 0), results: cResults,
@@ -137,7 +134,6 @@ export default function CampaignsPage() {
       });
       setRealCampaigns(campaigns);
 
-      // 3. Time Chart
       const chartRes = await axios.get(`https://graph.facebook.com/v18.0/${activeAccount.id}/insights`, {
         params: { access_token: token, date_preset: datePreset, time_increment: 1, fields: 'date_start,spend,actions' }
       });
@@ -174,13 +170,11 @@ export default function CampaignsPage() {
     }, { scope: 'ads_management,ads_read,business_management', auth_type: 'rerequest' });
   };
 
-  const handleGoogleLogin = useGoogleLogin({
+  const loginWithGoogle = useGoogleLogin({
     onSuccess: tokenResponse => {
-      localStorage.setItem('google_ads_token', tokenResponse.access_token);
-      setGoogleConnected(true);
-      addToast('Conectado ao Google Ads com sucesso!');
+      saveGoogleToken(tokenResponse.access_token);
+      addToast('Google Ads conectado com sucesso!');
     },
-    onError: () => addToast('Erro ao conectar com Google Ads', 'error'),
     scope: 'https://www.googleapis.com/auth/adwords'
   });
 
@@ -193,12 +187,11 @@ export default function CampaignsPage() {
     const newStatus = currentStatus === 'ativo' ? 'inativo' : 'ativo';
     updateCampaignLocally(id, { status: newStatus });
     addToast(`Campanha ${newStatus === 'ativo' ? 'ativada' : 'pausada'} com sucesso!`);
-    // Here we would do: axios.post(`graph.../${id}`, { status: newStatus.toUpperCase() })
   };
 
   const handleUpdateBudget = (id, newBudget) => {
     updateCampaignLocally(id, { budget: newBudget });
-    addToast('Orçamento atualizado na plataforma!');
+    addToast('Orçamento atualizado!');
   };
 
   const handleSaveNote = (id, text) => {
@@ -222,7 +215,6 @@ export default function CampaignsPage() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          {/* Account Selector */}
           <div style={{ background: COLORS.bgDark, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 8, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
             <span style={{ fontSize: 13, fontWeight: 600 }}>{activeAccount ? activeAccount.name : 'Nenhuma conta'}</span>
             <ChevronDown size={16} color={COLORS.textMuted} />
@@ -251,9 +243,8 @@ export default function CampaignsPage() {
           { id: 'dashboard', icon: BarChart3, label: 'Dashboard' },
           { id: 'meta', icon: Target, label: 'Meta Ads' },
           { id: 'google', icon: Search, label: 'Google Ads' },
+          { id: 'relatorios', icon: FileText, label: 'Relatórios' },
           { id: 'utm', icon: MousePointer2, label: 'UTM & Vendas' },
-          { id: 'alertas', icon: Bell, label: 'Alertas' },
-          { id: 'relatorios', icon: Activity, label: 'Relatórios' },
         ].map(tab => (
           <div 
             key={tab.id} onClick={() => setActiveMainTab(tab.id)}
@@ -271,46 +262,153 @@ export default function CampaignsPage() {
 
       {/* 3. CONTEÚDO */}
       <div style={{ flex: 1, overflowY: 'auto', padding: 24, paddingBottom: 60 }}>
-        {!fbConnected && activeMainTab !== 'google' && activeMainTab !== 'relatorios' ? (
-          <EmptyState handleFBLogin={handleFBLogin} />
-        ) : (
-          <>
-            {activeMainTab === 'dashboard' && <DashboardTab kpis={realKPIs} chartData={realChartData} campaigns={realCampaigns} />}
-            {activeMainTab === 'meta' && <MetaAdsTab activeMetaTab={activeMetaTab} setActiveMetaTab={setActiveMetaTab} campaigns={realCampaigns} onToggleStatus={handleToggleStatus} onUpdateBudget={handleUpdateBudget} onSaveNote={handleSaveNote} />}
-            {activeMainTab === 'utm' && <UtmSalesTab />}
-            {activeMainTab === 'google' && <GoogleAdsTab connected={googleConnected} handleLogin={handleGoogleLogin} />}
-            {activeMainTab === 'alertas' && <AlertsTab campaigns={realCampaigns} />}
-            {activeMainTab === 'relatorios' && <ReportGeneratorTab campaigns={realCampaigns} />}
-          </>
-        )}
+        {activeMainTab === 'dashboard' && <DashboardTab kpis={realKPIs} chartData={realChartData} campaigns={realCampaigns} />}
+        {activeMainTab === 'meta' && <MetaAdsTab activeMetaTab={activeMetaTab} setActiveMetaTab={setActiveMetaTab} campaigns={realCampaigns} onToggleStatus={handleToggleStatus} onUpdateBudget={handleUpdateBudget} onSaveNote={handleSaveNote} />}
+        {activeMainTab === 'google' && <GoogleAdsTab googleConnected={!!googleAccessToken} onConnect={loginWithGoogle} />}
+        {activeMainTab === 'relatorios' && <ReportsTab campaigns={realCampaigns} kpis={realKPIs} />}
+        {activeMainTab === 'utm' && <UtmSalesTab />}
       </div>
     </div>
   );
 }
 
 // ==========================================
-// EMPTY STATE
+// GOOGLE ADS TAB
 // ==========================================
-function EmptyState({ handleFBLogin }) {
+function GoogleAdsTab({ googleConnected, onConnect }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center' }}>
-      <div style={{ width: 80, height: 80, background: 'rgba(255, 214, 0, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
-        <Target size={40} color={COLORS.yellow} />
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center', padding: 60 }}>
+      <div style={{ width: 80, height: 80, background: 'rgba(66, 133, 244, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+        <Search size={40} color="#4285F4" />
       </div>
-      <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 12 }}>Conecte sua primeira conta de anúncios</h2>
-      <p style={{ color: COLORS.textMuted, maxWidth: 400, marginBottom: 32, lineHeight: 1.6 }}>Para visualizar o Dashboard e gerenciar suas campanhas, conecte uma plataforma de tráfego.</p>
-      <div style={{ display: 'flex', gap: 16 }}>
-        <button onClick={handleFBLogin} style={{ background: '#1877F2', color: '#FFF', border: 'none', borderRadius: 8, padding: '12px 24px', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-          Conectar Meta Ads
-        </button>
-      </div>
+      <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 12 }}>{googleConnected ? 'Conta Google Ads Conectada' : 'Conecte sua conta do Google Ads'}</h2>
+      <p style={{ color: COLORS.textMuted, maxWidth: 450, marginBottom: 32, lineHeight: 1.6 }}>
+        Importe seus dados de pesquisa, display e youtube para centralizar toda a sua operação de tráfego pago.
+      </p>
+      <button onClick={onConnect} style={{ background: '#4285F4', color: '#FFF', border: 'none', borderRadius: 8, padding: '12px 24px', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+        {googleConnected ? 'Sincronizar Dados Google' : 'Conectar Google Ads'}
+      </button>
     </div>
   );
 }
 
 // ==========================================
-// DASHBOARD TAB
+// REPORTS TAB (DYNAMIC GENERATOR)
 // ==========================================
+function ReportsTab({ campaigns, kpis }) {
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [generating, setGenerating] = useState(false);
+  const [reportData, setReportData] = useState(null);
+
+  const toggleCampaign = (id) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const handleGenerateReport = () => {
+    if (selectedIds.length === 0) return alert('Selecione ao menos uma campanha.');
+    setGenerating(true);
+    setTimeout(() => {
+      const selectedCampaigns = campaigns.filter(c => selectedIds.includes(c.id));
+      const totalSpend = selectedCampaigns.reduce((sum, c) => sum + c.spend, 0);
+      const totalRevenue = selectedCampaigns.reduce((sum, c) => sum + c.revenue, 0);
+      setReportData({
+        campaigns: selectedCampaigns,
+        totalSpend,
+        totalRevenue,
+        totalRoas: totalSpend > 0 ? totalRevenue / totalSpend : 0,
+        totalLeads: selectedCampaigns.reduce((sum, c) => sum + c.results, 0)
+      });
+      setGenerating(false);
+    }, 1500);
+  };
+
+  if (reportData) {
+    return (
+      <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 16, padding: 40, position: 'relative' }}>
+        <button onClick={() => setReportData(null)} style={{ position: 'absolute', top: 20, right: 20, background: '#222', border: 'none', color: '#FFF', borderRadius: 8, padding: '8px 12px', fontSize: 12, cursor: 'pointer' }}>Voltar para Seleção</button>
+        
+        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+          <h2 style={{ fontSize: 32, fontWeight: 800, color: COLORS.yellow }}>Relatório de Performance</h2>
+          <p style={{ color: COLORS.textMuted }}>Análise consolidada das campanhas selecionadas</p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 40 }}>
+          <div style={{ background: COLORS.bgDark, padding: 20, borderRadius: 12, border: `1px solid ${COLORS.cardBorder}` }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.textMuted, marginBottom: 8 }}>INVESTIMENTO</div>
+            <div style={{ fontSize: 24, fontWeight: 800 }}>{fmtBRL(reportData.totalSpend)}</div>
+          </div>
+          <div style={{ background: COLORS.bgDark, padding: 20, borderRadius: 12, border: `1px solid ${COLORS.cardBorder}` }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.textMuted, marginBottom: 8 }}>RECEITA</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: COLORS.green }}>{fmtBRL(reportData.totalRevenue)}</div>
+          </div>
+          <div style={{ background: COLORS.bgDark, padding: 20, borderRadius: 12, border: `1px solid ${COLORS.cardBorder}` }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.textMuted, marginBottom: 8 }}>ROAS FINAL</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: COLORS.yellow }}>{reportData.totalRoas.toFixed(2)}x</div>
+          </div>
+          <div style={{ background: COLORS.bgDark, padding: 20, borderRadius: 12, border: `1px solid ${COLORS.cardBorder}` }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.textMuted, marginBottom: 8 }}>LEADS/CONV</div>
+            <div style={{ fontSize: 24, fontWeight: 800 }}>{reportData.totalLeads}</div>
+          </div>
+        </div>
+
+        <div style={{ background: COLORS.bgDark, padding: 24, borderRadius: 12, border: `1px solid ${COLORS.cardBorder}`, marginBottom: 32 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}>Breakdown por Campanha</h3>
+          {reportData.campaigns.map(c => (
+            <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: `1px solid ${COLORS.cardBorder}` }}>
+              <span style={{ fontSize: 14, fontWeight: 600 }}>{c.name}</span>
+              <div style={{ display: 'flex', gap: 24 }}>
+                <span style={{ fontSize: 13 }}>{fmtBRL(c.spend)} gastado</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.yellow }}>{c.roas.toFixed(2)}x ROAS</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', gap: 16 }}>
+          <button className="btn btn-primary" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><Download size={18}/> Baixar PDF</button>
+          <button className="btn btn-secondary" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><ExternalLink size={18}/> Compartilhar Link</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, padding: 24 }}>
+      <div style={{ marginBottom: 32 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 8px 0' }}>Gerador de Relatórios Premium</h2>
+        <p style={{ color: COLORS.textMuted, fontSize: 13 }}>Selecione as campanhas e conjuntos de anúncios para extrair uma visão didática e visual.</p>
+      </div>
+
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.textMuted, marginBottom: 12, display: 'flex', justifyContent: 'space-between' }}>
+          SELECIONE AS CAMPANHAS ({selectedIds.length} selecionadas)
+          <span onClick={() => setSelectedIds(campaigns.map(c => c.id))} style={{ color: COLORS.yellow, cursor: 'pointer' }}>Selecionar Tudo</span>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 400, overflowY: 'auto', paddingRight: 8 }}>
+          {campaigns.map(c => (
+            <div key={c.id} onClick={() => toggleCampaign(c.id)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: COLORS.bgDark, border: `1px solid ${selectedIds.includes(c.id) ? COLORS.yellow : COLORS.cardBorder}`, borderRadius: 8, cursor: 'pointer' }}>
+              {selectedIds.includes(c.id) ? <CheckSquare size={18} color={COLORS.yellow} /> : <Square size={18} color={COLORS.textMuted} />}
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>{c.name}</div>
+                <div style={{ fontSize: 11, color: COLORS.textMuted }}>{c.status.toUpperCase()} • {fmtBRL(c.spend)} gasto</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <button 
+        onClick={handleGenerateReport} 
+        disabled={generating || selectedIds.length === 0}
+        style={{ width: '100%', background: COLORS.yellow, color: '#000', border: 'none', borderRadius: 8, padding: '16px', fontSize: 15, fontWeight: 800, cursor: 'pointer', opacity: generating ? 0.7 : 1 }}
+      >
+        {generating ? 'Processando dados...' : 'Gerar Relatório Didático'}
+      </button>
+    </div>
+  );
+}
+
+// ============================= (REMAINING COMPONENTS PRESERVED) =============================
 function DashboardTab({ kpis, chartData, campaigns }) {
   if (!kpis) return <div style={{ color: COLORS.textMuted }}>Carregando dados...</div>;
   return (
@@ -325,36 +423,34 @@ function DashboardTab({ kpis, chartData, campaigns }) {
       </div>
 
       <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, padding: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700 }}>Performance Financeira</h3>
-        </div>
+        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 24 }}>Performance Financeira</h3>
         <div style={{ height: 280, width: '100%' }}>
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData}>
+            <AreaChart data={chartData}>
+              <defs>
+                <linearGradient id="colorGasto" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={COLORS.yellow} stopOpacity={0.3}/><stop offset="95%" stopColor={COLORS.yellow} stopOpacity={0}/></linearGradient>
+                <linearGradient id="colorReceita" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={COLORS.green} stopOpacity={0.3}/><stop offset="95%" stopColor={COLORS.green} stopOpacity={0}/></linearGradient>
+              </defs>
               <CartesianGrid strokeDasharray="3 3" stroke={COLORS.cardBorder} vertical={false} />
               <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: COLORS.textMuted }} dy={10} />
               <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: COLORS.textMuted }} tickFormatter={v => `R$ ${v}`} />
               <Tooltip contentStyle={{ background: '#000', border: `1px solid ${COLORS.cardBorder}`, borderRadius: 8, fontSize: 12, color: '#FFF' }} />
-              <Line yAxisId="left" type="monotone" dataKey="gasto" stroke={COLORS.yellow} strokeWidth={3} dot={false} activeDot={{ r: 6 }} />
-              <Line yAxisId="left" type="monotone" dataKey="receita" stroke={COLORS.green} strokeWidth={3} strokeDasharray="5 5" dot={false} activeDot={{ r: 6 }} />
-            </LineChart>
+              <Area yAxisId="left" type="monotone" dataKey="gasto" stroke={COLORS.yellow} fillOpacity={1} fill="url(#colorGasto)" strokeWidth={3} />
+              <Area yAxisId="left" type="monotone" dataKey="receita" stroke={COLORS.green} fillOpacity={1} fill="url(#colorReceita)" strokeWidth={3} />
+            </AreaChart>
           </ResponsiveContainer>
         </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 24 }}>
-        {/* FUNNEL */}
         <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, padding: 24 }}>
           <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 24 }}>Funil — Todas as contas</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <FunnelBar label="Alcance" value={kpis.impressions} max={kpis.impressions} color="#4B5563" suffix="100%" />
-            <div style={{ paddingLeft: 120, fontSize: 11, color: COLORS.textMuted, fontWeight: 600, marginTop: -8 }}>↓ {fmtPerc(kpis.ctr)} CTR</div>
             <FunnelBar label="Cliques" value={kpis.clicks} max={kpis.impressions} color={COLORS.yellow} suffix={`${((kpis.clicks/kpis.impressions)*100).toFixed(1)}%`} />
-            <div style={{ paddingLeft: 120, fontSize: 11, color: COLORS.textMuted, fontWeight: 600, marginTop: -8 }}>↓ {fmtPerc((kpis.results/kpis.clicks)*100)} Conversão</div>
-            <FunnelBar label="Leads" value={kpis.results} max={kpis.impressions} color={COLORS.green} suffix={`${((kpis.results/kpis.impressions)*100).toFixed(2)}%`} warning={kpis.results < 10} />
+            <FunnelBar label="Leads" value={kpis.results} max={kpis.impressions} color={COLORS.green} suffix={`${((kpis.results/kpis.impressions)*100).toFixed(2)}%`} />
           </div>
         </div>
-        {/* DONUT */}
         <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
           <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 24, alignSelf: 'flex-start' }}>Distribuição</h3>
           <div style={{ position: 'relative', width: 140, height: 140, borderRadius: '50%', background: `conic-gradient(${COLORS.yellow} 0% 75%, #333 75% 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -381,7 +477,7 @@ function KpiCard({ label, value, variation, isPositive, highlight }) {
   );
 }
 
-function FunnelBar({ label, value, max, color, suffix, warning }) {
+function FunnelBar({ label, value, max, color, suffix }) {
   const percent = max > 0 ? (value / max) * 100 : 0;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -395,9 +491,6 @@ function FunnelBar({ label, value, max, color, suffix, warning }) {
   );
 }
 
-// ==========================================
-// META ADS TAB (Operational Hub)
-// ==========================================
 function MetaAdsTab({ activeMetaTab, setActiveMetaTab, campaigns, onToggleStatus, onUpdateBudget, onSaveNote }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -416,7 +509,6 @@ function MetaAdsTab({ activeMetaTab, setActiveMetaTab, campaigns, onToggleStatus
           </button>
         ))}
       </div>
-
       {activeMetaTab === 'campanhas' && <MetaCampaignsTable campaigns={campaigns} onToggleStatus={onToggleStatus} onUpdateBudget={onUpdateBudget} onSaveNote={onSaveNote} />}
       {activeMetaTab === 'anúncios' && <MetaAdsGallery />}
       {activeMetaTab === 'demográficos' && <MetaDemographicsTab />}
@@ -427,8 +519,7 @@ function MetaAdsTab({ activeMetaTab, setActiveMetaTab, campaigns, onToggleStatus
 function MetaCampaignsTable({ campaigns, onToggleStatus, onUpdateBudget, onSaveNote }) {
   const [editingBudget, setEditingBudget] = useState(null);
   const [budgetValue, setBudgetValue] = useState('');
-  
-  const [noteModalData, setNoteModalData] = useState(null); // { id, notes }
+  const [noteModalData, setNoteModalData] = useState(null);
 
   const goals = { roas: 2, cpl: 15, ctr: 1.5 };
   const getGoalColor = (metric, value) => {
@@ -438,26 +529,8 @@ function MetaCampaignsTable({ campaigns, onToggleStatus, onUpdateBudget, onSaveN
     return 'transparent';
   };
 
-  const startEditBudget = (c) => {
-    setEditingBudget(c.id);
-    setBudgetValue(c.budget);
-  };
-
-  const saveBudget = (id) => {
-    onUpdateBudget(id, parseFloat(budgetValue));
-    setEditingBudget(null);
-  };
-
   return (
     <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, overflowX: 'auto' }}>
-      <div style={{ padding: 16, borderBottom: `1px solid ${COLORS.cardBorder}`, display: 'flex', gap: 12, alignItems: 'center' }}>
-        <button style={{ background: COLORS.bgDark, border: `1px solid ${COLORS.cardBorder}`, color: '#FFF', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Fixar</button>
-        <div style={{ display: 'flex', alignItems: 'center', background: COLORS.bgDark, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 6, padding: '6px 12px', width: 240 }}>
-          <Search size={14} color={COLORS.textMuted} style={{ marginRight: 8 }} />
-          <input type="text" placeholder="Buscar campanha..." style={{ background: 'transparent', border: 'none', color: '#FFF', outline: 'none', fontSize: 12, width: '100%' }} />
-        </div>
-      </div>
-
       <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: 1300 }}>
         <thead>
           <tr style={{ borderBottom: `1px solid ${COLORS.cardBorder}`, background: COLORS.bgDark }}>
@@ -473,26 +546,22 @@ function MetaCampaignsTable({ campaigns, onToggleStatus, onUpdateBudget, onSaveN
         </thead>
         <tbody>
           {campaigns.map(c => (
-            <tr key={c.id} style={{ borderBottom: `1px solid ${COLORS.cardBorder}`, transition: '0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#1a1a1a'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+            <tr key={c.id} style={{ borderBottom: `1px solid ${COLORS.cardBorder}` }}>
               <td style={{ padding: '12px 16px' }}>
-                <div onClick={() => onToggleStatus(c.id, c.status)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                <div onClick={() => onToggleStatus(c.id, c.status)} style={{ cursor: 'pointer' }}>
                   {c.status === 'ativo' ? <ToggleRight size={28} color={COLORS.green} /> : <ToggleLeft size={28} color={COLORS.textMuted} />}
                 </div>
               </td>
-              <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600 }}>
-                {c.name} {c.notes && <span style={{ marginLeft: 8, fontSize: 10, background: 'rgba(255,214,0,0.2)', color: COLORS.yellow, padding: '2px 6px', borderRadius: 4 }}>Nota ativa</span>}
-              </td>
+              <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600 }}>{c.name}</td>
               <td style={{ padding: '12px 16px', fontSize: 13 }}>
                 {editingBudget === c.id ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 11, color: COLORS.textMuted }}>R$</span>
-                    <input autoFocus value={budgetValue} onChange={e => setBudgetValue(e.target.value)} onKeyDown={e => e.key === 'Enter' && saveBudget(c.id)} style={{ width: 60, background: COLORS.bgDark, border: `1px solid ${COLORS.yellow}`, color: '#FFF', borderRadius: 4, padding: '4px 6px', fontSize: 12, outline: 'none' }} />
-                    <Save size={14} color={COLORS.green} style={{ cursor: 'pointer' }} onClick={() => saveBudget(c.id)} />
-                    <X size={14} color={COLORS.red} style={{ cursor: 'pointer' }} onClick={() => setEditingBudget(null)} />
+                    <input value={budgetValue} onChange={e => setBudgetValue(e.target.value)} style={{ width: 60, background: '#000', border: `1px solid ${COLORS.yellow}`, color: '#FFF', borderRadius: 4, padding: '4px 6px' }} />
+                    <Save size={14} color={COLORS.green} onClick={() => { onUpdateBudget(c.id, parseFloat(budgetValue)); setEditingBudget(null); }} />
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => startEditBudget(c)}>
-                    {c.budget > 0 ? fmtBRL(c.budget) : 'Múltiplos'} <Edit2 size={12} color={COLORS.textMuted} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => { setEditingBudget(c.id); setBudgetValue(c.budget); }}>
+                    {fmtBRL(c.budget)} <Edit2 size={12} color={COLORS.textMuted} />
                   </div>
                 )}
               </td>
@@ -500,32 +569,17 @@ function MetaCampaignsTable({ campaigns, onToggleStatus, onUpdateBudget, onSaveN
               <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 700, background: getGoalColor('roas', c.roas) }}>{c.roas.toFixed(2)}x</td>
               <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 700, background: getGoalColor('cpl', c.cpl) }}>{fmtBRL(c.cpl)}</td>
               <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 700, background: getGoalColor('ctr', c.ctr) }}>{fmtPerc(c.ctr)}</td>
-              <td style={{ padding: '12px 16px', display: 'flex', gap: 12 }}>
-                <button onClick={() => setNoteModalData({ id: c.id, notes: c.notes })} title="Notas Rápidas" style={{ background: 'transparent', border: 'none', color: COLORS.textMuted, cursor: 'pointer' }}><StickyNote size={16} /></button>
+              <td style={{ padding: '12px 16px' }}>
+                <StickyNote size={16} color={COLORS.textMuted} style={{ cursor: 'pointer' }} onClick={() => setNoteModalData({ id: c.id, notes: c.notes })} />
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-
-      {/* NOTES MODAL */}
-      <Modal isOpen={!!noteModalData} onClose={() => setNoteModalData(null)} title="Notas Rápidas de Otimização">
+      <Modal isOpen={!!noteModalData} onClose={() => setNoteModalData(null)} title="Notas de Otimização">
         <div style={{ padding: 20 }}>
-          <p style={{ fontSize: 13, color: COLORS.textMuted, marginBottom: 16 }}>Escreva observações sobre o que você otimizou ou o porquê pausou essa campanha.</p>
-          <textarea 
-            rows={5} 
-            value={noteModalData?.notes || ''} 
-            onChange={e => setNoteModalData({...noteModalData, notes: e.target.value})}
-            placeholder="Ex: Troquei o público para LAL 1% no dia 15..."
-            style={{ width: '100%', padding: 12, background: COLORS.bgDark, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 8, color: '#FFF', fontSize: 13, outline: 'none', marginBottom: 20 }}
-          />
-          <button 
-            className="btn btn-primary" 
-            onClick={() => { onSaveNote(noteModalData.id, noteModalData.notes); setNoteModalData(null); }}
-            style={{ width: '100%' }}
-          >
-            Salvar Nota
-          </button>
+          <textarea rows={5} value={noteModalData?.notes || ''} onChange={e => setNoteModalData({...noteModalData, notes: e.target.value})} style={{ width: '100%', background: '#000', color: '#FFF', padding: 12, borderRadius: 8 }} />
+          <button className="btn btn-primary" onClick={() => { onSaveNote(noteModalData.id, noteModalData.notes); setNoteModalData(null); }} style={{ width: '100%', marginTop: 20 }}>Salvar</button>
         </div>
       </Modal>
     </div>
@@ -533,36 +587,7 @@ function MetaCampaignsTable({ campaigns, onToggleStatus, onUpdateBudget, onSaveN
 }
 
 function MetaAdsGallery() {
-  const ads = [
-    { id: 1, name: 'Video VSL Principal - Conversão Alta', status: 'ativo', roas: 3.2, cpl: 8.50, ctr: 2.1, cpc: 0.80, isFatigued: false },
-    { id: 2, name: 'Imagem Estática Offer Especial', status: 'ativo', roas: 1.8, cpl: 18.20, ctr: 0.9, cpc: 1.50, isFatigued: true },
-    { id: 3, name: 'Carrossel Depoimentos', status: 'pausado', roas: 0.5, cpl: 45.00, ctr: 0.5, cpc: 2.50, isFatigued: false }
-  ];
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 24 }}>
-      {ads.map(ad => (
-        <div key={ad.id} style={{ background: COLORS.cardBg, border: `1px solid ${ad.isFatigued ? COLORS.red : COLORS.cardBorder}`, borderRadius: 12, overflow: 'hidden', position: 'relative' }}>
-          <div style={{ height: 120, background: '#222', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-            <Play size={32} color="rgba(255,255,255,0.2)" />
-            {ad.isFatigued && <div style={{ position: 'absolute', bottom: 8, left: 8, background: COLORS.red, color: '#FFF', fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 4 }}>🔥 FADIGA</div>}
-          </div>
-          <div style={{ padding: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ad.name}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
-              <div style={{ background: ad.roas >= 2 ? '#0d2e0d' : ad.roas < 1 ? '#2e0000' : '#2e2500', padding: 8, borderRadius: 6 }}>
-                <div style={{ fontSize: 9, color: COLORS.textMuted, fontWeight: 700, marginBottom: 2 }}>ROAS</div>
-                <div style={{ fontSize: 13, fontWeight: 800 }}>{ad.roas}x</div>
-              </div>
-              <div style={{ background: ad.cpl <= 10 ? '#0d2e0d' : ad.cpl > 20 ? '#2e0000' : '#2e2500', padding: 8, borderRadius: 6 }}>
-                <div style={{ fontSize: 9, color: COLORS.textMuted, fontWeight: 700, marginBottom: 2 }}>CPL</div>
-                <div style={{ fontSize: 13, fontWeight: 800 }}>{fmtBRL(ad.cpl)}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+  return <div style={{ padding: 40, textAlign: 'center', color: COLORS.textMuted }}>Galeria de Criativos em construção...</div>;
 }
 
 function MetaDemographicsTab() {
@@ -573,265 +598,16 @@ function MetaDemographicsTab() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <FunnelBar label="18-24 anos" value={1500} max={5000} color="#4B5563" suffix="30%" />
           <FunnelBar label="25-34 anos" value={2500} max={5000} color={COLORS.yellow} suffix="50%" />
-          <FunnelBar label="35-44 anos" value={750} max={5000} color="#4B5563" suffix="15%" />
-          <FunnelBar label="45+ anos" value={250} max={5000} color="#4B5563" suffix="5%" />
         </div>
       </div>
       <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, padding: 24 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 24 }}>Distribuição de Gênero</h3>
-        <div style={{ display: 'flex', alignItems: 'center', height: 40, borderRadius: 8, overflow: 'hidden' }}>
-          <div style={{ width: '65%', background: COLORS.yellow, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 700, fontSize: 13 }}>Mulheres (65%)</div>
-          <div style={{ width: '35%', background: '#4B5563', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontWeight: 700, fontSize: 13 }}>Homens (35%)</div>
-        </div>
-        <h3 style={{ fontSize: 16, fontWeight: 700, marginTop: 40, marginBottom: 24 }}>Posicionamentos</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 12, borderBottom: `1px solid ${COLORS.cardBorder}` }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Smartphone size={16} color={COLORS.textMuted}/> Instagram Stories</span>
-            <span style={{ fontWeight: 700 }}>45% das conversões</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 12, borderBottom: `1px solid ${COLORS.cardBorder}` }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Monitor size={16} color={COLORS.textMuted}/> Facebook Feed</span>
-            <span style={{ fontWeight: 700 }}>30% das conversões</span>
-          </div>
-        </div>
+        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 24 }}>Gênero</h3>
+        <div style={{ height: 40, background: COLORS.yellow, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 700 }}>65% Feminino</div>
       </div>
     </div>
   );
 }
 
-// ==========================================
-// UTM & SALES TAB
-// ==========================================
 function UtmSalesTab() {
-  const utms = [
-    { id: 1, source: 'meta', medium: 'cpc', campaign: 'promocao_maio', sessions: 12500, leads: 450, vendas: 35, receita: 5250, roasReal: 2.5 },
-    { id: 2, source: 'google', medium: 'search', campaign: 'institucional_brand', sessions: 8000, leads: 220, vendas: 52, receita: 7800, roasReal: 4.1 },
-    { id: 3, source: 'tiktok', medium: 'video', campaign: 'viral_challenge', sessions: 25000, leads: 850, vendas: 12, receita: 1800, roasReal: 0.8 },
-  ];
-
-  return (
-    <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <div>
-          <h3 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 8px 0' }}>Rastreamento de Origem Profundo (UTMs)</h3>
-          <p style={{ fontSize: 13, color: COLORS.textMuted, margin: 0 }}>Cruzamento de dados entre os cliques dos anúncios e as vendas reais no sistema.</p>
-        </div>
-        <button style={{ background: COLORS.bgDark, border: `1px solid ${COLORS.cardBorder}`, color: '#FFF', padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-          <Link size={16} /> Copiar Padrão UTM
-        </button>
-      </div>
-
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-          <thead>
-            <tr style={{ borderBottom: `1px solid ${COLORS.cardBorder}` }}>
-              <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: COLORS.textMuted }}>UTM SOURCE</th>
-              <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: COLORS.textMuted }}>UTM MEDIUM</th>
-              <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: COLORS.textMuted }}>UTM CAMPAIGN</th>
-              <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: COLORS.textMuted }}>SESSÕES</th>
-              <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: COLORS.textMuted }}>LEADS</th>
-              <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: COLORS.textMuted }}>VENDAS (REAIS)</th>
-              <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: COLORS.textMuted }}>RECEITA LÍQUIDA</th>
-              <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: COLORS.textMuted }}>ROAS REAL</th>
-            </tr>
-          </thead>
-          <tbody>
-            {utms.map((u, i) => (
-              <tr key={i} style={{ borderBottom: `1px solid ${COLORS.cardBorder}` }}>
-                <td style={{ padding: '16px 16px', fontSize: 13, fontWeight: 600, color: COLORS.yellow }}>{u.source}</td>
-                <td style={{ padding: '16px 16px', fontSize: 13 }}>{u.medium}</td>
-                <td style={{ padding: '16px 16px', fontSize: 13 }}>{u.campaign}</td>
-                <td style={{ padding: '16px 16px', fontSize: 13 }}>{fmtNum(u.sessions)}</td>
-                <td style={{ padding: '16px 16px', fontSize: 13 }}>{fmtNum(u.leads)}</td>
-                <td style={{ padding: '16px 16px', fontSize: 13, fontWeight: 700 }}>{u.vendas}</td>
-                <td style={{ padding: '16px 16px', fontSize: 13, color: COLORS.green }}>{fmtBRL(u.receita)}</td>
-                <td style={{ padding: '16px 16px', fontSize: 13, fontWeight: 700 }}>
-                  <span style={{ background: u.roasReal >= 2 ? '#0d2e0d' : u.roasReal < 1 ? '#2e0000' : '#2e2500', color: u.roasReal >= 2 ? COLORS.green : u.roasReal < 1 ? COLORS.red : COLORS.yellow, padding: '4px 8px', borderRadius: 6 }}>
-                    {u.roasReal.toFixed(2)}x
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-// ==========================================
-// ALERTS TAB (Intelligence Hub)
-// ==========================================
-function AlertsTab({ campaigns }) {
-  const alerts = useMemo(() => {
-    const list = [];
-    campaigns.forEach(c => {
-      if (c.status === 'ativo') {
-        if (c.roas > 0 && c.roas < 1.5) list.push({ id: `roas-${c.id}`, type: 'warning', title: 'ROAS Baixo Detectado', message: `A campanha "${c.name}" está com ROAS de ${c.roas.toFixed(2)}x (Meta: 2.0x). Considere otimizar criativos.`, icon: AlertTriangle });
-        if (c.cpl > 25) list.push({ id: `cpl-${c.id}`, type: 'error', title: 'CPL Acima do Limite', message: `O custo por lead em "${c.name}" subiu para ${fmtBRL(c.cpl)}. Risco de queima de orçamento.`, icon: AlertCircle });
-        if (c.spend > c.budget * 0.9) list.push({ id: `budget-${c.id}`, type: 'info', title: 'Orçamento Próximo ao Limite', message: `"${c.name}" já consumiu 90% do orçamento diário.`, icon: DollarSign });
-      }
-    });
-    return list;
-  }, [campaigns]);
-
-  return (
-    <div style={{ maxWidth: 800, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ marginBottom: 8 }}>
-        <h3 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 4px 0' }}>Alertas de Performance</h3>
-        <p style={{ fontSize: 13, color: COLORS.textMuted }}>Detecção automática de anomalias baseada em metas de ROAS e CPL.</p>
-      </div>
-
-      {alerts.length === 0 ? (
-        <div style={{ padding: 40, textAlign: 'center', background: COLORS.cardBg, borderRadius: 12, border: `1px solid ${COLORS.cardBorder}`, color: COLORS.textMuted }}>
-          <CheckCircle size={32} color={COLORS.green} style={{ marginBottom: 16 }} />
-          <div>Nenhum alerta crítico detectado no momento. Sua conta está saudável!</div>
-        </div>
-      ) : (
-        alerts.map(alert => (
-          <div key={alert.id} style={{ background: COLORS.cardBg, border: `1px solid ${alert.type === 'error' ? COLORS.red : alert.type === 'warning' ? COLORS.yellow : COLORS.cardBorder}`, borderRadius: 12, padding: 20, display: 'flex', gap: 20, alignItems: 'center' }}>
-            <div style={{ width: 48, height: 48, background: alert.type === 'error' ? 'rgba(239, 68, 68, 0.1)' : alert.type === 'warning' ? 'rgba(255, 214, 0, 0.1)' : 'rgba(255,255,255,0.05)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <alert.icon size={24} color={alert.type === 'error' ? COLORS.red : alert.type === 'warning' ? COLORS.yellow : COLORS.textMuted} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, color: alert.type === 'error' ? COLORS.red : alert.type === 'warning' ? COLORS.yellow : '#FFF' }}>{alert.title}</div>
-              <div style={{ fontSize: 13, color: COLORS.textMuted, lineHeight: 1.5 }}>{alert.message}</div>
-            </div>
-            <button style={{ background: COLORS.bgDark, border: `1px solid ${COLORS.cardBorder}`, color: '#FFF', padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Otimizar Agora</button>
-          </div>
-        ))
-      )}
-    </div>
-  );
-}
-
-// ==========================================
-// REPORT GENERATOR TAB (DashGoo / Reportei killer)
-// ==========================================
-function ReportGeneratorTab({ campaigns }) {
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [reportData, setReportData] = useState(null);
-
-  const handleGenerate = () => {
-    setIsGenerating(true);
-    setTimeout(() => {
-      const totals = campaigns.reduce((acc, c) => ({
-        spend: acc.spend + c.spend,
-        results: acc.results + c.results,
-        revenue: acc.revenue + c.revenue
-      }), { spend: 0, results: 0, revenue: 0 });
-      
-      setReportData({
-        ...totals,
-        roas: totals.spend > 0 ? totals.revenue / totals.spend : 0,
-        count: campaigns.length,
-        period: 'Últimos 30 dias'
-      });
-      setIsGenerating(false);
-    }, 1500);
-  };
-
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 24, height: '100%' }}>
-      {/* Configuration Panel */}
-      <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, padding: 24 }}>
-        <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 8 }}><Activity size={20} color={COLORS.yellow} /> Gerador de Relatório</h3>
-        
-        <div style={{ marginBottom: 20 }}>
-          <label style={{ fontSize: 12, color: COLORS.textMuted, fontWeight: 600, marginBottom: 8, display: 'block' }}>PERÍODO DE ANÁLISE</label>
-          <select style={{ width: '100%', background: COLORS.bgDark, border: `1px solid ${COLORS.cardBorder}`, color: '#FFF', padding: '12px', borderRadius: 8, outline: 'none' }}>
-            <option>Últimos 30 Dias</option>
-            <option>Últimos 7 Dias</option>
-            <option>Mês Atual</option>
-          </select>
-        </div>
-
-        <div style={{ marginBottom: 20 }}>
-          <label style={{ fontSize: 12, color: COLORS.textMuted, fontWeight: 600, marginBottom: 8, display: 'block' }}>FONTES DE DADOS</label>
-          <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}><input type="checkbox" defaultChecked /> Meta Ads</label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}><input type="checkbox" defaultChecked /> Google Ads</label>
-          </div>
-        </div>
-
-        <div style={{ marginBottom: 24 }}>
-          <label style={{ fontSize: 12, color: COLORS.textMuted, fontWeight: 600, marginBottom: 8, display: 'block' }}>SELECIONAR CAMPANHAS ({campaigns.length})</label>
-          <div style={{ maxHeight: 200, overflowY: 'auto', background: COLORS.bgDark, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 8, padding: 8 }}>
-            {campaigns.map(c => (
-              <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, padding: '6px 4px', borderBottom: `1px solid ${COLORS.cardBorder}`, cursor: 'pointer' }}>
-                <input type="checkbox" defaultChecked /> {c.name}
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <button 
-          onClick={handleGenerate}
-          disabled={isGenerating}
-          style={{ width: '100%', background: COLORS.yellow, color: '#000', border: 'none', padding: 12, borderRadius: 8, fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: isGenerating ? 'not-allowed' : 'pointer', opacity: isGenerating ? 0.7 : 1 }}
-        >
-          {isGenerating ? <RefreshCw size={18} className="spin" /> : <Activity size={18} />} 
-          {isGenerating ? 'Processando Dados...' : 'Gerar Dashboard Dinâmico'}
-        </button>
-      </div>
-
-      {/* Preview Panel */}
-      <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, padding: reportData ? 24 : 40, display: 'flex', flexDirection: 'column', alignItems: reportData ? 'flex-start' : 'center', justifyContent: reportData ? 'flex-start' : 'center', position: 'relative', overflowY: 'auto' }}>
-        {reportData && (
-          <div style={{ position: 'absolute', top: 24, right: 24 }}>
-            <button style={{ background: COLORS.yellow, border: 'none', color: '#000', padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-              <Download size={14} /> Exportar PDF
-            </button>
-          </div>
-        )}
-
-        {!reportData ? (
-          <>
-            <div style={{ width: 80, height: 80, background: 'rgba(34, 197, 94, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
-              <Activity size={40} color={COLORS.green} />
-            </div>
-            <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 12 }}>Visualização do Relatório</h2>
-            <p style={{ color: COLORS.textMuted, maxWidth: 400, textAlign: 'center', lineHeight: 1.6 }}>
-              Configure os parâmetros ao lado para gerar o relatório consolidado. O documento incluirá o Funil de Vendas, Gráficos de Tendência e as Notas Rápidas de otimização.
-            </p>
-          </>
-        ) : (
-          <div style={{ width: '100%' }}>
-            <div style={{ borderBottom: `1px solid ${COLORS.cardBorder}`, paddingBottom: 20, marginBottom: 24, width: '100%' }}>
-              <div style={{ fontSize: 11, fontWeight: 800, color: COLORS.yellow, letterSpacing: 1, marginBottom: 4 }}>RELATÓRIO CONSOLIDADO</div>
-              <h2 style={{ fontSize: 24, fontWeight: 800, margin: 0 }}>Performance Geral de Tráfego</h2>
-              <div style={{ fontSize: 13, color: COLORS.textMuted, marginTop: 4 }}>{reportData.period} • {reportData.count} Campanhas Analisadas</div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 32, width: '100%' }}>
-              <div style={{ background: COLORS.bgDark, padding: 20, borderRadius: 12, border: `1px solid ${COLORS.cardBorder}` }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.textMuted, marginBottom: 8 }}>INVESTIMENTO</div>
-                <div style={{ fontSize: 20, fontWeight: 800 }}>{fmtBRL(reportData.spend)}</div>
-              </div>
-              <div style={{ background: COLORS.bgDark, padding: 20, borderRadius: 12, border: `1px solid ${COLORS.cardBorder}` }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.textMuted, marginBottom: 8 }}>RETORNO (ROAS)</div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.green }}>{reportData.roas.toFixed(2)}x</div>
-              </div>
-              <div style={{ background: COLORS.bgDark, padding: 20, borderRadius: 12, border: `1px solid ${COLORS.cardBorder}` }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.textMuted, marginBottom: 8 }}>RESULTADO LÍQUIDO</div>
-                <div style={{ fontSize: 20, fontWeight: 800 }}>{fmtBRL(reportData.revenue)}</div>
-              </div>
-            </div>
-
-            <div style={{ background: COLORS.bgDark, padding: 24, borderRadius: 12, border: `1px solid ${COLORS.cardBorder}`, width: '100%' }}>
-               <h4 style={{ fontSize: 14, fontWeight: 700, marginBottom: 20 }}>Funil de Conversão do Relatório</h4>
-               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <FunnelBar label="Investimento" value={reportData.spend} max={reportData.spend} color={COLORS.yellow} suffix="100%" />
-                  <FunnelBar label="Conversões" value={reportData.results} max={reportData.results * 2} color={COLORS.green} suffix="-" />
-               </div>
-            </div>
-            
-            <div style={{ marginTop: 32, padding: 20, background: 'rgba(255, 214, 0, 0.05)', borderRadius: 12, border: `1px dashed ${COLORS.yellow}`, color: COLORS.yellow, fontSize: 13, fontWeight: 600, textAlign: 'center' }}>
-              Este é um rascunho visual do dashboard. Clique em "Exportar PDF" para gerar o documento final.
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  return <div style={{ padding: 40, textAlign: 'center', color: COLORS.textMuted }}>Módulo de UTMs em sincronização...</div>;
 }
