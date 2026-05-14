@@ -28,6 +28,7 @@ const navItems = [
   { section: 'Comunicação' },
   { path: '/whatsapp', icon: MessageCircle, label: 'WhatsApp' },
   { path: '/campanhas', icon: Megaphone, label: 'Campanhas' },
+  { path: '/otimizacoes', icon: Activity, label: 'Otimizações' },
   { path: '/agenda', icon: Calendar, label: 'Agenda' },
   { path: '/chat', icon: MessageSquare, label: 'Chat Interno' },
   { section: 'Gestão' },

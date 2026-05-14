@@ -5,8 +5,7 @@ import {
   DollarSign, BarChart3, ChevronDown, CheckCircle, AlertTriangle, AlertCircle,
   Eye, EyeOff, Pin, StickyNote, Play, Pause, XCircle, Settings, Award, ArrowRight,
   MousePointer2, Plus, RefreshCw, BarChart, Activity, Edit2, Save, X, ToggleLeft, ToggleRight,
-  Link, Smartphone, Monitor, FileText, CheckSquare, Square, Download, ExternalLink,
-  History, Clock, Check
+  Link, Smartphone, Monitor, FileText, CheckSquare, Square, Download, ExternalLink
 } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart as RechartsBarChart, Bar, Cell, AreaChart, Area } from 'recharts';
 import axios from 'axios';
@@ -52,16 +51,6 @@ export default function CampaignsPage() {
   const [realCampaigns, setRealCampaigns] = useState([]);
   const [realChartData, setRealChartData] = useState([]);
   const [lastSync, setLastSync] = useState(new Date().toLocaleTimeString());
-
-  // Optimizations Log (Shared State)
-  const [optimizations, setOptimizations] = useState(() => {
-    const saved = localStorage.getItem('foryou_campaign_opts');
-    return saved ? JSON.parse(saved) : {};
-  });
-
-  useEffect(() => {
-    localStorage.setItem('foryou_campaign_opts', JSON.stringify(optimizations));
-  }, [optimizations]);
 
   // Init & Fetch
   useEffect(() => {
@@ -188,18 +177,6 @@ export default function CampaignsPage() {
     scope: 'https://www.googleapis.com/auth/adwords'
   });
 
-  const handleOptimize = (campaignId, comment) => {
-    const now = new Date().toISOString();
-    setOptimizations(prev => ({
-      ...prev,
-      [campaignId]: {
-        lastOpt: now,
-        history: [{ date: now, comment }, ...(prev[campaignId]?.history || [])]
-      }
-    }));
-    addToast('Otimização registrada com sucesso!');
-  };
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: COLORS.bgDark, color: COLORS.text, fontFamily: 'Inter, sans-serif' }}>
       
@@ -244,7 +221,6 @@ export default function CampaignsPage() {
           { id: 'dashboard', icon: BarChart3, label: 'Dashboard' },
           { id: 'meta', icon: Target, label: 'Meta Ads' },
           { id: 'google', icon: Search, label: 'Google Ads' },
-          { id: 'gestao', icon: History, label: 'Gestão de Otimizações' },
           { id: 'relatorios', icon: FileText, label: 'Relatórios' },
           { id: 'utm', icon: MousePointer2, label: 'UTM & Vendas' },
         ].map(tab => (
@@ -267,7 +243,6 @@ export default function CampaignsPage() {
         {activeMainTab === 'dashboard' && <DashboardTab kpis={realKPIs} chartData={realChartData} campaigns={realCampaigns} />}
         {activeMainTab === 'meta' && <MetaAdsTab activeMetaTab={activeMetaTab} setActiveMetaTab={setActiveMetaTab} campaigns={realCampaigns} />}
         {activeMainTab === 'google' && <GoogleAdsTab googleConnected={!!googleAccessToken} onConnect={loginWithGoogle} />}
-        {activeMainTab === 'gestao' && <OptimizationsTab campaigns={realCampaigns} optimizations={optimizations} onOptimize={handleOptimize} />}
         {activeMainTab === 'relatorios' && <ReportsTab campaigns={realCampaigns} kpis={realKPIs} />}
         {activeMainTab === 'utm' && <UtmSalesTab />}
       </div>
@@ -276,103 +251,8 @@ export default function CampaignsPage() {
 }
 
 // ==========================================
-// OPTIMIZATIONS TAB (NEW)
-// ==========================================
-function OptimizationsTab({ campaigns, optimizations, onOptimize }) {
-  const [selectedCampaign, setSelectedCampaign] = useState(null);
-  const [optModalOpen, setOptModalOpen] = useState(false);
-  const [optComment, setOptComment] = useState('');
-
-  const activeCampaigns = campaigns.filter(c => c.status === 'ativo');
-
-  const getStatus = (campaignId) => {
-    const opt = optimizations[campaignId];
-    if (!opt) return { label: 'Pendente', color: COLORS.yellow, overdue: true };
-    const lastDate = new Date(opt.lastOpt);
-    const diffDays = Math.floor((new Date() - lastDate) / (1000 * 60 * 60 * 24));
-    if (diffDays >= 7) return { label: `Atrasado (${diffDays}d)`, color: COLORS.red, overdue: true };
-    return { label: `Em dia (${diffDays}d)`, color: COLORS.green, overdue: false };
-  };
-
-  const handleOpenOpt = (c) => {
-    setSelectedCampaign(c);
-    setOptComment('');
-    setOptModalOpen(true);
-  };
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <div>
-          <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0 }}>Gestão de Otimizações</h2>
-          <p style={{ color: COLORS.textMuted, fontSize: 13 }}>Ciclo de otimização recomendado: 7 dias.</p>
-        </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 20 }}>
-        {activeCampaigns.map(c => {
-          const status = getStatus(c.id);
-          const opt = optimizations[c.id];
-          return (
-            <div key={c.id} style={{ background: COLORS.cardBg, border: `1px solid ${status.overdue ? COLORS.red : COLORS.cardBorder}`, borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{c.name}</div>
-                  <div style={{ fontSize: 11, color: COLORS.textMuted }}>Última mexida: {opt ? new Date(opt.lastOpt).toLocaleDateString() : 'Nunca'}</div>
-                </div>
-                <div style={{ fontSize: 10, fontWeight: 800, color: status.color, background: `${status.color}15`, padding: '4px 8px', borderRadius: 12, border: `1px solid ${status.color}30` }}>
-                  {status.label.toUpperCase()}
-                </div>
-              </div>
-
-              <div style={{ flex: 1, marginBottom: 20 }}>
-                {opt?.history?.[0] ? (
-                  <div style={{ background: COLORS.bgDark, padding: 12, borderRadius: 8, fontSize: 12, color: COLORS.textMuted, border: `1px solid ${COLORS.cardBorder}` }}>
-                    <div style={{ fontWeight: 700, color: COLORS.text, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}><Clock size={12}/> Último Comentário:</div>
-                    "{opt.history[0].comment}"
-                  </div>
-                ) : (
-                  <div style={{ color: COLORS.textMuted, fontSize: 12, fontStyle: 'italic' }}>Nenhum histórico de otimização registrado.</div>
-                )}
-              </div>
-
-              <button 
-                onClick={() => handleOpenOpt(c)}
-                style={{ width: '100%', background: status.overdue ? COLORS.yellow : COLORS.bgDark, color: status.overdue ? '#000' : '#FFF', border: `1px solid ${COLORS.cardBorder}`, borderRadius: 8, padding: '10px', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-              >
-                <Activity size={14} /> Registrar Otimização
-              </button>
-            </div>
-          );
-        })}
-      </div>
-
-      <Modal isOpen={optModalOpen} onClose={() => setOptModalOpen(false)} title={`Otimizar: ${selectedCampaign?.name}`}>
-        <div style={{ padding: 20 }}>
-          <div style={{ fontSize: 13, color: COLORS.textMuted, marginBottom: 16 }}>O que foi alterado nesta campanha? Registre para manter o histórico de performance.</div>
-          <textarea 
-            rows={5} 
-            value={optComment} 
-            onChange={e => setOptComment(e.target.value)}
-            placeholder="Ex: Pausamos o criativo B, aumentamos o orçamento em 15% e trocamos o público de interesse para Lookalike 1%."
-            style={{ width: '100%', padding: 12, background: COLORS.bgDark, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 8, color: '#FFF', fontSize: 13, outline: 'none', marginBottom: 20 }}
-          />
-          <button 
-            className="btn btn-primary" 
-            onClick={() => { onOptimize(selectedCampaign.id, optComment); setOptModalOpen(false); }}
-            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-          >
-            <Check size={18} /> Confirmar Otimização
-          </button>
-        </div>
-      </Modal>
-    </div>
-  );
-}
-
-// ==========================================
-// OTHER TABS (Dashboard, Meta, Google, Reports, UTM)
-// ==========================================
+// REMAINING COMPONENTS
+// =============================
 function DashboardTab({ kpis, chartData, campaigns }) {
   if (!kpis) return <div style={{ color: COLORS.textMuted }}>Carregando dados...</div>;
   return (

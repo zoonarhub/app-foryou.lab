@@ -31,6 +31,7 @@ const ChatPage = lazy(() => import('./pages/Chat'));
 const ResultProjections = lazy(() => import('./pages/ResultProjections'));
 const PropostaPublica = lazy(() => import('./pages/PropostaPublica'));
 const PropostaModularPublica = lazy(() => import('./pages/PropostaModularPublica'));
+const OptimizationManagement = lazy(() => import('./pages/OptimizationManagement'));
 
 function PageLoader() {
   return (
@@ -79,6 +80,7 @@ function AuthGuard() {
             <Route path="/alertas" element={<Alerts />} />
             <Route path="/chat" element={<ChatPage />} />
             <Route path="/resultado-projecoes" element={<ResultProjections />} />
+            <Route path="/otimizacoes" element={<OptimizationManagement />} />
           </Routes>
         </Suspense>
       </main>
