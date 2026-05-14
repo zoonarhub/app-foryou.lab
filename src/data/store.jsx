@@ -6,14 +6,9 @@ const THEME_KEY = 'foryoulab_theme';
 
 const emptyData = {
   clients: [], leads: [], proposals: [], modularProposals: [], resultProjections: [],
-  projects: [], tasks: [], financials: [], alerts: [], teamMembers: [
-    { id: 'tm1', nome: 'Ricardo Fernandes', cargo: 'CEO', email: 'ricardo@foryou.lab', perfil: 'admin', ativo: true }
-  ], services: [], channels: [
-    { id: 'ch_geral', nome: 'geral', tipo: 'publico', descricao: 'Canal geral da equipe', criadoPor: 'tm1', icone: '#' },
-    { id: 'ch_marketing', nome: 'marketing', tipo: 'publico', descricao: 'Equipe de marketing', criadoPor: 'tm1', icone: '#' },
-    { id: 'ch_comercial', nome: 'comercial', tipo: 'publico', descricao: 'Equipe comercial', criadoPor: 'tm1', icone: '#' },
-    { id: 'ch_resultados', nome: 'resultados', tipo: 'publico', descricao: 'Comemorar vitórias 🏆', criadoPor: 'tm1', icone: '#' },
-  ], chatMessages: [], whatsappConversations: [], integrations: [],
+  projects: [], tasks: [], financials: [], alerts: [], teamMembers: [], 
+  services: [], channels: [], chatMessages: [], whatsappConversations: [], 
+  integrations: [], campaignTrackings: [], optimizationLogs: []
 };
 
 const toSnakeCase = str => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
@@ -50,12 +45,10 @@ export function AppProvider({ children }) {
       }
       setAuth(user);
       
-      // Determine Agency ID
       const { data: profile } = await supabase.from('user_profiles').select('agency_id').eq('id', user.id).single();
       if (profile?.agency_id) {
         setAgencyId(profile.agency_id);
       } else {
-        // If no profile exists, they are the agency owner (CEO)
         setAgencyId(user.id);
       }
     };
@@ -65,31 +58,41 @@ export function AppProvider({ children }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Fetch Data from Supabase when user is authenticated
-  useEffect(() => {
-    if (!agencyId) {
-      setData(emptyData);
-      setLoadingData(false);
-      return;
-    }
+  // Fetch Data from Supabase
+  const fetchData = useCallback(async () => {
+    if (!agencyId) return;
     setLoadingData(true);
+    
     const keys = Object.keys(emptyData);
-    Promise.all(keys.map(async (key) => {
+    const results = await Promise.all(keys.map(async (key) => {
       const table = toSnakeCase(key);
+      
+      // Tabelas Estruturadas (sem coluna 'data')
+      if (['campaignTrackings', 'optimizationLogs'].includes(key)) {
+        const { data: rows, error } = await supabase.from(table).select('*').eq('user_id', agencyId);
+        return { key, val: !error ? rows : [] };
+      }
+      
+      // Tabelas baseadas em JSONB
       const { data: rows, error } = await supabase.from(table).select('data').eq('user_id', agencyId);
       if (!error && rows) {
         return { key, val: rows.map(r => r.data) };
       }
       return { key, val: [] };
-    })).then(results => {
-      const newData = { ...emptyData };
-      results.forEach(({ key, val }) => {
-        if (val.length > 0) newData[key] = val;
-      });
-      setData(newData);
-      setLoadingData(false);
+    }));
+
+    const newData = { ...emptyData };
+    results.forEach(({ key, val }) => {
+      newData[key] = val;
     });
+    
+    setData(newData);
+    setLoadingData(false);
   }, [agencyId]);
+
+  useEffect(() => {
+    if (agencyId) fetchData();
+  }, [agencyId, fetchData]);
 
   const login = async (email, password) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -99,17 +102,11 @@ export function AppProvider({ children }) {
   const signup = async (email, password) => {
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (!error && data?.user) {
-      // Check for invites
       const { data: invite } = await supabase.from('invites').select('*').eq('email', email).single();
       if (invite) {
-        // Create profile linked to agency
         await supabase.from('user_profiles').insert({
-          id: data.user.id,
-          agency_id: invite.agency_id,
-          role: invite.role,
-          email: email
+          id: data.user.id, agency_id: invite.agency_id, role: invite.role, email: email
         });
-        // Delete invite
         await supabase.from('invites').delete().eq('email', email);
       }
     }
@@ -125,20 +122,22 @@ export function AppProvider({ children }) {
     const table = toSnakeCase(key);
     const newItem = { ...item, id };
     
-    // Optimistic Update
     setData(prev => ({ ...prev, [key]: [...prev[key], newItem] }));
     
     if (agencyId) {
-      await supabase.from(table).insert({ id, user_id: agencyId, data: newItem });
+      if (['campaignTrackings', 'optimizationLogs'].includes(key)) {
+         await supabase.from(table).insert({ ...newItem, user_id: agencyId });
+      } else {
+         await supabase.from(table).insert({ id, user_id: agencyId, data: newItem });
+      }
     }
     return id;
   }, [agencyId]);
 
   const updateItem = useCallback(async (key, id, updates) => {
     const table = toSnakeCase(key);
-    
-    // Optimistic Update
     let updatedItem = null;
+    
     setData(prev => {
       const items = prev[key].map(item => {
         if (item.id === id) {
@@ -151,7 +150,11 @@ export function AppProvider({ children }) {
     });
 
     if (agencyId && updatedItem) {
-      await supabase.from(table).update({ data: updatedItem }).eq('id', id).eq('user_id', agencyId);
+      if (['campaignTrackings', 'optimizationLogs'].includes(key)) {
+         await supabase.from(table).update(updates).eq('id', id).eq('user_id', agencyId);
+      } else {
+         await supabase.from(table).update({ data: updatedItem }).eq('id', id).eq('user_id', agencyId);
+      }
     }
   }, [agencyId]);
 
@@ -192,12 +195,12 @@ export function AppProvider({ children }) {
 
   return (
     <AppContext.Provider value={{
-      ...data, toasts, auth, theme, loadingData,
-      addItem, updateItem, deleteItem,
+      ...data, toasts, auth, theme, loadingData, user: auth,
+      addItem, updateItem, deleteItem, fetchData,
       addToast, getTeamMember, getClient,
       login, signup, logout, toggleTheme,
       evolutionApiUrl, evolutionApiKey, setEvoConfig,
-      googleAccessToken, saveGoogleToken
+      googleAccessToken, saveGoogleToken, supabase
     }}>
       {children}
     </AppContext.Provider>
