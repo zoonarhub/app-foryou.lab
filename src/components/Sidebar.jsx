@@ -13,7 +13,6 @@ const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { path: '/alertas', icon: AlertTriangle, label: 'Alertas' },
   { path: '/crm', icon: Users, label: 'CRM — Pipeline' },
-  { path: '/leads', icon: UserPlus, label: 'Leads' },
   { path: '/clientes', icon: Handshake, label: 'Clientes' },
   { path: '/servicos', icon: Box, label: 'Serviços' },
   { path: '/onboarding', icon: ClipboardCheck, label: 'Onboarding' },

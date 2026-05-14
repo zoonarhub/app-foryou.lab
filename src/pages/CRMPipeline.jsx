@@ -15,7 +15,36 @@ const columns = [
 const tempIcons = { quente: '🔥', morno: '⚡', frio: '❄️' };
 const fmt = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 }).format(v);
 
-const emptyLead = { nome: '', empresa: '', email: '', whatsapp: '', segmento: '', cidade: '', faturamento: '', responsavel: '', status: 'novo', temperatura: 'morno', origem: '', valorEstimado: 0, servicos: '', observacoes: '' };
+const calcScore = (l) => {
+  let s = 0;
+  if (l.nome) s += 5; if (l.empresa) s += 5; if (l.email) s += 5; if (l.whatsapp) s += 10;
+  if (l.segmento) s += 5;
+  
+  // Pontuação por Faturamento
+  const f = String(l.faturamento || '').toLowerCase();
+  if (f.includes('200k') || f.includes('mais')) s += 30;
+  else if (f.includes('80k')) s += 20;
+  else if (f.includes('30k')) s += 10;
+
+  // Pontuação por Estrutura
+  if (l.temInstagram) s += 5; 
+  if (l.temSite) s += 5; 
+  if (l.investeTrafego) s += 10;
+  if (l.temEquipeVendas) s += 10;
+  if (l.usaCRM) s += 5;
+
+  if (l.temperatura === 'quente') s += 10;
+  return Math.min(s, 100);
+};
+
+const emptyLead = { 
+  nome: '', empresa: '', email: '', whatsapp: '', segmento: '', 
+  cidade: '', estado: '', faturamento: '', tamanhoNegocio: '',
+  responsavel: '', status: 'novo', temperatura: 'morno', origem: '', 
+  valorEstimado: 0, servicos: '', observacoes: '', desafio: '',
+  temInstagram: false, temSite: false, investeTrafego: false, 
+  temEquipeVendas: false, usaCRM: false, infoComplementar: false
+};
 
 export default function CRMPipeline() {
   const { leads, teamMembers, updateItem, addItem, deleteItem, addToast } = useApp();
@@ -30,7 +59,7 @@ export default function CRMPipeline() {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   const filtered = useMemo(() => leads.filter(l => {
-    if (search && !l.nome.toLowerCase().includes(search.toLowerCase()) && !l.empresa.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search && !l.nome?.toLowerCase().includes(search.toLowerCase()) && !l.empresa?.toLowerCase().includes(search.toLowerCase())) return false;
     if (filterTemp && l.temperatura !== filterTemp) return false;
     if (filterResp && l.responsavel !== filterResp) return false;
     return true;
@@ -55,11 +84,12 @@ export default function CRMPipeline() {
 
   const handleSave = () => {
     if (!formData.nome || !formData.empresa) { addToast('Nome e Empresa são obrigatórios', 'error'); return; }
+    const data = { ...formData, score: calcScore(formData) };
     if (editingLead) {
-      updateItem('leads', editingLead.id, formData);
+      updateItem('leads', editingLead.id, data);
       addToast('Lead atualizado!');
     } else {
-      addItem('leads', { ...formData, dataEntrada: new Date().toISOString(), score: Math.floor(Math.random() * 40) + 60 });
+      addItem('leads', { ...data, dataEntrada: new Date().toISOString() });
       addToast('Lead criado com sucesso!');
     }
     setShowModal(false);
@@ -93,7 +123,7 @@ export default function CRMPipeline() {
         <div className="kanban-board">
           {columns.map(col => {
             const colItems = filtered.filter(l => l.status === col.id);
-            const colTotal = colItems.reduce((s, l) => s + (l.valorEstimado || 0), 0);
+            const colTotal = colItems.reduce((s, l) => s + (Number(l.valorEstimado) || 0), 0);
             return (
               <div key={col.id} className="kanban-column" onDragOver={e => e.preventDefault()} onDrop={e => handleDrop(e, col.id)}>
                 <div className="kanban-column-header">
@@ -137,7 +167,6 @@ export default function CRMPipeline() {
         </div>
       </div>
 
-      {/* Modal Create/Edit */}
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editingLead ? '✏️ Editar Lead' : '➕ Novo Lead'} size="lg"
         footer={<><button className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancelar</button><button className="btn btn-primary" onClick={handleSave}>{editingLead ? 'Salvar' : 'Criar Lead'}</button></>}>
         <div className="form-row">
@@ -150,11 +179,22 @@ export default function CRMPipeline() {
         </div>
         <div className="form-row">
           <div className="form-group"><label className="form-label">Segmento</label><input className="form-input" value={formData.segmento} onChange={e => setFormData({...formData, segmento: e.target.value})} /></div>
+          <div className="form-group"><label className="form-label">Faturamento Mensal</label><input className="form-input" value={formData.faturamento || ''} onChange={e => setFormData({...formData, faturamento: e.target.value})} /></div>
+        </div>
+        <div className="form-row">
           <div className="form-group"><label className="form-label">Cidade</label><input className="form-input" value={formData.cidade || ''} onChange={e => setFormData({...formData, cidade: e.target.value})} /></div>
+          <div className="form-group"><label className="form-label">Estado</label><input className="form-input" value={formData.estado || ''} onChange={e => setFormData({...formData, estado: e.target.value})} /></div>
         </div>
         <div className="form-row">
           <div className="form-group"><label className="form-label">Valor Estimado (R$)</label><input className="form-input" type="number" value={formData.valorEstimado} onChange={e => setFormData({...formData, valorEstimado: Number(e.target.value)})} /></div>
-          <div className="form-group"><label className="form-label">Faturamento Mensal</label><input className="form-input" value={formData.faturamento || ''} onChange={e => setFormData({...formData, faturamento: e.target.value})} /></div>
+          <div className="form-group"><label className="form-label">Tamanho do Negócio</label>
+            <select className="form-select" value={formData.tamanhoNegocio || ''} onChange={e => setFormData({...formData, tamanhoNegocio: e.target.value})}>
+              <option value="">Selecione...</option>
+              <option value="individual">Individual / Autônomo</option>
+              <option value="pequeno">Pequena Empresa (1-10)</option>
+              <option value="medio">Média Empresa (11-50)</option>
+              <option value="grande">Grande Empresa (50+)</option>
+            </select></div>
         </div>
         <div className="form-row">
           <div className="form-group"><label className="form-label">Temperatura</label>
@@ -170,7 +210,17 @@ export default function CRMPipeline() {
           <select className="form-select" value={formData.responsavel} onChange={e => setFormData({...formData, responsavel: e.target.value})}>
             <option value="">Selecione...</option>{teamMembers.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
           </select></div>
-        <div className="form-group"><label className="form-label">Observações</label><textarea className="form-textarea" value={formData.observacoes || ''} onChange={e => setFormData({...formData, observacoes: e.target.value})} /></div>
+        
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, marginBottom: 16, marginTop: 8 }}>
+          {[['temInstagram', 'Instagram'], ['temSite', 'Site'], ['investeTrafego', 'Tráfego'], ['temEquipeVendas', 'Equipe Vendas'], ['usaCRM', 'Usa CRM'], ['infoComplementar', 'Info Comp.']].map(([k, label]) => (
+            <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer', color: 'var(--text-primary)' }}>
+              <input type="checkbox" checked={formData[k] || false} onChange={e => setFormData({...formData, [k]: e.target.checked})} style={{ accentColor: '#FFD600' }} />{label}
+            </label>
+          ))}
+        </div>
+
+        <div className="form-group"><label className="form-label">Qual o maior desafio hoje?</label><textarea className="form-textarea" rows={2} value={formData.desafio || ''} onChange={e => setFormData({...formData, desafio: e.target.value})} /></div>
+        <div className="form-group"><label className="form-label">Observações Internas</label><textarea className="form-textarea" value={formData.observacoes || ''} onChange={e => setFormData({...formData, observacoes: e.target.value})} /></div>
       </Modal>
 
       {/* Detail Drawer */}
@@ -184,14 +234,52 @@ export default function CRMPipeline() {
             <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
               <span className="badge badge-yellow">{tempIcons[showDetail.temperatura]} {showDetail.temperatura}</span>
               <span className={`badge ${columns.find(c=>c.id===showDetail.status)?.color === '#22C55E' ? 'badge-green' : 'badge-blue'}`}>{columns.find(c=>c.id===showDetail.status)?.title}</span>
+              {showDetail.score && <span className="badge badge-gray">Score: {showDetail.score}</span>}
             </div>
-            {[['Empresa', showDetail.empresa], ['Email', showDetail.email], ['WhatsApp', showDetail.whatsapp], ['Segmento', showDetail.segmento], ['Origem', showDetail.origem], ['Valor Estimado', showDetail.valorEstimado ? fmt(showDetail.valorEstimado) : '—'], ['Score', showDetail.score], ['Entrada', showDetail.dataEntrada ? new Date(showDetail.dataEntrada).toLocaleDateString('pt-BR') : '—']].map(([k,v]) => (
+            
+            {[
+              ['Empresa', showDetail.empresa], 
+              ['Email', showDetail.email], 
+              ['WhatsApp', showDetail.whatsapp], 
+              ['Segmento', showDetail.segmento], 
+              ['Faturamento', showDetail.faturamento],
+              ['Cidade/UF', `${showDetail.cidade || '—'}${showDetail.estado ? `/${showDetail.estado}` : ''}`],
+              ['Tamanho', showDetail.tamanhoNegocio],
+              ['Origem', showDetail.origem], 
+              ['Valor Estimado', showDetail.valorEstimado ? fmt(showDetail.valorEstimado) : '—'], 
+              ['Entrada', showDetail.dataEntrada ? new Date(showDetail.dataEntrada).toLocaleDateString('pt-BR') : '—']
+            ].map(([k,v]) => (
               <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--card-border)', fontSize: 13 }}>
                 <span style={{ color: 'var(--text-secondary)' }}>{k}</span><span style={{ fontWeight: 600 }}>{v || '—'}</span>
               </div>
             ))}
-            {showDetail.observacoes && <div style={{ marginTop: 16, padding: 12, background: 'var(--gray-bg)', borderRadius: 8, fontSize: 13 }}>{showDetail.observacoes}</div>}
-            <div style={{ marginTop: 20, display: 'flex', gap: 8 }}>
+
+            <div style={{ marginTop: 16 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8 }}>Estrutura & Info:</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {showDetail.temInstagram && <span className="badge badge-blue">Instagram</span>}
+                {showDetail.temSite && <span className="badge badge-blue">Site</span>}
+                {showDetail.investeTrafego && <span className="badge badge-blue">Tráfego</span>}
+                {showDetail.temEquipeVendas && <span className="badge badge-blue">Equipe Vendas</span>}
+                {showDetail.usaCRM && <span className="badge badge-blue">Usa CRM</span>}
+              </div>
+            </div>
+
+            {showDetail.desafio && (
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4 }}>Desafio:</div>
+                <div style={{ padding: 12, background: 'var(--gray-bg)', borderRadius: 8, fontSize: 13 }}>{showDetail.desafio}</div>
+              </div>
+            )}
+
+            {showDetail.observacoes && (
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4 }}>Observações:</div>
+                <div style={{ padding: 12, background: 'var(--gray-bg)', borderRadius: 8, fontSize: 13 }}>{showDetail.observacoes}</div>
+              </div>
+            )}
+
+            <div style={{ marginTop: 24, display: 'flex', gap: 8 }}>
               <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={() => { setShowDetail(null); openEdit(showDetail); }}>✏️ Editar</button>
               <button className="btn btn-secondary btn-sm" style={{ flex: 1 }} onClick={() => { const n = (showDetail.whatsapp||'').replace(/\D/g,''); window.open(`https://wa.me/55${n}?text=Olá ${showDetail.nome}, tudo bem?`); }}>💬 WhatsApp</button>
             </div>

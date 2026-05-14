@@ -7,7 +7,6 @@ import Login from './pages/Login';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const CRMPipeline = lazy(() => import('./pages/CRMPipeline'));
-const Leads = lazy(() => import('./pages/Leads'));
 const Clients = lazy(() => import('./pages/Clients'));
 const Laboratory = lazy(() => import('./pages/Laboratory'));
 const Projects = lazy(() => import('./pages/Projects'));
@@ -58,7 +57,6 @@ function AuthGuard() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/crm" element={<CRMPipeline />} />
-            <Route path="/leads" element={<Leads />} />
             <Route path="/clientes" element={<Clients />} />
             <Route path="/laboratorio" element={<Laboratory />} />
             <Route path="/servicos" element={<Services />} />
