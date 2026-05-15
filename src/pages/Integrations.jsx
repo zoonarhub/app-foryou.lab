@@ -15,7 +15,7 @@ const integrationsList = [
 ];
 
 export default function Integrations() {
-  const { addToast, googleAccessToken, saveGoogleToken } = useApp();
+  const { addToast, googleAccessToken, saveGoogleToken, user, agencyId: storeAgencyId } = useApp();
   const [connections, setConnections] = useState(() => {
     try { return JSON.parse(localStorage.getItem('foryoulab_integrations') || '{}'); } catch { return {}; }
   });
@@ -122,7 +122,7 @@ export default function Integrations() {
     addToast('Desconectado!', 'warning');
   };
 
-  const agencyId = user?.id || '';
+  const agencyId = storeAgencyId || user?.id || '';
   const webhookUrl = `https://iamszevlwgiirziejppp.supabase.co/functions/v1/capture-lead`;
 
   const mockLogs = [
