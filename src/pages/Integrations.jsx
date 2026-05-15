@@ -11,6 +11,7 @@ const integrationsList = [
   { id: 'google_ads', name: 'Google Ads', desc: 'Campanhas de pesquisa e display', icon: '🔍', category: 'Marketing', connectType: 'oauth' },
   { id: 'stripe', name: 'Stripe / Asaas', desc: 'Pagamentos e cobranças recorrentes', icon: '💳', category: 'Financeiro', connectType: 'apikey' },
   { id: 'zapier', name: 'Zapier / Make', desc: 'Automações via webhook externo', icon: '⚡', category: 'Automação', connectType: 'webhook' },
+  { id: 'landing_page', name: 'Landing Page', desc: 'Captura direta de leads via Webhook', icon: '🚀', category: 'Marketing', connectType: 'webhook' },
   { id: 'openai', name: 'OpenAI', desc: 'API de IA para geração de textos', icon: '🤖', category: 'IA', connectType: 'apikey' },
 ];
 
