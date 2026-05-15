@@ -122,7 +122,8 @@ export default function Integrations() {
     addToast('Desconectado!', 'warning');
   };
 
-  const webhookUrl = `https://app.foryou.lab/api/webhook/${Date.now().toString(36)}`;
+  const agencyId = user?.id || '';
+  const webhookUrl = `https://iamszevlwgiirziejppp.supabase.co/functions/v1/capture-lead`;
 
   const mockLogs = [
     { time: '14:32', action: 'Sincronização automática', status: 'ok' },
@@ -181,13 +182,45 @@ export default function Integrations() {
       </Modal>
 
       {/* Webhook Modal */}
-      <Modal isOpen={showModal && integrationsList.find(i => i.id === showModal)?.connectType === 'webhook'} onClose={() => setShowModal(null)} title="⚡ Webhook URL" size="sm">
-        <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>Use esta URL no Zapier ou Make para enviar dados ao app:</p>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <input className="form-input" readOnly value={webhookUrl} style={{ fontSize: 11 }} />
-          <button onClick={() => { navigator.clipboard.writeText(webhookUrl); addToast('URL copiada!'); }} className="btn btn-sm btn-primary"><Copy size={14} /></button>
+      <Modal isOpen={showModal && integrationsList.find(i => i.id === showModal)?.connectType === 'webhook'} onClose={() => setShowModal(null)} title="⚡ Configurar Webhook de Leads" size="md">
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
+          Use esta URL na sua Landing Page para enviar leads diretamente para o CRM. 
+          Certifique-se de enviar o campo <strong>agency_id</strong> no corpo do JSON.
+        </p>
+        
+        <div style={{ marginBottom: 16 }}>
+          <label className="form-label">Webhook URL</label>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input className="form-input" readOnly value={webhookUrl} style={{ fontSize: 11 }} />
+            <button onClick={() => { navigator.clipboard.writeText(webhookUrl); addToast('URL copiada!'); }} className="btn btn-sm btn-primary"><Copy size={14} /></button>
+          </div>
         </div>
-        <button className="btn btn-primary mt-16" style={{ width: '100%' }} onClick={() => { save({ ...connections, [showModal]: { status: 'connected', connectedAt: new Date().toISOString(), lastSync: new Date().toISOString() } }); addToast('Webhook ativo!'); setShowModal(null); }}>Ativar Webhook</button>
+
+        <div style={{ marginBottom: 20 }}>
+          <label className="form-label">Seu Agency ID (Obrigatório no JSON)</label>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input className="form-input" readOnly value={agencyId} style={{ fontSize: 11, background: 'var(--gray-bg)' }} />
+            <button onClick={() => { navigator.clipboard.writeText(agencyId); addToast('ID copiado!'); }} className="btn btn-sm btn-secondary"><Copy size={14} /></button>
+          </div>
+        </div>
+
+        <div style={{ background: 'var(--gray-bg)', padding: 12, borderRadius: 8, fontSize: 11, color: 'var(--text-secondary)' }}>
+          <strong>Exemplo de Payload JSON:</strong>
+          <pre style={{ marginTop: 8, overflowX: 'auto' }}>
+{`{
+  "agency_id": "${agencyId}",
+  "nome": "João Silva",
+  "email": "joao@exemplo.com",
+  "whatsapp": "11999999999",
+  "empresa": "Minha Empresa",
+  "faturamento": "R$ 50k - 100k",
+  "desafio": "Aumentar vendas",
+  "origem": "Google Ads"
+}`}
+          </pre>
+        </div>
+
+        <button className="btn btn-primary mt-16" style={{ width: '100%' }} onClick={() => { save({ ...connections, [showModal]: { status: 'connected', connectedAt: new Date().toISOString(), lastSync: new Date().toISOString() } }); addToast('Webhook ativo!'); setShowModal(null); }}>Ativar Integração</button>
       </Modal>
 
       {/* Logs Modal */}
