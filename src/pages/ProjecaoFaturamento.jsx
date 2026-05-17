@@ -7,12 +7,12 @@ import Modal from '../components/Modal';
 const fmt = v => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:0}).format(v);
 
 const servicosImpacto = [
-  { id:'trafego', label:'Tráfego Pago', impact:'+25% leads', mult:1.25 },
-  { id:'social', label:'Social Mídia', impact:'+15% awareness', mult:1.15 },
-  { id:'seo', label:'SEO', impact:'+20% orgânico', mult:1.20 },
-  { id:'crm', label:'CRM Comercial', impact:'+30% conversão', mult:1.30 },
-  { id:'site', label:'Criação de Site', impact:'+10% conversão', mult:1.10 },
-  { id:'branding', label:'Branding', impact:'+20% ticket médio', mult:1.20 },
+  { id:'trafego', label:'Tráfego Local (Google & Meta)', impact:'+30% pedidos/delivery', mult:1.30 },
+  { id:'social', label:'Reels & Fotos Gastronômicas', impact:'+20% desejo da marca', mult:1.20 },
+  { id:'seo', label:'Google Maps / Reservas', impact:'+25% fluxo presencial', mult:1.25 },
+  { id:'crm', label:'Fidelidade & WhatsApp CRM', impact:'+35% taxa de recorrência', mult:1.35 },
+  { id:'site', label:'Cardápio Digital Premium', impact:'+15% ticket médio', mult:1.15 },
+  { id:'branding', label:'Posicionamento Premium', impact:'+25% percepção de valor', mult:1.25 },
 ];
 
 export default function ProjecaoFaturamento() {
@@ -81,24 +81,24 @@ export default function ProjecaoFaturamento() {
         {/* LEFT PANEL */}
         <div style={{ background:'var(--card-bg)', padding:32, overflowY:'auto', borderRight:'1px solid var(--card-border)' }}>
           <div style={{ marginBottom:32 }}>
-            <div style={{ fontSize:24, fontWeight:800, color:'var(--text-primary)', marginBottom:4 }}>🧪 Simulador de Crescimento</div>
-            <div style={{ fontSize:13, color:'var(--text-secondary)' }}>Configure os parâmetros e veja sua projeção em tempo real</div>
+            <div style={{ fontSize:24, fontWeight:800, color:'var(--text-primary)', marginBottom:4 }}>🧪 Simulador de Crescimento Gastronômico</div>
+            <div style={{ fontSize:13, color:'var(--text-secondary)' }}>Simule o faturamento do seu restaurante com estratégias do laboratório</div>
           </div>
 
           <div style={{ marginBottom:28 }}>
-            <div style={{ fontSize:12, fontWeight:700, color:'#FFD600', textTransform:'uppercase', letterSpacing:1, marginBottom:12 }}>Situação Atual</div>
+            <div style={{ fontSize:12, fontWeight:700, color:'#FFD600', textTransform:'uppercase', letterSpacing:1, marginBottom:12 }}>Situação da Operação</div>
             <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
               <div><label style={{ fontSize:12, color:'var(--text-secondary)', marginBottom:4, display:'block' }}>Faturamento mensal (R$)</label><input type="number" value={fat} onChange={e=>setFat(Number(e.target.value))} style={{ width:'100%', padding:'10px 12px', borderRadius:8, border:'1px solid var(--card-border)', background:'var(--main-bg)', color:'var(--text-primary)', fontSize:14 }}/></div>
-              <div><label style={{ fontSize:12, color:'var(--text-secondary)', marginBottom:4, display:'block' }}>Investimento atual em marketing (R$)</label><input type="number" value={investAtual} onChange={e=>setInvestAtual(Number(e.target.value))} style={{ width:'100%', padding:'10px 12px', borderRadius:8, border:'1px solid var(--card-border)', background:'var(--main-bg)', color:'var(--text-primary)', fontSize:14 }}/></div>
+              <div><label style={{ fontSize:12, color:'var(--text-secondary)', marginBottom:4, display:'block' }}>Investimento atual em mídia/tráfego (R$)</label><input type="number" value={investAtual} onChange={e=>setInvestAtual(Number(e.target.value))} style={{ width:'100%', padding:'10px 12px', borderRadius:8, border:'1px solid var(--card-border)', background:'var(--main-bg)', color:'var(--text-primary)', fontSize:14 }}/></div>
               <div className="form-row" style={{ gap:8 }}>
                 <div style={{ flex:1 }}><label style={{ fontSize:12, color:'var(--text-secondary)', marginBottom:4, display:'block' }}>Ticket médio (R$)</label><input type="number" value={ticket} onChange={e=>setTicket(Number(e.target.value))} style={{ width:'100%', padding:'10px 12px', borderRadius:8, border:'1px solid var(--card-border)', background:'var(--main-bg)', color:'var(--text-primary)', fontSize:14 }}/></div>
-                <div style={{ flex:1 }}><label style={{ fontSize:12, color:'var(--text-secondary)', marginBottom:4, display:'block' }}>Clientes ativos</label><input type="number" value={clientesAtivos} onChange={e=>setClientesAtivos(Number(e.target.value))} style={{ width:'100%', padding:'10px 12px', borderRadius:8, border:'1px solid var(--card-border)', background:'var(--main-bg)', color:'var(--text-primary)', fontSize:14 }}/></div>
+                <div style={{ flex:1 }}><label style={{ fontSize:12, color:'var(--text-secondary)', marginBottom:4, display:'block' }}>Pedidos / Reservas/dia</label><input type="number" value={clientesAtivos} onChange={e=>setClientesAtivos(Number(e.target.value))} style={{ width:'100%', padding:'10px 12px', borderRadius:8, border:'1px solid var(--card-border)', background:'var(--main-bg)', color:'var(--text-primary)', fontSize:14 }}/></div>
               </div>
             </div>
           </div>
 
           <div style={{ marginBottom:28 }}>
-            <div style={{ fontSize:12, fontWeight:700, color:'#FFD600', textTransform:'uppercase', letterSpacing:1, marginBottom:12 }}>Estratégia foryou.lab</div>
+            <div style={{ fontSize:12, fontWeight:700, color:'#FFD600', textTransform:'uppercase', letterSpacing:1, marginBottom:12 }}>Estratégia Gastronômica foryou.lab</div>
             <div style={{ marginBottom:16 }}>
               <label style={{ fontSize:12, color:'var(--text-secondary)', display:'block', marginBottom:4 }}>Investimento adicional em marketing</label>
               <div style={{ fontSize:24, fontWeight:800, color:'#FFD600', marginBottom:8 }}>{fmt(investAdicional)}</div>
@@ -154,7 +154,7 @@ export default function ProjecaoFaturamento() {
               <div style={{ fontSize:24, fontWeight:800, color:'#3B82F6' }}>{roiCalc.toFixed(1)}x</div>
             </div>
             <div style={{ padding:16, background:'var(--card-bg)', borderRadius:12, border:'1px solid var(--card-border)' }}>
-              <div style={{ fontSize:11, color:'var(--text-secondary)', marginBottom:4 }}>👥 Novos clientes est.</div>
+              <div style={{ fontSize:11, color:'var(--text-secondary)', marginBottom:4 }}>👥 Novos Clientes Est.</div>
               <div style={{ fontSize:24, fontWeight:800, color:'var(--text-primary)' }}>{novosClientesTotal}</div>
             </div>
           </div>
@@ -168,8 +168,8 @@ export default function ProjecaoFaturamento() {
                 <XAxis dataKey="mes" fontSize={11} stroke="var(--text-muted)" />
                 <YAxis fontSize={11} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} stroke="var(--text-muted)" />
                 <Tooltip 
-                  formatter={v => fmt(v)}
-                  contentStyle={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 8, color: 'var(--text-primary)' }}
+                   formatter={v => fmt(v)}
+                   contentStyle={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 8, color: 'var(--text-primary)' }}
                 />
                 <Area type="monotone" dataKey="comInvestimento" stroke="var(--yellow)" strokeWidth={3} fill="url(#gradYellow)" name="Com investimento" dot={{ r: 4, fill: 'var(--yellow)' }} />
                 <Line type="monotone" dataKey="semInvestimento" stroke="var(--text-muted)" strokeWidth={2} strokeDasharray="6 3" name="Sem investimento" dot={false} />
@@ -179,7 +179,7 @@ export default function ProjecaoFaturamento() {
 
           <div style={{ background:'var(--card-bg)', borderRadius:12, padding:20, border:'1px solid var(--card-border)', marginBottom:24 }}>
             <h4 style={{ fontSize:14, fontWeight:700, marginBottom:12, color:'var(--text-primary)' }}>Projeção Mês a Mês</h4>
-            <table className="data-table"><thead><tr><th>Mês</th><th>Faturamento</th><th>Crescimento</th><th>Novos Clientes</th><th>Investimento</th></tr></thead>
+            <table className="data-table"><thead><tr><th>Mês</th><th>Faturamento</th><th>Crescimento</th><th>Novos Clientes/Pedidos</th><th>Investimento</th></tr></thead>
               <tbody>{projData.map((d,i)=>{
                 const prev=i>0?projData[i-1].comInvestimento:fat;
                 const growth=prev>0?((d.comInvestimento-prev)/prev*100):0;
@@ -188,7 +188,7 @@ export default function ProjecaoFaturamento() {
             </table>
           </div>
 
-          <div style={{ fontSize:11, color:'var(--text-secondary)', textAlign:'center', fontStyle:'italic' }}>* Projeções baseadas em médias dos clientes foryou.lab. Resultados individuais podem variar.</div>
+          <div style={{ fontSize:11, color:'var(--text-secondary)', textAlign:'center', fontStyle:'italic' }}>* Projeções baseadas em dados históricos de marcas gastronômicas atendidas pelo foryou.lab. Resultados reais dependem de execução operacional e capacidade física.</div>
         </div>
       </div>
 

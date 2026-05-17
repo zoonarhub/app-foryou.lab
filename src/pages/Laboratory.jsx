@@ -2,10 +2,10 @@ import { useApp } from '../data/store';
 import { FlaskConical, CheckCircle, Clock, User, ChevronRight } from 'lucide-react';
 
 const etapas = [
-  { id: 'diagnostico', num: '01', nome: 'Diagnóstico', desc: 'Análise completa do negócio, mercado e concorrência', color: '#3B82F6' },
-  { id: 'estrutura', num: '02', nome: 'Estrutura', desc: 'Criação de identidade, site, redes sociais e funil', color: '#8B5CF6' },
-  { id: 'performance', num: '03', nome: 'Performance', desc: 'Tráfego pago, SEO, conteúdo e geração de leads', color: '#F59E0B' },
-  { id: 'escala', num: '04', nome: 'Escala', desc: 'Automação, expansão, novas fontes de receita', color: '#22C55E' },
+  { id: 'diagnostico', num: '01', nome: 'Diagnóstico Gastronômico', desc: 'Análise de ticket médio, capacidade de mesas, gargalos de delivery e posicionamento local', color: '#3B82F6' },
+  { id: 'estrutura', num: '02', nome: 'Cardápio & Presença', desc: 'Otimização visual do cardápio digital, fotografia premium de pratos e posicionamento de redes sociais de alto desejo', color: '#8B5CF6' },
+  { id: 'performance', num: '03', nome: 'Performance & Reservas', desc: 'Mídia paga agressiva (Meta Ads para delivery e reservas) e posicionamento forte no Google Maps', color: '#F59E0B' },
+  { id: 'escala', num: '04', nome: 'Recorrência & Escala', desc: 'Implantação de fidelidade, recuperação via WhatsApp e estratégias para aumento do ticket médio', color: '#22C55E' },
 ];
 
 export default function Laboratory() {
@@ -20,14 +20,14 @@ export default function Laboratory() {
   return (
     <>
       <div className="page-header">
-        <div><h2>Laboratório de Crescimento</h2><div className="breadcrumb">Método foryou.lab em 4 etapas</div></div>
+        <div><h2>Laboratório de Crescimento Gastronômico</h2><div className="breadcrumb">Método foryou.lab em 4 etapas para Restaurantes Premium</div></div>
       </div>
       <div className="page-body">
         {/* Method visual */}
         <div className="card" style={{ padding: 32, marginBottom: 24 }}>
           <div style={{ textAlign: 'center', marginBottom: 24 }}>
             <h3 style={{ fontSize: 20, fontWeight: 800 }}>Método <span style={{ color: '#FFD600' }}>foryou.lab</span></h3>
-            <p style={{ color: 'var(--gray-med)', fontSize: 14, marginTop: 4 }}>Crescimento feito para você — em 4 etapas estratégicas</p>
+            <p style={{ color: 'var(--gray-med)', fontSize: 14, marginTop: 4 }}>Crescimento Gastronômico Previsível — em 4 etapas de alta performance</p>
           </div>
           <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
             {countByEtapa.map((e, i) => (

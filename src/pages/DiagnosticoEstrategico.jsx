@@ -4,11 +4,11 @@ import { BarChart3, FileText, Plus, Check } from 'lucide-react';
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 
 const blocos = [
-  { id: 'posicionamento', title: '🎯 Posicionamento', perguntas: ['Sua marca tem identidade visual definida?', 'Você tem tom de voz claro?', 'Seu diferencial é comunicado?', 'Você conhece seu público ideal?'] },
-  { id: 'comercial', title: '💼 Comercial', perguntas: ['Tem processo de vendas estruturado?', 'Usa CRM para gerir leads?', 'Taxa de conversão é medida?', 'Follow-up é sistematizado?'] },
-  { id: 'marketing', title: '📱 Marketing', perguntas: ['Investe em tráfego pago?', 'Posta com frequência nas redes?', 'Tem estratégia de conteúdo?', 'Mede ROI das campanhas?', 'Tem site otimizado?'] },
-  { id: 'financeiro', title: '💰 Financeiro', perguntas: ['Controla fluxo de caixa?', 'Sabe seu CAC?', 'Margem de lucro é saudável?', 'Investe em crescimento?'] },
-  { id: 'operacao', title: '⚙️ Operação', perguntas: ['Processos são documentados?', 'Usa ferramentas de gestão?', 'Equipe é treinada?', 'Entregas são padronizadas?'] },
+  { id: 'posicionamento', title: '🎯 Posicionamento Gastronômico', perguntas: ['A marca do restaurante transmite valor premium?', 'O cardápio físico/digital tem engenharia de menu aplicada?', 'O ambiente/embalagem de entrega reforça o posicionamento?', 'O tom de voz e diferencial culinário são claros?'] },
+  { id: 'experiencia', title: '🍽️ Experiência & Operação', perguntas: ['O tempo de entrega ou preparo dos pratos é padronizado?', 'A equipe de salão/cozinha recebe treinamento frequente?', 'O cardápio digital tem fotos profissionais dos pratos?', 'Os insumos e processos de cozinha são documentados?'] },
+  { id: 'marketing', title: '📱 Atração & Marketing Local', perguntas: ['Investe em tráfego pago focado em reservas e delivery?', 'Posta Reels/Fotos profissionais com apetite appeal frequente?', 'Tem SEO ativo e otimizado no Google Maps?', 'O custo por clique e ROI de delivery são medidos?'] },
+  { id: 'financeiro', title: '💰 Saúde Financeira', perguntas: ['Controla rigorosamente o CMV (Custo de Mercadoria Vendida)?', 'Sabe o ticket médio exato de salão vs. delivery?', 'A margem líquida da operação está acima de 20%?', 'A operação fatura com consistência acima de R$ 100k/mês?'] },
+  { id: 'retencao', title: '🔄 Recorrência & Fidelidade', perguntas: ['Utiliza programa de fidelidade para incentivar recompra?', 'Possui automação de WhatsApp para recuperar clientes inativos?', 'Tem funil para eventos especiais ou datas comemorativas?', 'Consegue mensurar a taxa de recorrência mensal dos clientes?'] },
 ];
 
 export default function DiagnosticoEstrategico() {
@@ -47,7 +47,7 @@ export default function DiagnosticoEstrategico() {
 
   return (
     <>
-      <div className="page-header"><div><h2>Diagnóstico Estratégico</h2><div className="breadcrumb">Avaliação por área</div></div></div>
+      <div className="page-header"><div><h2>Diagnóstico Estratégico Gastronômico</h2><div className="breadcrumb">Avaliação de Performance de Restaurantes Premium</div></div></div>
       <div className="page-body">
         <div className="form-group" style={{ maxWidth: 400, marginBottom: 24 }}><label className="form-label">Selecionar Cliente *</label>
           <select className="form-select" value={clienteId} onChange={e => setClienteId(e.target.value)}>

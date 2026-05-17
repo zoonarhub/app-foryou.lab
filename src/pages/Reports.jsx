@@ -12,9 +12,9 @@ export default function Reports() {
   const [form, setForm] = useState(emptyReport);
 
   const [reports, setReports] = useState([
-    { id: '1', clienteId: 'c1', periodo: 'Abril 2026', status: 'enviado', data: '2026-05-02', resumo: 'Mês excelente! Alcance +45%, CPL -12%. Resultados acima da meta.', impressoes: '245.000', cliques: '12.300', cpl: '8.50', conversoes: '89' },
-    { id: '2', clienteId: 'c2', periodo: 'Abril 2026', status: 'rascunho', data: '2026-05-05', resumo: 'Performance estável. Ajustes em criativos planejados.', impressoes: '180.000', cliques: '9.100', cpl: '12.00', conversoes: '52' },
-    { id: '3', clienteId: 'c3', periodo: 'Abril 2026', status: 'enviado', data: '2026-05-03', resumo: 'Crescimento orgânico forte. Instagram +800 seguidores.', impressoes: '120.000', cliques: '6.200', cpl: '15.00', conversoes: '34' },
+    { id: '1', clienteId: '1', periodo: 'Abril 2026', status: 'enviado', data: '2026-05-02', resumo: 'Mês espetacular! As campanhas focadas no jantar aumentaram o fluxo presencial em 45%, e o custo por clique para reservas caiu 12%.', impressoes: '245.000', cliques: '12.300', cpl: '1.20', conversoes: '1.450' },
+    { id: '2', clienteId: '2', periodo: 'Abril 2026', status: 'rascunho', data: '2026-05-05', resumo: 'Estabilidade nas vendas do delivery via WhatsApp. Iniciamos testes com novos Reels de apetite appeal para o final de semana.', impressoes: '180.000', cliques: '9.100', cpl: '1.80', conversoes: '850' },
+    { id: '3', clienteId: '3', periodo: 'Abril 2026', status: 'enviado', data: '2026-05-03', resumo: 'Presença no Google Maps reestruturada. O restaurante do café subiu para a primeira página na busca local da região.', impressoes: '120.000', cliques: '6.200', cpl: '0.90', conversoes: '340' },
   ]);
 
   const getClientName = (id) => clients.find(c => c.id === id)?.empresa || 'Cliente';
