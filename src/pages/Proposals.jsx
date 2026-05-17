@@ -16,12 +16,12 @@ const modulosLib = [
 ];
 
 export default function Proposals() {
-  const { proposals, modularProposals, leads, clients, services, addItem, updateItem, deleteItem, addToast } = useApp();
+  const { proposals, modularProposals, leads, clients, services, diagnosticos, addItem, updateItem, deleteItem, addToast } = useApp();
   const [tab, setTab] = useState('classica');
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({clienteId:'',leadId:'',titulo:'',servicosItems:[],desconto:0,descontoTipo:'pct',validade:'',periodo:'mensal',observacoes:'',responsavel:'tm1'});
+  const [form, setForm] = useState({clienteId:'',leadId:'',titulo:'',servicosItems:[],desconto:0,descontoTipo:'pct',validade:'',periodo:'mensal',observacoes:'',responsavel:'tm1',diagnosticoId:'',linkPagamento:''});
   const [showModular, setShowModular] = useState(false);
   const [modForm, setModForm] = useState({clienteId:'',titulo:'',modulos:[],desconto:0,fidelidade:'sem',observacoes:''});
   const [modSearch, setModSearch] = useState('');
@@ -31,7 +31,7 @@ export default function Proposals() {
   const totalAprovadas = (proposals||[]).filter(p=>p.status==='aprovada').length;
   const totalValor = (proposals||[]).reduce((a,p)=>a+(p.valorTotal||0),0);
 
-  const openClassic = () => { setEditing(null); setForm({clienteId:'',leadId:'',titulo:'',servicosItems:[{nome:'',descricao:'',valor:0}],desconto:0,descontoTipo:'pct',validade:'',periodo:'mensal',observacoes:'',responsavel:'tm1'}); setShowModal(true); };
+  const openClassic = () => { setEditing(null); setForm({clienteId:'',leadId:'',titulo:'',servicosItems:[{nome:'',descricao:'',valor:0}],desconto:0,descontoTipo:'pct',validade:'',periodo:'mensal',observacoes:'',responsavel:'tm1',diagnosticoId:'',linkPagamento:''}); setShowModal(true); };
   const editClassic = (p) => { setEditing(p); setForm({...p,servicosItems:p.servicosItems||[{nome:'',descricao:'',valor:0}]}); setShowModal(true); };
 
   const saveClassic = () => {
@@ -41,7 +41,8 @@ export default function Proposals() {
     const subtotal = (form.servicosItems||[]).reduce((a,s)=>a+(s.valor||0),0);
     const desc = form.descontoTipo==='pct' ? subtotal*(form.desconto/100) : form.desconto;
     const total = subtotal - desc;
-    const data = {...form, nomeCliente: client?.empresa||lead?.nome||'', valorTotal: total, servicos: (form.servicosItems||[]).map(s=>s.nome), status: form.status||'rascunho'};
+    const diag = (diagnosticos||[]).find(d=>d.id===form.diagnosticoId);
+    const data = {...form, nomeCliente: client?.empresa||lead?.nome||'', valorTotal: total, servicos: (form.servicosItems||[]).map(s=>s.nome), status: form.status||'rascunho', diagnosticoData: diag||null};
     if(editing){updateItem('proposals',editing.id,data);addToast('Proposta atualizada!');}
     else{addItem('proposals',data);addToast('Proposta criada!');}
     setShowModal(false);
@@ -164,6 +165,13 @@ export default function Proposals() {
           <div className="form-group"><label className="form-label">Período</label><select className="form-select" value={form.periodo} onChange={e=>setForm({...form,periodo:e.target.value})}><option value="mensal">Mensal</option><option value="trimestral">Trimestral</option><option value="semestral">Semestral</option><option value="anual">Anual</option></select></div>
         </div>
         <div className="form-group"><label className="form-label">Observações</label><textarea className="form-textarea" value={form.observacoes||''} onChange={e=>setForm({...form,observacoes:e.target.value})}/></div>
+        <div style={{borderTop:'1px solid var(--card-border)',paddingTop:16,marginTop:8}}>
+          <div style={{fontSize:13,fontWeight:700,color:'#FFD600',marginBottom:12}}>🧪 DIAGNÓSTICO & PAGAMENTO</div>
+          <div className="form-row">
+            <div className="form-group"><label className="form-label">Vincular Diagnóstico</label><select className="form-select" value={form.diagnosticoId||''} onChange={e=>setForm({...form,diagnosticoId:e.target.value})}><option value="">Nenhum diagnóstico</option>{(diagnosticos||[]).map(d=><option key={d.id} value={d.id}>{d.nomeNegocio} — Score {d.scoreGeral}%</option>)}</select></div>
+            <div className="form-group"><label className="form-label">Link de Pagamento</label><input className="form-input" placeholder="https://pay.exemplo.com/checkout/..." value={form.linkPagamento||''} onChange={e=>setForm({...form,linkPagamento:e.target.value})}/></div>
+          </div>
+        </div>
       </Modal>
 
       {/* Modular Creator */}
