@@ -16,9 +16,18 @@ export default function PropostaPublica() {
   const refs = useRef([]);
 
   useEffect(() => {
+    let isMounted = true;
+    const timeout = setTimeout(() => {
+      if (isMounted && loading) {
+        setErr('Tempo limite de conexão excedido. Verifique sua internet.');
+        setLoading(false);
+      }
+    }, 8000);
+
     (async () => {
       try {
         const { data, error } = await supabase.from('proposals').select('data').eq('id', id).single();
+        if (!isMounted) return;
         if (error) { setErr(error.message); return; }
         if (data?.data) {
           setP(data.data);
@@ -27,9 +36,15 @@ export default function PropostaPublica() {
             await supabase.from('proposals').update({ data: u }).eq('id', id);
           }
         }
-      } catch (e) { setErr(e.message); }
-      finally { setLoading(false); }
+      } catch (e) { 
+        if (isMounted) setErr(e.message); 
+      } finally { 
+        clearTimeout(timeout);
+        if (isMounted) setLoading(false); 
+      }
     })();
+
+    return () => { isMounted = false; clearTimeout(timeout); };
   }, [id]);
 
   useEffect(() => {
