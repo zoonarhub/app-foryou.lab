@@ -112,8 +112,45 @@ export default function PropostaPublica() {
   const diag = p.diagnosticoData;
   const gc = s => s >= 70 ? '#22C55E' : s >= 40 ? '#F59E0B' : '#EF4444';
 
+  const CSS = `
+    @keyframes fadeIn { from { opacity:0; transform:translateY(30px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes blink { 0%, 100% { opacity:1; } 50% { opacity:.3; } }
+    @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-15px); } 100% { transform: translateY(0px); } }
+    @keyframes glowPulse { 0% { box-shadow: 0 0 20px rgba(255,214,0,0.2); } 50% { box-shadow: 0 0 50px rgba(255,214,0,0.6); } 100% { box-shadow: 0 0 20px rgba(255,214,0,0.2); } }
+    @keyframes shimmer { 0% { background-position: -1000px 0; } 100% { background-position: 1000px 0; } }
+    .pp-anim { opacity:0; transform:translateY(30px); transition:all .8s cubic-bezier(0.16, 1, 0.3, 1); }
+    .pp-visible { opacity:1; transform:translateY(0); }
+    .pp-card-hover:hover { transform: translateY(-5px) scale(1.02); box-shadow: 0 20px 40px rgba(0,0,0,0.3) !important; border-color: rgba(255,214,0,0.5) !important; }
+    .pp-btn-accept {
+      background: linear-gradient(135deg, #FFD600 0%, #FFB300 100%);
+      color: #050508;
+      transition: all 0.3s ease;
+      background-size: 200% auto;
+    }
+    .pp-btn-accept:hover {
+      transform: translateY(-3px) scale(1.02);
+      box-shadow: 0 15px 30px rgba(255,214,0,0.4);
+      background-position: right center;
+    }
+    .pp-glass-panel {
+      background: rgba(20,20,25,0.7);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,214,0,0.15);
+    }
+    .shimmer-bg {
+      background: linear-gradient(90deg, rgba(255,214,0,0) 0%, rgba(255,214,0,0.1) 50%, rgba(255,214,0,0) 100%);
+      background-size: 1000px 100%;
+      animation: shimmer 3s infinite linear;
+    }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #050508; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #FFD600; }
+  `;
+
   return (
-    <div style={{fontFamily:"'Inter',system-ui,-apple-system,sans-serif",background:'#030305',color:'#fff',minHeight:'100vh',overflowX:'hidden',overflowY:'auto',position:'relative'}}>
+    <div style={{fontFamily:"'Inter',system-ui,-apple-system,sans-serif",background:'#050508',color:'#fff',minHeight:'100vh',overflowX:'hidden',overflowY:'auto',position:'relative'}}>
       <style>{CSS}</style>
       {/* HEADER */}
       <header style={{background:'#050508',padding:'16px 28px',display:'flex',justifyContent:'space-between',alignItems:'center',position:'sticky',top:0,zIndex:100,borderBottom:'1px solid rgba(255,214,0,.1)'}}>
@@ -305,7 +342,6 @@ export default function PropostaPublica() {
           <p style={{fontSize:13,color:'#444',marginBottom:32,maxWidth:500}}>Cada serviço foi selecionado para maximizar seu retorno.</p>
           <div style={{display:'flex',flexDirection:'column',gap:10}}>
             {(p.servicosItems||[]).map((s,i) => (
-              <div key={i} className="pp-card-hover" style={{background:'#FFF',padding:'20px 24px',display:'flex',justifyContent:'space-between',alignItems:'center',borderRadius:12,gap:16,boxShadow:'0 10px 20px rgba(0,0,0,0.08)'}}>
                 <div style={{display:'flex',gap:14,alignItems:'center',flex:1}}>
                   <div style={{width:38,height:38,background:'#0A0A0D',borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={18} color="#FFD600" strokeWidth={3}/></div>
                   <div><h3 style={{fontSize:15,fontWeight:800,color:'#0A0A0D'}}>{s.nome}</h3>{s.descricao && <p style={{fontSize:12,color:'#555',marginTop:2}}>{s.descricao}</p>}</div>
@@ -317,49 +353,70 @@ export default function PropostaPublica() {
         </div>
       </section>
 
-      {/* INVESTIMENTO (DARK) */}
-      <section ref={addRef} className="pp-anim" style={{padding:'80px 24px',background:'#050508',position:'relative',zIndex:1}}>
+      {/* INVESTIMENTO (DARK + PREMIUM EFFECTS) */}
+      <section ref={addRef} className="pp-anim" style={{padding:'100px 24px',background:'#050508',position:'relative',zIndex:1,overflow:'hidden'}}>
+        <div style={{position:'absolute',bottom:0,left:'50%',transform:'translateX(-50%)',width:800,height:800,background:'radial-gradient(circle,rgba(255,214,0,.1) 0%,transparent 70%)',pointerEvents:'none'}}/>
+        
         <div style={{maxWidth:860,margin:'0 auto'}}>
-          <div style={{background:'linear-gradient(145deg, rgba(20,20,25,1) 0%, rgba(10,10,15,1) 100%)',border:'1px solid rgba(255,214,0,.15)',padding:44,borderRadius:20,position:'relative',overflow:'hidden',boxShadow:'0 30px 60px rgba(0,0,0,0.8)'}}>
-            <div style={{position:'absolute',top:-60,right:-60,width:300,height:300,background:'radial-gradient(circle,rgba(255,214,0,.08) 0%,transparent 60%)',pointerEvents:'none'}}/>
-            <div style={{display:'flex',justifyContent:'space-between',flexWrap:'wrap',gap:28,position:'relative',zIndex:2}}>
-              <div style={{flex:1,minWidth:220}}>
-                <div style={{fontSize:10,fontWeight:700,color:'#FFD600',letterSpacing:2,textTransform:'uppercase',marginBottom:10}}>Investimento Estratégico</div>
-                <h2 style={{fontSize:26,fontWeight:800,marginBottom:10,lineHeight:1.15}}>{p.titulo || 'Proposta de Crescimento'}</h2>
-                <p style={{color:'#777',fontSize:13,lineHeight:1.6}}>Valores estruturados para escalar suas vendas e garantir ROI positivo para a {nome}.</p>
+          <div className="pp-glass-panel" style={{animation:'float 6s ease-in-out infinite', border:'1px solid rgba(255,214,0,.3)',padding:50,borderRadius:24,position:'relative',overflow:'hidden',boxShadow:'0 30px 60px rgba(0,0,0,0.8), 0 0 40px rgba(255,214,0,0.1)'}}>
+            <div className="shimmer-bg" style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',opacity:0.5,pointerEvents:'none'}}/>
+            <div style={{position:'absolute',top:-100,right:-100,width:350,height:350,background:'radial-gradient(circle,rgba(255,214,0,.15) 0%,transparent 60%)',pointerEvents:'none'}}/>
+            
+            <div style={{position:'relative',zIndex:2,display:'flex',flexDirection:'column',alignItems:'center',textAlign:'center'}}>
+              <div style={{display:'inline-flex',alignItems:'center',gap:8,background:'rgba(255,214,0,.1)',border:'1px solid rgba(255,214,0,.3)',borderRadius:100,padding:'6px 16px',marginBottom:24,boxShadow:'0 0 15px rgba(255,214,0,0.2)'}}>
+                <div style={{width:6,height:6,borderRadius:'50%',background:'#FFD600',animation:'blink 2s infinite'}}/>
+                <span style={{fontSize:10,fontWeight:800,color:'#FFD600',letterSpacing:2,textTransform:'uppercase'}}>Proposta de Investimento</span>
               </div>
-              <div style={{background:'rgba(0,0,0,0.3)',padding:24,border:'1px solid rgba(255,255,255,0.05)',borderRadius:14,minWidth:250,boxShadow:'inset 0 0 20px rgba(0,0,0,0.5)'}}>
-                <div style={{display:'flex',justifyContent:'space-between',marginBottom:10,fontSize:13,color:'#777'}}><span>Subtotal</span><span>{fmt(sub)}</span></div>
-                {(p.desconto||0) > 0 && <div style={{display:'flex',justifyContent:'space-between',marginBottom:10,fontSize:13,color:'#22C55E'}}><span>Economia</span><span>- {fmt(dsc)}</span></div>}
-                <div style={{borderTop:'1px solid rgba(255,255,255,0.05)',margin:'14px 0'}}/>
-                <div style={{fontSize:9,color:'#777',letterSpacing:1,textTransform:'uppercase',marginBottom:4}}>Total</div>
-                <div style={{fontSize:36,fontWeight:900,lineHeight:1,background:'linear-gradient(135deg,#fff,#ccc)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>{fmt(p.valorTotal||0)}</div>
+              
+              <h2 style={{fontSize:'clamp(28px,5vw,48px)',fontWeight:900,color:'#fff',lineHeight:1.1,marginBottom:16}}>Pronto para o<br/><span style={{background:'linear-gradient(135deg,#FFD600,#FFB300)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>Próximo Nível?</span></h2>
+              
+              <div style={{width:'100%',height:1,background:'linear-gradient(90deg,transparent,rgba(255,214,0,.2),transparent)',margin:'32px 0'}}/>
+              
+              {p.valorPlano > 0 && (
+                <div style={{marginBottom:16,display:'flex',alignItems:'baseline',justifyContent:'center',gap:8}}>
+                  <span style={{fontSize:16,color:'#aaa',fontWeight:600}}>Mensalidade:</span>
+                  <span style={{fontSize:24,fontWeight:800,color:'#FFD600'}}>{fmt(p.valorPlano)}</span>
+                </div>
+              )}
+              {p.valorSetup > 0 && (
+                <div style={{marginBottom:32,display:'flex',alignItems:'baseline',justifyContent:'center',gap:8}}>
+                  <span style={{fontSize:16,color:'#aaa',fontWeight:600}}>Taxa de Setup:</span>
+                  <span style={{fontSize:24,fontWeight:800,color:'#fff'}}>{fmt(p.valorSetup)}</span>
+                </div>
+              )}
+
+              <div style={{marginBottom:40}}>
+                <div style={{fontSize:13,color:'#888',fontWeight:600,textTransform:'uppercase',letterSpacing:2,marginBottom:8}}>Valor Total da Estratégia</div>
+                <div style={{fontSize:'clamp(40px,8vw,64px)',fontWeight:900,color:'#FFD600',lineHeight:1,textShadow:'0 0 20px rgba(255,214,0,0.3)'}}>{fmt(p.valorTotal||0)}</div>
                 {p.periodo && <div style={{color:'#555',fontSize:11,marginTop:4,letterSpacing:1}}>PERÍODO DE FATURAMENTO: {p.periodo.toUpperCase()}</div>}
               </div>
-            </div>
-            {p.observacoes && (
-              <div style={{marginTop:28,paddingTop:20,borderTop:'1px solid rgba(255,255,255,0.05)',position:'relative',zIndex:2}}>
-                <div style={{fontSize:10,fontWeight:700,color:'#FFD600',letterSpacing:2,textTransform:'uppercase',marginBottom:6}}>Termos e Condições</div>
-                <p style={{color:'#666',fontSize:13,lineHeight:1.6,whiteSpace:'pre-wrap'}}>{p.observacoes}</p>
-              </div>
-            )}
-          </div>
+              
+              {p.observacoes && (
+                <div style={{marginTop:10,marginBottom:30,padding:20,background:'rgba(0,0,0,0.3)',border:'1px solid rgba(255,255,255,0.05)',borderRadius:14,textAlign:'left'}}>
+                  <div style={{fontSize:10,fontWeight:700,color:'#FFD600',letterSpacing:2,textTransform:'uppercase',marginBottom:6}}>Termos e Condições</div>
+                  <p style={{color:'#999',fontSize:12,lineHeight:1.6,whiteSpace:'pre-wrap'}}>{p.observacoes}</p>
+                </div>
+              )}
 
-          {/* CTA */}
-          <div style={{marginTop:64,textAlign:'center'}}>
-            {!expired && !approved && (<>
-              <h3 style={{fontSize:24,fontWeight:800,marginBottom:8}}>Pronto para dominar seu mercado?</h3>
-              <p style={{color:'#777',fontSize:14,marginBottom:24}}>{p.linkPagamento ? 'Aprove sua proposta abaixo e inicie a jornada.' : 'Aprove agora e vamos escalar seus resultados.'}</p>
-              <div style={{display:'flex',justifyContent:'center',gap:12,flexWrap:'wrap'}}>
-                <button onClick={handleAccept} className="pp-cta pp-pulse" style={{background:'linear-gradient(135deg,#FFD600,#FF9900)',color:'#0A0A0A',padding:'18px 42px',fontSize:15,fontWeight:800,border:'none',borderRadius:100,display:'inline-flex',alignItems:'center',gap:8,cursor:'pointer',boxShadow:'0 10px 30px rgba(255,214,0,0.3)'}}>
-                  {p.linkPagamento ? '✅ Aceitar e Pagar' : '✅ Aceitar Estratégia'} <ChevronRight size={18} strokeWidth={3}/>
-                </button>
-                <a href={`https://wa.me/${WA}?text=${encodeURIComponent('Olá, tenho dúvidas sobre a proposta comercial!')}`} target="_blank" rel="noreferrer" className="pp-cta" style={{background:'rgba(255,255,255,.02)',color:'#fff',padding:'18px 32px',fontSize:14,fontWeight:700,textDecoration:'none',borderRadius:100,display:'inline-flex',alignItems:'center',gap:8,border:'1px solid rgba(255,255,255,0.1)'}}>
-                  💬 Tirar Dúvidas
-                </a>
-              </div>
-            </>)}
-            {approved && <div style={{display:'inline-flex',alignItems:'center',gap:12,background:'rgba(34,197,94,.06)',border:'1px solid rgba(34,197,94,.2)',color:'#22C55E',padding:'20px 40px',fontSize:18,fontWeight:800,borderRadius:100}}><ShieldCheck size={28}/> Proposta Aprovada! Vamos crescer juntos.</div>}
+              {approved ? (
+                <div style={{background:'rgba(34,197,94,.1)',border:'1px solid rgba(34,197,94,.3)',color:'#22C55E',padding:'20px 40px',borderRadius:100,fontSize:18,fontWeight:800,display:'flex',alignItems:'center',gap:12,boxShadow:'0 0 30px rgba(34,197,94,.2)'}}>
+                  <ShieldCheck size={28}/> Proposta Aprovada com Sucesso!
+                </div>
+              ) : expired ? (
+                <div style={{background:'rgba(239,68,68,.1)',border:'1px solid rgba(239,68,68,.3)',color:'#EF4444',padding:'20px 40px',borderRadius:100,fontSize:18,fontWeight:800,display:'flex',alignItems:'center',gap:12}}>
+                  <AlertTriangle size={28}/> Proposta Expirada
+                </div>
+              ) : (
+                <div style={{display:'flex',justifyContent:'center',gap:16,flexWrap:'wrap'}}>
+                  <button onClick={handleAccept} className="pp-cta pp-pulse" style={{background:'linear-gradient(135deg,#FFD600,#FF9900)',color:'#0A0A0A',padding:'20px 40px',fontSize:16,fontWeight:800,border:'none',borderRadius:100,display:'inline-flex',alignItems:'center',gap:8,cursor:'pointer',boxShadow:'0 10px 30px rgba(255,214,0,0.3)'}}>
+                    {p.linkPagamento ? '✅ Aceitar e Pagar' : '✅ Aprovar e Iniciar'} <ChevronRight size={20} strokeWidth={3}/>
+                  </button>
+                  <a href={`https://wa.me/${WA}?text=${encodeURIComponent('Olá, tenho dúvidas sobre a proposta comercial!')}`} target="_blank" rel="noreferrer" className="pp-cta" style={{background:'rgba(255,255,255,.02)',color:'#fff',padding:'20px 32px',fontSize:14,fontWeight:700,textDecoration:'none',borderRadius:100,display:'inline-flex',alignItems:'center',gap:8,border:'1px solid rgba(255,255,255,0.1)'}}>
+                    💬 Tirar Dúvidas
+                  </a>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </section>
