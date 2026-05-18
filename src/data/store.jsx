@@ -71,31 +71,40 @@ export function AppProvider({ children }) {
     }
     setLoadingData(true);
     
-    const keys = Object.keys(emptyData);
-    const results = await Promise.all(keys.map(async (key) => {
-      const table = toSnakeCase(key);
-      
-      // Tabelas Estruturadas (sem coluna 'data')
-      if (['campaignTrackings', 'optimizationLogs'].includes(key)) {
-        const { data: rows, error } = await supabase.from(table).select('*').eq('user_id', agencyId);
-        return { key, val: !error ? rows : [] };
-      }
-      
-      // Tabelas baseadas em JSONB
-      const { data: rows, error } = await supabase.from(table).select('data').eq('user_id', agencyId);
-      if (!error && rows) {
-        return { key, val: rows.map(r => r.data) };
-      }
-      return { key, val: [] };
-    }));
+    try {
+      const keys = Object.keys(emptyData);
+      const results = await Promise.all(keys.map(async (key) => {
+        const table = toSnakeCase(key);
+        try {
+          // Tabelas Estruturadas (sem coluna 'data')
+          if (['campaignTrackings', 'optimizationLogs'].includes(key)) {
+            const { data: rows, error } = await supabase.from(table).select('*').eq('user_id', agencyId);
+            return { key, val: !error && rows ? rows : [] };
+          }
+          
+          // Tabelas baseadas em JSONB
+          const { data: rows, error } = await supabase.from(table).select('data').eq('user_id', agencyId);
+          if (!error && rows) {
+            return { key, val: rows.map(r => r.data) };
+          }
+          return { key, val: [] };
+        } catch (e) {
+          console.warn(`Erro ao carregar tabela ${table}:`, e);
+          return { key, val: [] };
+        }
+      }));
 
-    const newData = { ...emptyData };
-    results.forEach(({ key, val }) => {
-      newData[key] = val;
-    });
-    
-    setData(newData);
-    setLoadingData(false);
+      const newData = { ...emptyData };
+      results.forEach(({ key, val }) => {
+        newData[key] = val;
+      });
+      
+      setData(newData);
+    } catch (error) {
+      console.error("Erro geral no fetchData:", error);
+    } finally {
+      setLoadingData(false);
+    }
   }, [agencyId]);
 
   useEffect(() => {
