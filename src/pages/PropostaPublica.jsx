@@ -5,7 +5,7 @@ import { Check, Clock, AlertTriangle, ChevronRight, ShieldCheck, Target, Zap, Ba
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 
 const fmt = v => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:0}).format(v);
-const WA = "5511999999999";
+const WA = "5521968447183";
 
 // Criar um cliente anônimo que não tenta usar o localStorage
 // Isso previne que a página trave tentando renovar um token de login vencido
@@ -321,8 +321,8 @@ export default function PropostaPublica() {
                   <XAxis dataKey="name" stroke="#888" fontSize={10} tickMargin={10} axisLine={false} tickLine={false} />
                   <YAxis stroke="#888" fontSize={10} tickFormatter={(val)=>`R$${(val/1000).toFixed(0)}k`} axisLine={false} tickLine={false} />
                   <Tooltip content={<CustomTooltip />} />
-                  <Area type="monotone" dataKey="organico" stroke="#666" strokeWidth={2} fillOpacity={1} fill="url(#colorOrganico)" />
-                  <Area type="monotone" dataKey="acelerado" stroke="#FFD600" strokeWidth={3} fillOpacity={1} fill="url(#colorAcelerado)" />
+                  <Area type="monotone" dataKey="organico" stroke="#666" strokeWidth={2} fillOpacity={1} fill="url(#colorOrganico)" isAnimationActive={true} animationDuration={2000} animationEasing="ease-out" />
+                  <Area type="monotone" dataKey="acelerado" stroke="#FFD600" strokeWidth={3} fillOpacity={1} fill="url(#colorAcelerado)" isAnimationActive={true} animationDuration={2500} animationEasing="ease-out" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
