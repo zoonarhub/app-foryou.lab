@@ -114,7 +114,7 @@ export default function Proposals() {
                   <div><div style={{fontWeight:700,fontSize:15}}>{p.titulo||p.nomeCliente}</div><div style={{fontSize:12,color:'var(--text-secondary)'}}>{p.empresa||p.nomeCliente}</div></div>
                   <span className={`badge ${sc.badge}`}>{sc.label}</span>
                 </div>
-                <div style={{display:'flex',flexWrap:'wrap',gap:4,marginBottom:10}}>{(p.servicos||[]).map((s,i)=><span key={i} className="badge badge-yellow" style={{fontSize:10}}>{s}</span>)}</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:4,marginBottom:10}}>{(p.servicosItems||p.servicos||[]).map((s,i)=><span key={i} className="badge badge-yellow" style={{fontSize:10}}>{typeof s === 'object' ? s.nome : s}</span>)}</div>
                 <div style={{fontSize:22,fontWeight:800,color:'#22C55E',marginBottom:8}}>{fmt(p.valorTotal||0)}</div>
                 {p.periodo&&<div style={{fontSize:11,color:'var(--text-secondary)',marginBottom:8}}>Período: {p.periodo}</div>}
                 <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
