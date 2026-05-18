@@ -27,9 +27,9 @@ export default function Proposals() {
   const [modSearch, setModSearch] = useState('');
 
   // Classic
-  const classicFiltered = (proposals||[]).filter(p => !search || (p.nomeCliente||p.titulo||'').toLowerCase().includes(search.toLowerCase()));
-  const totalAprovadas = (proposals||[]).filter(p=>p.status==='aprovada').length;
-  const totalValor = (proposals||[]).reduce((a,p)=>a+(p.valorTotal||0),0);
+  const classicFiltered = (proposals||[]).filter(p => p && (!search || (p.nomeCliente||p.titulo||'').toLowerCase().includes(search.toLowerCase())));
+  const totalAprovadas = (proposals||[]).filter(p=>p?.status==='aprovada').length;
+  const totalValor = (proposals||[]).reduce((a,p)=>a+(p?.valorTotal||0),0);
 
   const openClassic = () => { setEditing(null); setForm({clienteId:'',leadId:'',titulo:'',servicosItems:[{nome:'',descricao:'',valor:0}],desconto:0,descontoTipo:'pct',validade:'',periodo:'mensal',observacoes:'',responsavel:'tm1',diagnosticoId:'',linkPagamento:''}); setShowModal(true); };
   const editClassic = (p) => { setEditing(p); setForm({...p,servicosItems:p.servicosItems||[{nome:'',descricao:'',valor:0}]}); setShowModal(true); };
@@ -55,7 +55,7 @@ export default function Proposals() {
   };
 
   const handleSend = (p) => {
-    const lead = (leads||[]).find(l=>l.id===p.leadId);
+    const lead = (leads||[]).find(l=>l?.id===p.leadId);
     const phone = lead?.telefone?.replace(/\D/g,'')||'5511999999999';
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(`Olá ${p.nomeCliente}, sua proposta: ${window.location.origin}/proposta/${p.id}`)}`,'_blank');
     updateItem('proposals',p.id,{status:'enviada',dataEnvio:new Date().toISOString()});
@@ -76,7 +76,7 @@ export default function Proposals() {
 
   const saveModular = () => {
     if(!modForm.clienteId||!modForm.modulos.length){addToast('Selecione cliente e módulos','error');return;}
-    const client = (clients||[]).find(c=>c.id===modForm.clienteId);
+    const client = (clients||[]).find(c=>c?.id===modForm.clienteId);
     addItem('modularProposals',{...modForm, nomeCliente:client?.empresa||'', valorRecorrente:modRecorrente, valorUnico:modUnico, valorTotal:modTotal, status:'rascunho'});
     addToast('Proposta modular criada!'); setShowModular(false);
     setModForm({clienteId:'',titulo:'',modulos:[],desconto:0,fidelidade:'sem',observacoes:''});
@@ -103,7 +103,7 @@ export default function Proposals() {
           <div className="kpi-grid" style={{marginBottom:16}}>
             <div className="card kpi-card"><div className="kpi-value">{(proposals||[]).length}</div><span className="kpi-label">Total</span></div>
             <div className="card kpi-card"><div className="kpi-value" style={{color:'#22C55E'}}>{totalAprovadas}</div><span className="kpi-label">Aprovadas</span></div>
-            <div className="card kpi-card"><div className="kpi-value">{(proposals||[]).filter(p=>p.status==='enviada'||p.status==='visualizada').length}</div><span className="kpi-label">Pendentes</span></div>
+            <div className="card kpi-card"><div className="kpi-value">{(proposals||[]).filter(p=>p?.status==='enviada'||p?.status==='visualizada').length}</div><span className="kpi-label">Pendentes</span></div>
             <div className="card kpi-card"><div className="kpi-value" style={{color:'#FFD600'}}>{fmt(totalValor)}</div><span className="kpi-label">Valor total</span></div>
           </div>
           <div className="search-bar"><div className="search-input-wrapper"><Search size={16}/><input placeholder="Buscar..." value={search} onChange={e=>setSearch(e.target.value)}/></div></div>
@@ -133,13 +133,13 @@ export default function Proposals() {
 
         {tab==='modular' && (<>
           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(360px,1fr))',gap:16}}>
-            {(modularProposals||[]).map(p=>(
+            {(modularProposals||[]).filter(p=>p).map(p=>(
               <div key={p.id} className="card" style={{padding:20}}>
                 <div style={{display:'flex',justifyContent:'space-between',marginBottom:10}}>
                   <div><div style={{fontWeight:700}}>{p.titulo||p.nomeCliente}</div><div style={{fontSize:12,color:'var(--text-secondary)'}}>{p.nomeCliente}</div></div>
                   <span className={`badge ${statusConf[p.status]?.badge||'badge-gray'}`}>{statusConf[p.status]?.label||p.status}</span>
                 </div>
-                <div style={{display:'flex',flexWrap:'wrap',gap:4,marginBottom:10}}>{(p.modulos||[]).map((m,i)=><span key={i} className="badge badge-blue" style={{fontSize:10}}>{m.nome}</span>)}</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:4,marginBottom:10}}>{(p.modulos||[]).map((m,i)=><span key={i} className="badge badge-blue" style={{fontSize:10}}>{typeof m === 'object' ? m?.nome : m}</span>)}</div>
                 <div style={{display:'flex',gap:12}}><div><div style={{fontSize:11,color:'var(--text-secondary)'}}>Recorrente</div><div style={{fontWeight:700,color:'#FFD600'}}>{fmt(p.valorRecorrente||0)}/mês</div></div><div><div style={{fontSize:11,color:'var(--text-secondary)'}}>Setup</div><div style={{fontWeight:700}}>{fmt(p.valorUnico||0)}</div></div></div>
               </div>
             ))}
