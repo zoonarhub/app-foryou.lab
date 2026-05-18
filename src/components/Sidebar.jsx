@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, UserPlus, Handshake, FlaskConical,
   ClipboardList, FileText, DollarSign, BarChart3, MessageCircle,
   Megaphone, Calendar, UserCog, Bot, Plug, Settings, Crown,
-  ChevronLeft, ChevronRight, TrendingUp, ClipboardCheck, AlertTriangle, Stethoscope, Box, MessageSquare, Target, Activity
+  ChevronLeft, ChevronRight, TrendingUp, ClipboardCheck, AlertTriangle, Stethoscope, Box, MessageSquare, Target, Activity, Microscope
 } from 'lucide-react';
 import { useState } from 'react';
 import { useApp } from '../data/store';
@@ -34,6 +34,7 @@ const navItems = [
   { path: '/equipe', icon: UserCog, label: 'Equipe' },
   { path: '/ia', icon: Bot, label: 'IA — Agentes' },
   { path: '/diagnostico', icon: Stethoscope, label: 'Diagnóstico' },
+  { path: '/avaliador', icon: Microscope, label: 'Avaliador' },
   { path: '/integracoes', icon: Plug, label: 'Integrações' },
   { path: '/configuracoes', icon: Settings, label: 'Configurações' },
   { section: 'Executivo' },
