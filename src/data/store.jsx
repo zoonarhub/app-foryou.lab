@@ -25,6 +25,12 @@ export function AppProvider({ children }) {
   const [evolutionApiKey, setEvolutionApiKey] = useState(localStorage.getItem('evo_key') || '54A0DAA1396B-4570-A1CF-665D425E8171');
   const [googleAccessToken, setGoogleAccessToken] = useState(localStorage.getItem('google_token') || null);
 
+  const addToast = useCallback((message, type = 'success') => {
+    const id = Date.now().toString();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
+  }, []);
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem(THEME_KEY, theme);
@@ -212,12 +218,6 @@ export function AppProvider({ children }) {
       }
     }
   }, [agencyId, addToast]);
-
-  const addToast = useCallback((message, type = 'success') => {
-    const id = Date.now().toString();
-    setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
-  }, []);
 
   const setEvoConfig = useCallback((url, key) => {
     localStorage.setItem('evo_url', url);
