@@ -342,6 +342,7 @@ export default function PropostaPublica() {
           <p style={{fontSize:13,color:'#444',marginBottom:32,maxWidth:500}}>Cada serviço foi selecionado para maximizar seu retorno.</p>
           <div style={{display:'flex',flexDirection:'column',gap:10}}>
             {(p.servicosItems||[]).map((s,i) => (
+              <div key={i} className="pp-card-hover pp-anim" style={{background:'#FFF',padding:'20px 24px',display:'flex',justifyContent:'space-between',alignItems:'center',borderRadius:12,gap:16,boxShadow:'0 10px 20px rgba(0,0,0,0.08)'}}>
                 <div style={{display:'flex',gap:14,alignItems:'center',flex:1}}>
                   <div style={{width:38,height:38,background:'#0A0A0D',borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={18} color="#FFD600" strokeWidth={3}/></div>
                   <div><h3 style={{fontSize:15,fontWeight:800,color:'#0A0A0D'}}>{s.nome}</h3>{s.descricao && <p style={{fontSize:12,color:'#555',marginTop:2}}>{s.descricao}</p>}</div>
