@@ -115,22 +115,17 @@ export default function PropostaPublica() {
   return (
     <div style={{fontFamily:"'Inter',system-ui,-apple-system,sans-serif",background:'#030305',color:'#fff',minHeight:'100vh',overflowX:'hidden',overflowY:'auto',position:'relative'}}>
       <style>{CSS}</style>
-      {/* BACKGROUND EFFECTS */}
-      <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'radial-gradient(150% 100% at 50% 0%, rgba(255,214,0,0.15) 0%, rgba(255,214,0,0.05) 30%, rgba(5,5,8,1) 70%, rgba(5,5,8,1) 100%)',pointerEvents:'none',zIndex:0}}/>
-      <div style={{position:'fixed',top:'-10%',left:'-10%',width:'60%',height:'60%',background:'radial-gradient(circle, rgba(255,214,0,0.1) 0%, transparent 60%)',pointerEvents:'none',zIndex:0}}/>
-      <div style={{position:'fixed',bottom:'-10%',right:'-10%',width:'70%',height:'70%',background:'radial-gradient(circle, rgba(255,214,0,0.08) 0%, transparent 60%)',pointerEvents:'none',zIndex:0}}/>
-      
       {/* HEADER */}
-      <header style={{background:'rgba(5,5,8,.4)',backdropFilter:'blur(24px)',WebkitBackdropFilter:'blur(24px)',padding:'16px 28px',display:'flex',justifyContent:'space-between',alignItems:'center',position:'sticky',top:0,zIndex:100,borderBottom:'1px solid rgba(255,214,0,.1)'}}>
+      <header style={{background:'#050508',padding:'16px 28px',display:'flex',justifyContent:'space-between',alignItems:'center',position:'sticky',top:0,zIndex:100,borderBottom:'1px solid rgba(255,214,0,.1)'}}>
         <img src="/logo.png" alt="foryou.lab" style={{height:32,filter:'invert(1)'}}/>
-        <div style={{fontSize:10,fontWeight:700,color:'rgba(255,214,0,.8)',letterSpacing:2,textTransform:'uppercase'}}>Proposta Executiva</div>
+        <div style={{fontSize:10,fontWeight:700,color:'#FFD600',letterSpacing:2,textTransform:'uppercase'}}>Proposta Executiva</div>
       </header>
 
-      {/* HERO */}
-      <section style={{position:'relative',padding:'120px 24px 80px',overflow:'hidden',background:'transparent',zIndex:1}}>
+      {/* HERO (DARK) */}
+      <section style={{position:'relative',padding:'120px 24px 80px',overflow:'hidden',background:'#050508',zIndex:1}}>
         <div className="pp-glow" style={{position:'absolute',top:'0%',left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:1000,height:800,borderRadius:'50%',background:'radial-gradient(circle,rgba(255,214,0,.1) 0%,transparent 70%)',pointerEvents:'none'}}/>
         <div style={{maxWidth:860,margin:'0 auto',position:'relative',zIndex:2,textAlign:'center'}}>
-          <div style={{display:'inline-flex',alignItems:'center',gap:10,background:'rgba(255,214,0,.08)',border:'1px solid rgba(255,214,0,.2)',borderRadius:100,padding:'8px 20px',marginBottom:32,boxShadow:'0 0 20px rgba(255,214,0,0.1)',backdropFilter:'blur(10px)'}}>
+          <div style={{display:'inline-flex',alignItems:'center',gap:10,background:'rgba(255,214,0,.08)',border:'1px solid rgba(255,214,0,.2)',borderRadius:100,padding:'8px 20px',marginBottom:32}}>
             <div style={{width:8,height:8,borderRadius:'50%',background:'#FFD600',animation:'blink 2s infinite',boxShadow:'0 0 10px #FFD600'}}/>
             <span style={{fontSize:11,fontWeight:800,letterSpacing:2,color:'#FFD600',textTransform:'uppercase'}}>Proposta exclusiva para {nome}</span>
           </div>
@@ -141,46 +136,46 @@ export default function PropostaPublica() {
         </div>
       </section>
 
-      {/* COUNTDOWN */}
+      {/* COUNTDOWN (YELLOW) */}
       {p.validade && (
-        <section style={{padding:'0 24px 60px',position:'relative',zIndex:1}}>
-          <div ref={addRef} className="pp-anim" style={{maxWidth:860,margin:'0 auto',background:'rgba(20,20,25,.3)',border:'1px solid rgba(255,214,0,.15)',boxShadow:'0 20px 40px rgba(0,0,0,0.5)',borderRadius:20,padding:'32px',backdropFilter:'blur(16px)',textAlign:'center'}}>
+        <section style={{padding:'60px 24px',background:'#FFD600',color:'#0A0A0D',position:'relative',zIndex:1}}>
+          <div ref={addRef} className="pp-anim" style={{maxWidth:860,margin:'0 auto',background:'#fff',boxShadow:'0 20px 40px rgba(0,0,0,0.1)',borderRadius:20,padding:'32px',textAlign:'center'}}>
             {approved ? (
               <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:14}}><ShieldCheck size={28} color="#22C55E"/><span style={{fontSize:20,fontWeight:800,color:'#22C55E'}}>Proposta Aprovada ✅</span></div>
             ) : expired ? (
               <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:14}}><AlertTriangle size={28} color="#EF4444"/><span style={{fontSize:20,fontWeight:800,color:'#EF4444'}}>Proposta Expirada</span></div>
             ) : cd && (<>
               <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,marginBottom:20}}>
-                <Timer size={14} color="#FFD600"/><span style={{fontSize:10,fontWeight:800,letterSpacing:3,color:'#FFD600',textTransform:'uppercase'}}>Esta proposta expira em</span>
+                <Timer size={14} color="#0A0A0D"/><span style={{fontSize:10,fontWeight:800,letterSpacing:3,color:'#0A0A0D',textTransform:'uppercase'}}>Esta proposta expira em</span>
               </div>
               <div style={{display:'flex',justifyContent:'center',gap:12,flexWrap:'wrap'}}>
                 {[['DIAS',cd.d],['HRS',cd.h],['MIN',cd.m],['SEG',cd.s]].map(([l,v],i) => (
                   <div key={l} style={{display:'flex',alignItems:'center',gap:0}}>
-                    <div style={{background:'rgba(255,214,0,.08)',border:'1px solid rgba(255,214,0,.2)',boxShadow:'inset 0 0 15px rgba(255,214,0,0.05)',borderRadius:14,padding:'14px 22px',minWidth:78,textAlign:'center'}}>
-                      <div className="pp-tick" style={{fontSize:40,fontWeight:900,color:'#FFD600',lineHeight:1,fontVariantNumeric:'tabular-nums',textShadow:'0 0 10px rgba(255,214,0,0.3)'}}>{String(v||0).padStart(2,'0')}</div>
-                      <div style={{fontSize:8,fontWeight:700,letterSpacing:2,color:'#aaa',marginTop:6}}>{l}</div>
+                    <div style={{background:'#F3F4F6',borderRadius:14,padding:'14px 22px',minWidth:78,textAlign:'center'}}>
+                      <div className="pp-tick" style={{fontSize:40,fontWeight:900,color:'#0A0A0D',lineHeight:1,fontVariantNumeric:'tabular-nums'}}>{String(v||0).padStart(2,'0')}</div>
+                      <div style={{fontSize:8,fontWeight:700,letterSpacing:2,color:'#666',marginTop:6}}>{l}</div>
                     </div>
-                    {i < 3 && <span style={{fontSize:24,fontWeight:800,color:'#555',margin:'0 2px',marginTop:-10}}>:</span>}
+                    {i < 3 && <span style={{fontSize:24,fontWeight:800,color:'#999',margin:'0 2px',marginTop:-10}}>:</span>}
                   </div>
                 ))}
               </div>
-              <div style={{fontSize:11,color:'#888',marginTop:14}}>Válida até {p.validade.split('-').reverse().join('/')}</div>
+              <div style={{fontSize:11,color:'#666',marginTop:14}}>Válida até {p.validade.split('-').reverse().join('/')}</div>
             </>)}
           </div>
         </section>
       )}
 
-      {/* DIAGNÓSTICO (Dores e Problemas da Empresa) */}
+      {/* DIAGNÓSTICO (DARK) */}
       {(p.principalProblema || (p.doresSelecionadas && p.doresSelecionadas.length > 0) || diag) && (
-        <section ref={addRef} className="pp-anim" style={{padding:'80px 24px',borderTop:'1px solid rgba(255,255,255,0.05)',background:'rgba(10,10,15,0.4)',backdropFilter:'blur(10px)',position:'relative',zIndex:1}}>
+        <section ref={addRef} className="pp-anim" style={{padding:'80px 24px',background:'#050508',position:'relative',zIndex:1}}>
           <div style={{maxWidth:860,margin:'0 auto'}}>
             <div style={{marginBottom:40}}>
               <div style={{fontSize:10,fontWeight:800,color:'#EF4444',letterSpacing:3,textTransform:'uppercase',marginBottom:8}}>Diagnóstico Executivo</div>
-              <h2 style={{fontSize:32,fontWeight:800}}>Análise de Problemas <span style={{color:'#EF4444'}}>da {nome}</span></h2>
+              <h2 style={{fontSize:32,fontWeight:800,color:'#fff'}}>Análise de Problemas <span style={{color:'#EF4444'}}>da {nome}</span></h2>
             </div>
             
             {p.principalProblema && (
-              <div style={{background:'rgba(239, 68, 68, 0.05)',border:'1px solid rgba(239, 68, 68, 0.2)',borderRadius:14,padding:24,marginBottom:24,boxShadow:'inset 0 0 20px rgba(239,68,68,0.05)'}}>
+              <div style={{background:'rgba(239, 68, 68, 0.05)',border:'1px solid rgba(239, 68, 68, 0.2)',borderRadius:14,padding:24,marginBottom:24}}>
                 <div style={{fontSize:11,fontWeight:700,color:'#EF4444',marginBottom:8,textTransform:'uppercase',letterSpacing:1}}>Problema Principal Identificado</div>
                 <div style={{fontSize:16,color:'#fff',lineHeight:1.6}}>{p.principalProblema}</div>
               </div>
@@ -191,7 +186,7 @@ export default function PropostaPublica() {
                 <div style={{fontSize:11,fontWeight:700,color:'#aaa',marginBottom:12,textTransform:'uppercase',letterSpacing:1}}>Dores Mapeadas no Setup</div>
                 <div style={{display:'flex',flexWrap:'wrap',gap:10}}>
                   {p.doresSelecionadas.map((dor, i) => (
-                    <div key={i} style={{background:'rgba(255,255,255,.05)',border:'1px solid rgba(255,255,255,.15)',padding:'10px 16px',borderRadius:100,fontSize:12,color:'#eee',display:'flex',alignItems:'center',gap:8,boxShadow:'0 4px 10px rgba(0,0,0,0.2)'}}>
+                    <div key={i} style={{background:'rgba(255,255,255,.05)',border:'1px solid rgba(255,255,255,.1)',padding:'10px 16px',borderRadius:100,fontSize:12,color:'#eee',display:'flex',alignItems:'center',gap:8}}>
                       <AlertTriangle size={14} color="#EF4444"/> {dor}
                     </div>
                   ))}
@@ -200,7 +195,7 @@ export default function PropostaPublica() {
             )}
 
             {p.descricaoDores && (
-               <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:14,padding:24,marginBottom:24,boxShadow:'0 10px 20px rgba(0,0,0,0.2)'}}>
+               <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:14,padding:24,marginBottom:24}}>
                  <div style={{fontSize:11,fontWeight:700,color:'#aaa',marginBottom:8,textTransform:'uppercase',letterSpacing:1}}>Descrição Detalhada</div>
                  <div style={{fontSize:13,color:'#bbb',lineHeight:1.6,whiteSpace:'pre-wrap'}}>{p.descricaoDores}</div>
                </div>
@@ -247,31 +242,31 @@ export default function PropostaPublica() {
         </section>
       )}
 
-      {/* METODOLOGIA */}
-      <section ref={addRef} className="pp-anim" style={{padding:'80px 24px',background:'transparent',borderTop:'1px solid rgba(255,255,255,0.05)',position:'relative',zIndex:1}}>
+      {/* METODOLOGIA (YELLOW) */}
+      <section ref={addRef} className="pp-anim" style={{padding:'80px 24px',background:'#FFD600',color:'#0A0A0D',position:'relative',zIndex:1}}>
         <div style={{maxWidth:860,margin:'0 auto'}}>
-          <h2 style={{fontSize:32,fontWeight:800,marginBottom:40}}>Não é sorte. É <span style={{background:'linear-gradient(135deg,#FFD600,#FF9900)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>método.</span></h2>
+          <h2 style={{fontSize:32,fontWeight:900,marginBottom:40,color:'#0A0A0D'}}>Não é sorte. É método.</h2>
           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:16}}>
             {[{icon:<Activity size={24}/>,t:'Estratégia',d:'Análise profunda e planejamento focado.'},{icon:<BarChart2 size={24}/>,t:'Dados',d:'Decisões baseadas em métricas reais.'},{icon:<Target size={24}/>,t:'Foco',d:'Ações direcionadas para clientes ideais.'},{icon:<Zap size={24}/>,t:'Resultado',d:'Crescimento escalável e previsível.'}].map((x,i) => (
-              <div key={i} className="pp-card-hover" style={{background:'rgba(20,20,25,.6)',border:'1px solid rgba(255,214,0,.15)',boxShadow:'0 15px 30px rgba(0,0,0,0.4), inset 0 0 20px rgba(255,214,0,.03)',borderRadius:16,padding:24,transition:'all .3s',backdropFilter:'blur(12px)'}}>
-                <div style={{color:'#FFD600',marginBottom:14,filter:'drop-shadow(0 0 8px rgba(255,214,0,0.5))'}}>{x.icon}</div>
-                <h3 style={{fontSize:15,fontWeight:700,marginBottom:6,color:'#fff'}}>{x.t}</h3>
-                <p style={{fontSize:12,color:'#aaa',lineHeight:1.6}}>{x.d}</p>
+              <div key={i} className="pp-card-hover" style={{background:'#FFF',boxShadow:'0 10px 30px rgba(0,0,0,0.08)',borderRadius:16,padding:24,transition:'all .3s'}}>
+                <div style={{color:'#0A0A0D',marginBottom:14}}>{x.icon}</div>
+                <h3 style={{fontSize:15,fontWeight:800,marginBottom:6,color:'#0A0A0D'}}>{x.t}</h3>
+                <p style={{fontSize:12,color:'#444',lineHeight:1.6}}>{x.d}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* PROJEÇÃO DE CRESCIMENTO */}
-      <section ref={addRef} className="pp-anim" style={{padding:'80px 24px',borderTop:'1px solid rgba(255,255,255,0.05)',background:'rgba(10,10,15,0.4)',backdropFilter:'blur(10px)',position:'relative',zIndex:1}}>
+      {/* PROJEÇÃO DE CRESCIMENTO (DARK) */}
+      <section ref={addRef} className="pp-anim" style={{padding:'80px 24px',background:'#050508',position:'relative',zIndex:1}}>
         <div style={{position:'absolute',top:'50%',right:0,width:400,height:400,background:'radial-gradient(circle,rgba(255,214,0,.08) 0%,transparent 70%)',transform:'translateY(-50%)',pointerEvents:'none'}}/>
         <div style={{maxWidth:860,margin:'0 auto',position:'relative',zIndex:2}}>
           <div style={{fontSize:10,fontWeight:800,color:'#FFD600',letterSpacing:3,textTransform:'uppercase',marginBottom:6}}>Visão de Futuro</div>
-          <h2 style={{fontSize:28,fontWeight:800,marginBottom:8}}>Projeção de Escalabilidade</h2>
+          <h2 style={{fontSize:28,fontWeight:800,marginBottom:8,color:'#fff'}}>Projeção de Escalabilidade</h2>
           <p style={{fontSize:13,color:'#bbb',marginBottom:40,maxWidth:500}}>Estimativa do impacto da estratégia acelerada ao longo dos próximos 6 meses na {nome}.</p>
           
-          <div style={{background:'rgba(20,20,25,.5)',border:'1px solid rgba(255,214,0,.15)',borderRadius:20,padding:'32px 24px',boxShadow:'0 20px 40px rgba(0,0,0,.6)',backdropFilter:'blur(16px)'}}>
+          <div style={{background:'rgba(20,20,25,.8)',border:'1px solid rgba(255,214,0,.15)',borderRadius:20,padding:'32px 24px',boxShadow:'0 20px 40px rgba(0,0,0,.6)'}}>
             <div style={{height:300,width:'100%'}}>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={Array.from({length: 6}).map((_, i) => ({ name: `Mês ${i+1}`, organico: Math.round(((p.valorTotal||5000)*3) * Math.pow(1.02, i)), acelerado: Math.round(((p.valorTotal||5000)*3) * Math.pow(1.25, i)) }))} margin={{ top:10, right:10, left:-20, bottom:0 }}>
@@ -302,28 +297,28 @@ export default function PropostaPublica() {
         </div>
       </section>
 
-      {/* SERVIÇOS */}
-      <section ref={addRef} className="pp-anim" style={{padding:'80px 24px',borderTop:'1px solid rgba(255,255,255,0.05)',background:'transparent',position:'relative',zIndex:1}}>
+      {/* SERVIÇOS (YELLOW) */}
+      <section ref={addRef} className="pp-anim" style={{padding:'80px 24px',background:'#FFD600',color:'#0A0A0D',position:'relative',zIndex:1}}>
         <div style={{maxWidth:860,margin:'0 auto',position:'relative',zIndex:2}}>
-          <div style={{fontSize:10,fontWeight:800,color:'#FFD600',letterSpacing:3,textTransform:'uppercase',marginBottom:6}}>O que está incluso</div>
-          <h2 style={{fontSize:28,fontWeight:800,marginBottom:8}}>Serviços para <span style={{background:'linear-gradient(135deg,#FFD600,#FF9900)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>{nome}</span></h2>
-          <p style={{fontSize:13,color:'#bbb',marginBottom:32,maxWidth:500}}>Cada serviço foi selecionado para maximizar seu retorno.</p>
+          <div style={{fontSize:10,fontWeight:800,color:'#0A0A0D',letterSpacing:3,textTransform:'uppercase',marginBottom:6}}>O que está incluso</div>
+          <h2 style={{fontSize:28,fontWeight:900,marginBottom:8,color:'#0A0A0D'}}>Serviços para {nome}</h2>
+          <p style={{fontSize:13,color:'#444',marginBottom:32,maxWidth:500}}>Cada serviço foi selecionado para maximizar seu retorno.</p>
           <div style={{display:'flex',flexDirection:'column',gap:10}}>
             {(p.servicosItems||[]).map((s,i) => (
-              <div key={i} className="pp-card-hover" style={{background:'rgba(25,25,30,.4)',padding:'20px 24px',display:'flex',justifyContent:'space-between',alignItems:'center',border:'1px solid rgba(255,214,0,.1)',borderRadius:12,gap:16,boxShadow:'inset 0 0 15px rgba(255,214,0,0.03), 0 10px 20px rgba(0,0,0,0.2)',backdropFilter:'blur(10px)'}}>
+              <div key={i} className="pp-card-hover" style={{background:'#FFF',padding:'20px 24px',display:'flex',justifyContent:'space-between',alignItems:'center',borderRadius:12,gap:16,boxShadow:'0 10px 20px rgba(0,0,0,0.08)'}}>
                 <div style={{display:'flex',gap:14,alignItems:'center',flex:1}}>
-                  <div style={{width:38,height:38,background:'linear-gradient(135deg,#FFD600,#FF9900)',borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,boxShadow:'0 4px 15px rgba(255,214,0,0.4)'}}><Check size={18} color="#0A0A0A" strokeWidth={3}/></div>
-                  <div><h3 style={{fontSize:15,fontWeight:700,color:'#fff'}}>{s.nome}</h3>{s.descricao && <p style={{fontSize:12,color:'#aaa',marginTop:2}}>{s.descricao}</p>}</div>
+                  <div style={{width:38,height:38,background:'#0A0A0D',borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={18} color="#FFD600" strokeWidth={3}/></div>
+                  <div><h3 style={{fontSize:15,fontWeight:800,color:'#0A0A0D'}}>{s.nome}</h3>{s.descricao && <p style={{fontSize:12,color:'#555',marginTop:2}}>{s.descricao}</p>}</div>
                 </div>
-                <div style={{fontSize:17,fontWeight:800,color:'#FFD600',whiteSpace:'nowrap',textShadow:'0 0 10px rgba(255,214,0,0.3)'}}>{fmt(s.valor||0)}</div>
+                <div style={{fontSize:17,fontWeight:900,color:'#0A0A0D',whiteSpace:'nowrap'}}>{fmt(s.valor||0)}</div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* INVESTIMENTO */}
-      <section ref={addRef} className="pp-anim" style={{padding:'80px 24px',background:'rgba(10,10,15,0.6)',borderTop:'1px solid rgba(255,255,255,0.05)',backdropFilter:'blur(10px)',position:'relative',zIndex:1}}>
+      {/* INVESTIMENTO (DARK) */}
+      <section ref={addRef} className="pp-anim" style={{padding:'80px 24px',background:'#050508',position:'relative',zIndex:1}}>
         <div style={{maxWidth:860,margin:'0 auto'}}>
           <div style={{background:'linear-gradient(145deg, rgba(20,20,25,1) 0%, rgba(10,10,15,1) 100%)',border:'1px solid rgba(255,214,0,.15)',padding:44,borderRadius:20,position:'relative',overflow:'hidden',boxShadow:'0 30px 60px rgba(0,0,0,0.8)'}}>
             <div style={{position:'absolute',top:-60,right:-60,width:300,height:300,background:'radial-gradient(circle,rgba(255,214,0,.08) 0%,transparent 60%)',pointerEvents:'none'}}/>
