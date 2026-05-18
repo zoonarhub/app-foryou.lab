@@ -120,10 +120,15 @@ export default function PropostaPublica() {
 
   // Intersection Observer for scroll animations
   useEffect(() => {
+    if (!p) return;
     const obs = new IntersectionObserver((entries) => {
       entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('pp-visible'); obs.unobserve(e.target); } });
-    }, { threshold: 0.15 });
-    refs.current.forEach(el => el && obs.observe(el));
+    }, { threshold: 0.05 });
+    
+    // Captura e observa dinamicamente todos os elementos com a classe pp-anim
+    const els = document.querySelectorAll('.pp-anim');
+    els.forEach(el => obs.observe(el));
+    
     return () => obs.disconnect();
   }, [p]);
 

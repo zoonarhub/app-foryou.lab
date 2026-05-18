@@ -40,38 +40,10 @@ export function AppProvider({ children }) {
     setThemeState(prev => prev === 'dark' ? 'light' : 'dark');
   }, []);
 
-  // Initialize Supabase Auth
-  useEffect(() => {
-    const handleSession = async (session) => {
-      const user = session?.user;
-      if (!user) {
-        setAuth(null);
-        setAgencyId(null);
-        setLoadingData(false); // Libera o carregamento para mostrar o Login
-        return;
-      }
-      setAuth(user);
-      
-      const { data: profile } = await supabase.from('user_profiles').select('agency_id').eq('id', user.id).single();
-      if (profile?.agency_id) {
-        setAgencyId(profile.agency_id);
-      } else {
-        setAgencyId(user.id);
-      }
-      // Se já temos o agencyId mas por algum motivo o fetchData não rodar, garantimos o fim do loading
-      if (!profile?.agency_id && user.id) {
-         setLoadingData(false);
-      }
-    };
-
-    supabase.auth.getSession().then(({ data: { session } }) => handleSession(session));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => handleSession(session));
-    return () => subscription.unsubscribe();
-  }, []);
-
   // Fetch Data from Supabase
-  const fetchData = useCallback(async () => {
-    if (!agencyId) {
+  const fetchData = useCallback(async (forcedAgencyId) => {
+    const activeAgencyId = forcedAgencyId || agencyId;
+    if (!activeAgencyId) {
       setLoadingData(false);
       return;
     }
@@ -84,12 +56,12 @@ export function AppProvider({ children }) {
         try {
           // Tabelas Estruturadas (sem coluna 'data')
           if (['campaignTrackings', 'optimizationLogs'].includes(key)) {
-            const { data: rows, error } = await supabase.from(table).select('*').eq('user_id', agencyId);
+            const { data: rows, error } = await supabase.from(table).select('*').eq('user_id', activeAgencyId);
             return { key, val: !error && rows ? rows : [] };
           }
           
           // Tabelas baseadas em JSONB
-          const { data: rows, error } = await supabase.from(table).select('data').eq('user_id', agencyId);
+          const { data: rows, error } = await supabase.from(table).select('data').eq('user_id', activeAgencyId);
           if (!error && rows) {
             return { key, val: rows.map(r => r.data) };
           }
@@ -113,9 +85,36 @@ export function AppProvider({ children }) {
     }
   }, [agencyId]);
 
+  // Initialize Supabase Auth and load data
   useEffect(() => {
-    if (agencyId) fetchData();
-  }, [agencyId, fetchData]);
+    const handleSession = async (session) => {
+      const user = session?.user;
+      if (!user) {
+        setAuth(null);
+        setAgencyId(null);
+        setLoadingData(false); // Libera o carregamento para mostrar o Login
+        return;
+      }
+      setAuth(user);
+      
+      let currentAgencyId = user.id;
+      try {
+        const { data: profile } = await supabase.from('user_profiles').select('agency_id').eq('id', user.id).maybeSingle();
+        if (profile?.agency_id) {
+          currentAgencyId = profile.agency_id;
+        }
+      } catch (err) {
+        console.error("[Auth] Erro ao carregar user_profile:", err);
+      }
+      
+      setAgencyId(currentAgencyId);
+      await fetchData(currentAgencyId);
+    };
+
+    supabase.auth.getSession().then(({ data: { session } }) => handleSession(session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => handleSession(session));
+    return () => subscription.unsubscribe();
+  }, [fetchData]);
 
   const login = async (email, password) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
