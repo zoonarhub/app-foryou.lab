@@ -1,10 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 import { Check, Clock, AlertTriangle, ChevronRight, ShieldCheck, Target, Zap, BarChart2, Activity, Timer } from 'lucide-react';
 
 const fmt = v => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:0}).format(v);
 const WA = "5511999999999";
+
+// Criar um cliente anônimo que não tenta usar o localStorage
+// Isso previne que a página trave tentando renovar um token de login vencido
+const supabaseAnon = createClient(
+  import.meta.env.VITE_SUPABASE_URL, 
+  import.meta.env.VITE_SUPABASE_ANON_KEY, 
+  { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
+);
 
 export default function PropostaPublica() {
   const { id } = useParams();
@@ -26,14 +34,14 @@ export default function PropostaPublica() {
 
     (async () => {
       try {
-        const { data, error } = await supabase.from('proposals').select('data').eq('id', id).single();
+        const { data, error } = await supabaseAnon.from('proposals').select('data').eq('id', id).single();
         if (!isMounted) return;
         if (error) { setErr(error.message); return; }
         if (data?.data) {
           setP(data.data);
           if (data.data.status === 'enviada') {
             const u = { ...data.data, status: 'visualizada', visualizadaEm: new Date().toISOString() };
-            await supabase.from('proposals').update({ data: u }).eq('id', id);
+            await supabaseAnon.from('proposals').update({ data: u }).eq('id', id);
           }
         }
       } catch (e) { 
@@ -70,11 +78,13 @@ export default function PropostaPublica() {
   const addRef = (el) => { if (el && !refs.current.includes(el)) refs.current.push(el); };
 
   const handleAccept = async () => {
-    const u = { ...p, status: 'aprovada', aprovadaEm: new Date().toISOString() };
-    const { error } = await supabase.from('proposals').update({ data: u }).eq('id', id);
-    if (error) { alert('Erro: ' + error.message); return; }
-    setAccepted(true); setP(u);
-    if (p.linkPagamento) setTimeout(() => window.open(p.linkPagamento, '_blank'), 800);
+    try {
+      const u = { ...p, status: 'aprovada', aprovadaEm: new Date().toISOString() };
+      const { error } = await supabaseAnon.from('proposals').update({ data: u }).eq('id', id);
+      if (error) { alert('Erro: ' + error.message); return; }
+      setAccepted(true); setP(u);
+      if (p.linkPagamento) setTimeout(() => window.open(p.linkPagamento, '_blank'), 800);
+    } catch(e) {}
   };
 
   if (loading) return <div style={L.wrap}><div style={L.spin}/><p style={{color:'#666',marginTop:16,fontSize:13}}>Carregando proposta...</p></div>;
