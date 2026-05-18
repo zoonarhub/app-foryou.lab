@@ -113,22 +113,27 @@ export default function PropostaPublica() {
   const gc = s => s >= 70 ? '#22C55E' : s >= 40 ? '#F59E0B' : '#EF4444';
 
   return (
-    <div style={{fontFamily:"'Inter',system-ui,-apple-system,sans-serif",background:'#050508',color:'#fff',minHeight:'100vh',overflowX:'hidden',overflowY:'auto'}}>
+    <div style={{fontFamily:"'Inter',system-ui,-apple-system,sans-serif",background:'#030305',color:'#fff',minHeight:'100vh',overflowX:'hidden',overflowY:'auto',position:'relative'}}>
       <style>{CSS}</style>
 
+      {/* BACKGROUND EFFECTS */}
+      <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'radial-gradient(120% 100% at 50% 0%, rgba(255,214,0,0.08) 0%, rgba(5,5,8,1) 50%, rgba(5,5,8,1) 100%)',pointerEvents:'none',zIndex:0}}/>
+      <div style={{position:'fixed',top:'-20%',left:'-10%',width:'50%',height:'50%',background:'radial-gradient(circle, rgba(255,214,0,0.05) 0%, transparent 60%)',pointerEvents:'none',zIndex:0}}/>
+      <div style={{position:'fixed',bottom:'-20%',right:'-10%',width:'60%',height:'60%',background:'radial-gradient(circle, rgba(255,214,0,0.03) 0%, transparent 60%)',pointerEvents:'none',zIndex:0}}/>
+      
       {/* HEADER */}
-      <header style={{background:'rgba(5,5,8,.9)',backdropFilter:'blur(24px)',WebkitBackdropFilter:'blur(24px)',padding:'14px 28px',display:'flex',justifyContent:'space-between',alignItems:'center',position:'sticky',top:0,zIndex:100,borderBottom:'1px solid rgba(255,214,0,.08)'}}>
+      <header style={{background:'rgba(3,3,5,.6)',backdropFilter:'blur(24px)',WebkitBackdropFilter:'blur(24px)',padding:'16px 28px',display:'flex',justifyContent:'space-between',alignItems:'center',position:'sticky',top:0,zIndex:100,borderBottom:'1px solid rgba(255,214,0,.1)'}}>
         <img src="/logo.png" alt="foryou.lab" style={{height:32,filter:'invert(1)'}}/>
-        <div style={{fontSize:10,fontWeight:700,color:'rgba(255,214,0,.7)',letterSpacing:2,textTransform:'uppercase'}}>Proposta Comercial</div>
+        <div style={{fontSize:10,fontWeight:700,color:'rgba(255,214,0,.8)',letterSpacing:2,textTransform:'uppercase'}}>Proposta Executiva</div>
       </header>
 
       {/* HERO */}
-      <section style={{position:'relative',padding:'100px 24px 60px',overflow:'hidden'}}>
-        <div className="pp-glow" style={{position:'absolute',top:'-20%',left:'50%',transform:'translateX(-50%)',width:800,height:800,borderRadius:'50%',background:'radial-gradient(circle,rgba(255,214,0,.06) 0%,transparent 60%)',pointerEvents:'none'}}/>
-        <div style={{maxWidth:860,margin:'0 auto',position:'relative',zIndex:2}}>
-          <div style={{display:'inline-flex',alignItems:'center',gap:8,background:'rgba(255,214,0,.06)',border:'1px solid rgba(255,214,0,.12)',borderRadius:100,padding:'6px 16px',marginBottom:24}}>
-            <div style={{width:6,height:6,borderRadius:'50%',background:'#FFD600',animation:'blink 2s infinite'}}/>
-            <span style={{fontSize:10,fontWeight:700,letterSpacing:2,color:'rgba(255,214,0,.8)',textTransform:'uppercase'}}>Proposta exclusiva para {nome}</span>
+      <section style={{position:'relative',padding:'120px 24px 80px',overflow:'hidden',background:'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23ffd600\' fill-opacity=\'0.03\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")'}}>
+        <div className="pp-glow" style={{position:'absolute',top:'0%',left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:1000,height:800,borderRadius:'50%',background:'radial-gradient(circle,rgba(255,214,0,.08) 0%,transparent 70%)',pointerEvents:'none'}}/>
+        <div style={{maxWidth:860,margin:'0 auto',position:'relative',zIndex:2,textAlign:'center'}}>
+          <div style={{display:'inline-flex',alignItems:'center',gap:10,background:'rgba(255,214,0,.08)',border:'1px solid rgba(255,214,0,.2)',borderRadius:100,padding:'8px 20px',marginBottom:32,boxShadow:'0 0 20px rgba(255,214,0,0.1)'}}>
+            <div style={{width:8,height:8,borderRadius:'50%',background:'#FFD600',animation:'blink 2s infinite',boxShadow:'0 0 10px #FFD600'}}/>
+            <span style={{fontSize:11,fontWeight:800,letterSpacing:2,color:'#FFD600',textTransform:'uppercase'}}>Proposta exclusiva para {nome}</span>
           </div>
           <h1 style={{fontSize:'clamp(32px,6vw,56px)',fontWeight:900,lineHeight:1.05,letterSpacing:'-.03em',marginBottom:20}}>
             Estratégia que gera<br/><span style={{background:'linear-gradient(135deg,#FFD600,#FFB300)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>crescimento real.</span>
@@ -166,37 +171,68 @@ export default function PropostaPublica() {
         </section>
       )}
 
-      {/* DIAGNÓSTICO - só aparece se tiver dados */}
-      {diag && (
+      {/* DIAGNÓSTICO (Dores e Problemas da Empresa) */}
+      {(p.principalProblema || (p.doresSelecionadas && p.doresSelecionadas.length > 0) || diag) && (
         <section ref={addRef} className="pp-anim" style={{padding:'80px 24px',borderTop:'1px solid #111'}}>
           <div style={{maxWidth:860,margin:'0 auto'}}>
             <div style={{marginBottom:40}}>
-              <div style={{fontSize:10,fontWeight:800,color:'#FFD600',letterSpacing:3,textTransform:'uppercase',marginBottom:8}}>Diagnóstico</div>
-              <h2 style={{fontSize:32,fontWeight:800}}>Saúde Digital <span style={{color:'#FFD600'}}>da {nome}</span></h2>
+              <div style={{fontSize:10,fontWeight:800,color:'#EF4444',letterSpacing:3,textTransform:'uppercase',marginBottom:8}}>Diagnóstico Executivo</div>
+              <h2 style={{fontSize:32,fontWeight:800}}>Análise de Problemas <span style={{color:'#EF4444'}}>da {nome}</span></h2>
             </div>
-            <div style={{display:'grid',gridTemplateColumns:'180px 1fr',gap:36,alignItems:'start'}}>
-              <div style={{textAlign:'center'}}>
-                <div style={{position:'relative',width:140,height:140,margin:'0 auto'}}>
-                  <svg width="140" height="140" viewBox="0 0 140 140" style={{transform:'rotate(-90deg)'}}>
-                    <circle cx="70" cy="70" r="60" fill="none" stroke="#151518" strokeWidth="10"/>
-                    <circle className="pp-ring" cx="70" cy="70" r="60" fill="none" stroke={gc(diag.scoreGeral)} strokeWidth="10" strokeDasharray={`${(diag.scoreGeral/100)*377} 377`} strokeLinecap="round"/>
-                  </svg>
-                  <div style={{position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)'}}>
-                    <div style={{fontSize:38,fontWeight:900,color:gc(diag.scoreGeral)}}>{diag.scoreGeral}</div>
-                    <div style={{fontSize:9,color:'#555'}}>/ 100</div>
-                  </div>
-                </div>
-                <div style={{marginTop:10,fontSize:12,fontWeight:700,color:gc(diag.scoreGeral)}}>{diag.scoreGeral >= 70 ? 'Saudável' : diag.scoreGeral >= 40 ? 'Requer Atenção' : 'Crítico'}</div>
+            
+            {p.principalProblema && (
+              <div style={{background:'rgba(239, 68, 68, 0.05)',border:'1px solid rgba(239, 68, 68, 0.2)',borderRadius:14,padding:24,marginBottom:24}}>
+                <div style={{fontSize:11,fontWeight:700,color:'#EF4444',marginBottom:8,textTransform:'uppercase',letterSpacing:1}}>Problema Principal Identificado</div>
+                <div style={{fontSize:16,color:'#fff',lineHeight:1.6}}>{p.principalProblema}</div>
               </div>
-              <div>{(diag.blocos||[]).map((b,i) => (
-                <div key={i} style={{marginBottom:16}}>
-                  <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:6}}><span style={{fontWeight:600,color:'#ccc'}}>{b.title}</span><span style={{fontWeight:700,color:gc(b.score)}}>{b.score}/100</span></div>
-                  <div style={{height:6,borderRadius:3,background:'#151518',overflow:'hidden'}}><div className="pp-bar" style={{height:'100%',borderRadius:3,width:`${b.score}%`,background:gc(b.score)}}/></div>
+            )}
+
+            {p.doresSelecionadas && p.doresSelecionadas.length > 0 && (
+              <div style={{marginBottom:24}}>
+                <div style={{fontSize:11,fontWeight:700,color:'#999',marginBottom:12,textTransform:'uppercase',letterSpacing:1}}>Dores Mapeadas no Setup</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:10}}>
+                  {p.doresSelecionadas.map((dor, i) => (
+                    <div key={i} style={{background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.1)',padding:'10px 16px',borderRadius:100,fontSize:12,color:'#ccc',display:'flex',alignItems:'center',gap:8}}>
+                      <AlertTriangle size={14} color="#EF4444"/> {dor}
+                    </div>
+                  ))}
                 </div>
-              ))}</div>
-            </div>
-            {diag.quickWins?.length > 0 && (
-              <div style={{marginTop:48}}>
+              </div>
+            )}
+
+            {p.descricaoDores && (
+               <div style={{background:'rgba(255,255,255,0.02)',border:'1px solid rgba(255,255,255,0.05)',borderRadius:14,padding:24,marginBottom:24}}>
+                 <div style={{fontSize:11,fontWeight:700,color:'#999',marginBottom:8,textTransform:'uppercase',letterSpacing:1}}>Descrição Detalhada</div>
+                 <div style={{fontSize:13,color:'#888',lineHeight:1.6,whiteSpace:'pre-wrap'}}>{p.descricaoDores}</div>
+               </div>
+            )}
+
+            {diag && (
+              <div style={{display:'grid',gridTemplateColumns:'180px 1fr',gap:36,alignItems:'start',marginTop:48,paddingTop:40,borderTop:'1px solid #1a1a1a'}}>
+                <div style={{textAlign:'center'}}>
+                  <div style={{position:'relative',width:140,height:140,margin:'0 auto'}}>
+                    <svg width="140" height="140" viewBox="0 0 140 140" style={{transform:'rotate(-90deg)'}}>
+                      <circle cx="70" cy="70" r="60" fill="none" stroke="#151518" strokeWidth="10"/>
+                      <circle className="pp-ring" cx="70" cy="70" r="60" fill="none" stroke={gc(diag.scoreGeral)} strokeWidth="10" strokeDasharray={`${(diag.scoreGeral/100)*377} 377`} strokeLinecap="round"/>
+                    </svg>
+                    <div style={{position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)'}}>
+                      <div style={{fontSize:38,fontWeight:900,color:gc(diag.scoreGeral)}}>{diag.scoreGeral}</div>
+                      <div style={{fontSize:9,color:'#555'}}>/ 100</div>
+                    </div>
+                  </div>
+                  <div style={{marginTop:10,fontSize:12,fontWeight:700,color:gc(diag.scoreGeral)}}>{diag.scoreGeral >= 70 ? 'Saudável' : diag.scoreGeral >= 40 ? 'Requer Atenção' : 'Crítico'}</div>
+                </div>
+                <div>{(diag.blocos||[]).map((b,i) => (
+                  <div key={i} style={{marginBottom:16}}>
+                    <div style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:6}}><span style={{fontWeight:600,color:'#ccc'}}>{b.title}</span><span style={{fontWeight:700,color:gc(b.score)}}>{b.score}/100</span></div>
+                    <div style={{height:6,borderRadius:3,background:'#151518',overflow:'hidden'}}><div className="pp-bar" style={{height:'100%',borderRadius:3,width:`${b.score}%`,background:gc(b.score)}}/></div>
+                  </div>
+                ))}</div>
+              </div>
+            )}
+            
+            {diag?.quickWins?.length > 0 && (
+              <div style={{marginTop:32}}>
                 <h3 style={{fontSize:16,fontWeight:700,marginBottom:16,color:'#FFD600'}}>⚡ Oportunidades Identificadas</h3>
                 <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(240px,1fr))',gap:10}}>
                   {diag.quickWins.slice(0,6).map((w,i) => (

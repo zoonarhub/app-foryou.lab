@@ -35,14 +35,20 @@ export default function Proposals() {
   const editClassic = (p) => { setEditing(p); setForm({...p,servicosItems:p.servicosItems||[{nome:'',descricao:'',valor:0}]}); setShowModal(true); };
 
   const saveClassic = () => {
-    if(!form.titulo && !form.clienteId && !form.leadId){addToast('Preencha os campos','error');return;}
-    const lead = (leads||[]).find(l=>l.id===form.leadId);
-    const client = (clients||[]).find(c=>c.id===form.clienteId);
-    const subtotal = (form.servicosItems||[]).reduce((a,s)=>a+(s.valor||0),0);
+    if(!form.titulo && !form.nomeCliente){addToast('Preencha os campos obrigatórios','error');return;}
+    const subtotal = form.planoOrbita ? (form.valorPlano||0) + (form.taxaSetup||0) : (form.servicosItems||[]).reduce((a,s)=>a+(s.valor||0),0);
     const desc = form.descontoTipo==='pct' ? subtotal*(form.desconto/100) : form.desconto;
     const total = subtotal - desc;
-    const diag = (diagnosticos||[]).find(d=>d.id===form.diagnosticoId);
-    const data = {...form, nomeCliente: client?.empresa||lead?.nome||'', valorTotal: total, servicos: (form.servicosItems||[]).map(s=>s.nome), status: form.status||'rascunho', diagnosticoData: diag||null};
+    
+    // Calcula validade
+    let valStr = form.validade;
+    if(form.validadeDias) {
+      const v = new Date();
+      v.setDate(v.getDate() + Number(form.validadeDias));
+      valStr = v.toISOString().split('T')[0];
+    }
+
+    const data = {...form, valorTotal: total, validade: valStr, status: form.status||'rascunho'};
     if(editing){updateItem('proposals',editing.id,data);addToast('Proposta atualizada!');}
     else{addItem('proposals',data);addToast('Proposta criada!');}
     setShowModal(false);
@@ -142,35 +148,90 @@ export default function Proposals() {
         </>)}
       </div>
 
-      {/* Classic Modal */}
-      <Modal isOpen={showModal} onClose={()=>setShowModal(false)} title={editing?'Editar Proposta':'Nova Proposta'} size="lg" footer={<><button className="btn btn-secondary" onClick={()=>setShowModal(false)}>Cancelar</button><button className="btn btn-primary" onClick={saveClassic}>Salvar</button></>}>
-        <div className="form-row">
-          <div className="form-group"><label className="form-label">Cliente</label><select className="form-select" value={form.clienteId} onChange={e=>setForm({...form,clienteId:e.target.value})}><option value="">Selecione...</option>{(clients||[]).map(c=><option key={c.id} value={c.id}>{c.empresa}</option>)}</select></div>
-          <div className="form-group"><label className="form-label">ou Lead</label><select className="form-select" value={form.leadId||''} onChange={e=>setForm({...form,leadId:e.target.value})}><option value="">Selecione...</option>{(leads||[]).map(l=><option key={l.id} value={l.id}>{l.nome}</option>)}</select></div>
-        </div>
-        <div className="form-group"><label className="form-label">Título</label><input className="form-input" value={form.titulo||''} onChange={e=>setForm({...form,titulo:e.target.value})}/></div>
-        <label className="form-label">Serviços</label>
-        {(form.servicosItems||[]).map((s,i)=>(
-          <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 1fr 100px 30px',gap:8,marginBottom:8}}>
-            <input className="form-input" placeholder="Nome" value={s.nome} onChange={e=>{const items=[...form.servicosItems];items[i]={...items[i],nome:e.target.value};setForm({...form,servicosItems:items});}}/>
-            <input className="form-input" placeholder="Descrição" value={s.descricao||''} onChange={e=>{const items=[...form.servicosItems];items[i]={...items[i],descricao:e.target.value};setForm({...form,servicosItems:items});}}/>
-            <input className="form-input" type="number" placeholder="Valor" value={s.valor} onChange={e=>{const items=[...form.servicosItems];items[i]={...items[i],valor:Number(e.target.value)};setForm({...form,servicosItems:items});}}/>
-            <button onClick={()=>{const items=[...form.servicosItems];items.splice(i,1);setForm({...form,servicosItems:items});}} style={{background:'none',border:'none',color:'#EF4444',cursor:'pointer'}}>×</button>
-          </div>
-        ))}
-        <button className="btn btn-sm btn-secondary" onClick={()=>setForm({...form,servicosItems:[...(form.servicosItems||[]),{nome:'',descricao:'',valor:0}]})} style={{marginBottom:12}}><Plus size={12}/> Adicionar serviço</button>
-        <div className="form-row">
-          <div className="form-group"><label className="form-label">Desconto</label><div style={{display:'flex',gap:4}}><input className="form-input" type="number" value={form.desconto} onChange={e=>setForm({...form,desconto:Number(e.target.value)})}/><select className="form-select" style={{width:60}} value={form.descontoTipo} onChange={e=>setForm({...form,descontoTipo:e.target.value})}><option value="pct">%</option><option value="abs">R$</option></select></div></div>
-          <div className="form-group"><label className="form-label">Validade</label><input className="form-input" type="date" value={form.validade||''} onChange={e=>setForm({...form,validade:e.target.value})}/></div>
-          <div className="form-group"><label className="form-label">Período</label><select className="form-select" value={form.periodo} onChange={e=>setForm({...form,periodo:e.target.value})}><option value="mensal">Mensal</option><option value="trimestral">Trimestral</option><option value="semestral">Semestral</option><option value="anual">Anual</option></select></div>
-        </div>
-        <div className="form-group"><label className="form-label">Observações</label><textarea className="form-textarea" value={form.observacoes||''} onChange={e=>setForm({...form,observacoes:e.target.value})}/></div>
-        <div style={{borderTop:'1px solid var(--card-border)',paddingTop:16,marginTop:8}}>
-          <div style={{fontSize:13,fontWeight:700,color:'#FFD600',marginBottom:12}}>🧪 DIAGNÓSTICO & PAGAMENTO</div>
+      {/* Órbita Modal */}
+      <Modal isOpen={showModal} onClose={()=>setShowModal(false)} title={editing?'Editar Proposta Órbita':'Nova Proposta Órbita'} size="lg" footer={<><button className="btn btn-secondary" onClick={()=>setShowModal(false)}>Cancelar</button><button className="btn btn-primary" onClick={saveClassic}>Salvar Proposta</button></>}>
+        
+        {/* Dados da Empresa */}
+        <div style={{border:'1px solid var(--card-border)',borderRadius:8,padding:16,marginBottom:16}}>
+          <div style={{display:'flex',alignItems:'center',gap:8,fontSize:14,fontWeight:700,marginBottom:16}}><FileText size={18} color="#FFD600"/> Dados da Empresa</div>
           <div className="form-row">
-            <div className="form-group"><label className="form-label">Vincular Diagnóstico</label><select className="form-select" value={form.diagnosticoId||''} onChange={e=>setForm({...form,diagnosticoId:e.target.value})}><option value="">Nenhum diagnóstico</option>{(diagnosticos||[]).map(d=><option key={d.id} value={d.id}>{d.nomeNegocio} — Score {d.scoreGeral}%</option>)}</select></div>
-            <div className="form-group"><label className="form-label">Link de Pagamento</label><input className="form-input" placeholder="https://pay.exemplo.com/checkout/..." value={form.linkPagamento||''} onChange={e=>setForm({...form,linkPagamento:e.target.value})}/></div>
+            <div className="form-group"><label className="form-label">Nome da Empresa *</label><input className="form-input" value={form.nomeCliente||''} onChange={e=>setForm({...form,nomeCliente:e.target.value})}/></div>
+            <div className="form-group"><label className="form-label">Segmento de Atuação</label><input className="form-input" value={form.segmentoAtuacao||''} onChange={e=>setForm({...form,segmentoAtuacao:e.target.value})}/></div>
           </div>
+          <div className="form-row">
+            <div className="form-group"><label className="form-label">Nome do Responsável *</label><input className="form-input" value={form.nomeResponsavel||''} onChange={e=>setForm({...form,nomeResponsavel:e.target.value})}/></div>
+            <div className="form-group"><label className="form-label">Nome do Responsável Principal</label><input className="form-input" value={form.nomeResponsavelPrincipal||''} onChange={e=>setForm({...form,nomeResponsavelPrincipal:e.target.value})}/></div>
+          </div>
+          <div className="form-row">
+            <div className="form-group"><label className="form-label">Email</label><input className="form-input" value={form.email||''} onChange={e=>setForm({...form,email:e.target.value})}/></div>
+            <div className="form-group"><label className="form-label">Telefone</label><input className="form-input" value={form.telefone||''} onChange={e=>setForm({...form,telefone:e.target.value})}/></div>
+          </div>
+          <div className="form-row">
+            <div className="form-group"><label className="form-label">Cidade *</label><input className="form-input" value={form.cidade||''} onChange={e=>setForm({...form,cidade:e.target.value})}/></div>
+            <div className="form-group"><label className="form-label">Estado</label><input className="form-input" value={form.estado||''} onChange={e=>setForm({...form,estado:e.target.value})}/></div>
+          </div>
+          <div className="form-row">
+            <div className="form-group"><label className="form-label">Consultor Zoonar</label><input className="form-input" value={form.consultorZoonar||''} onChange={e=>setForm({...form,consultorZoonar:e.target.value})}/></div>
+            <div className="form-group"><label className="form-label">Validade da Proposta (dias)</label><input className="form-input" type="number" value={form.validadeDias||''} onChange={e=>setForm({...form,validadeDias:e.target.value})}/></div>
+          </div>
+        </div>
+
+        {/* Diagnóstico */}
+        <div style={{border:'1px solid var(--card-border)',borderRadius:8,padding:16,marginBottom:16}}>
+          <div style={{display:'flex',alignItems:'center',gap:8,fontSize:14,fontWeight:700,marginBottom:16,color:'#EF4444'}}><AlertTriangle size={18}/> Diagnóstico: Problemas da Empresa</div>
+          <div className="form-group"><label className="form-label">Qual é o principal problema da empresa hoje? *</label><textarea className="form-textarea" value={form.principalProblema||''} onChange={e=>setForm({...form,principalProblema:e.target.value})}/></div>
+          
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}}>
+            {[
+              'Dificuldade em gerar clientes qualificados?',
+              'Existe dependência de indicação?',
+              'O faturamento NÃO é previsível?',
+              'O time comercial perde contatos ou demora para responder?',
+              'Os anúncios geram leads sem qualidade?',
+              'A empresa sente dificuldade em escalar?',
+              'O marketing atual NÃO gera retorno claro?'
+            ].map(dor => (
+              <label key={dor} style={{display:'flex',alignItems:'center',gap:8,background:'var(--gray-bg)',padding:'12px',borderRadius:8,fontSize:12,cursor:'pointer'}}>
+                <input type="checkbox" checked={(form.doresSelecionadas||[]).includes(dor)} onChange={e => {
+                  const dt = form.doresSelecionadas||[];
+                  if(e.target.checked) setForm({...form, doresSelecionadas: [...dt, dor]});
+                  else setForm({...form, doresSelecionadas: dt.filter(d=>d!==dor)});
+                }}/>
+                {dor}
+              </label>
+            ))}
+          </div>
+          <div className="form-group"><label className="form-label">Descrição detalhada das dores e frustrações</label><textarea className="form-textarea" value={form.descricaoDores||''} onChange={e=>setForm({...form,descricaoDores:e.target.value})}/></div>
+        </div>
+
+        {/* Plano Órbita */}
+        <div style={{border:'1px solid var(--card-border)',borderRadius:8,padding:16}}>
+          <div style={{display:'flex',alignItems:'center',gap:8,fontSize:14,fontWeight:700,marginBottom:16,color:'#22C55E'}}><Target size={18}/> Plano Órbita</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}}>
+            {[
+              {id:'Órbita Start',d:'Para empresas que querem estruturar o crescimento'},
+              {id:'Órbita Control',d:'Crescimento previsível com controle operacional'},
+              {id:'Órbita Pro',d:'A empresa entra em órbita real de crescimento'},
+              {id:'Órbita Elite',d:'Modelo empresarial de alto crescimento e escala'}
+            ].map(pl => (
+              <div key={pl.id} onClick={()=>setForm({...form, planoOrbita:pl.id, servicosItems:[{nome:pl.id, valor:form.valorPlano, descricao:pl.d}]})} style={{border:form.planoOrbita===pl.id?'2px solid #22C55E':'1px solid var(--card-border)',borderRadius:8,padding:12,cursor:'pointer',background:form.planoOrbita===pl.id?'rgba(34,197,94,0.05)':'transparent'}}>
+                <div style={{fontWeight:700,marginBottom:4}}>{pl.id}</div>
+                <div style={{fontSize:11,color:'var(--text-secondary)'}}>{pl.d}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="form-row">
+            <div className="form-group"><label className="form-label">Valor do Plano (Mensalidade) *</label><div style={{display:'flex',alignItems:'center',gap:4}}><span style={{color:'var(--text-secondary)'}}>R$</span><input className="form-input" type="number" value={form.valorPlano||0} onChange={e=>{const v=Number(e.target.value); setForm({...form, valorPlano:v, servicosItems:[{nome:form.planoOrbita||'Plano Órbita', valor:v}]});}}/></div></div>
+            <div className="form-group"><label className="form-label">Taxa de Setup (única)</label><div style={{display:'flex',alignItems:'center',gap:4}}><span style={{color:'var(--text-secondary)'}}>R$</span><input className="form-input" type="number" value={form.taxaSetup||0} onChange={e=>setForm({...form,taxaSetup:Number(e.target.value)})}/></div></div>
+          </div>
+          <div style={{background:'#0a0a0d',borderRadius:8,padding:16,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <div><div style={{fontWeight:700}}>Valor Total:</div><div style={{fontSize:11,color:'var(--text-secondary)'}}>Mensalidade + Taxa de Setup</div></div>
+            <div style={{fontSize:24,fontWeight:800}}>{fmt((form.valorPlano||0) + (form.taxaSetup||0))}</div>
+          </div>
+          
+          <div className="form-group" style={{marginTop:16}}><label className="form-label">Observações Internas</label><textarea className="form-textarea" placeholder="Notas internas sobre a proposta (não aparecerá na landpage)" value={form.observacoesInternas||''} onChange={e=>setForm({...form,observacoesInternas:e.target.value})}/></div>
+          <div className="form-group"><label className="form-label">Link de Pagamento (Exibido para o cliente)</label><input className="form-input" placeholder="https://pay.exemplo.com/checkout/..." value={form.linkPagamento||''} onChange={e=>setForm({...form,linkPagamento:e.target.value})}/></div>
         </div>
       </Modal>
 
