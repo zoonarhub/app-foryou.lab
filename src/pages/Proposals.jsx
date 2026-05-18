@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '../data/store';
-import { Plus, Search, Eye, Edit2, Send, Copy, Trash2, FileText, Target, TrendingUp, DollarSign } from 'lucide-react';
+import { Plus, Search, Eye, Edit2, Send, Copy, Trash2, FileText, Target, TrendingUp, DollarSign, AlertTriangle } from 'lucide-react';
 import Modal from '../components/Modal';
 
 const fmt = v => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:0}).format(v);
