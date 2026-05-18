@@ -42,14 +42,25 @@ export default function AvaliadorRestaurante() {
   // Load Google Places API key from integrations
   useEffect(() => {
     try {
+      let key = null;
+      
+      // Try from localStorage first
       const savedInteg = localStorage.getItem('foryoulab_integrations');
       if (savedInteg) {
         const integrations = JSON.parse(savedInteg);
         if (integrations.google_places?.apiKey) {
-          const key = integrations.google_places.apiKey;
-          setGoogleApiKey(key);
-          loadGoogleMaps(key);
+          key = integrations.google_places.apiKey;
         }
+      }
+      
+      // Fallback to environment variable
+      if (!key) {
+        key = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
+      }
+
+      if (key) {
+        setGoogleApiKey(key);
+        loadGoogleMaps(key);
       }
     } catch (e) {
       console.error('Erro ao ler chaves de integração:', e);
