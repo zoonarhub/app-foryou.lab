@@ -118,7 +118,7 @@ export default function PropostaPublica() {
     @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-15px); } 100% { transform: translateY(0px); } }
     @keyframes glowPulse { 0% { box-shadow: 0 0 20px rgba(255,214,0,0.2); } 50% { box-shadow: 0 0 50px rgba(255,214,0,0.6); } 100% { box-shadow: 0 0 20px rgba(255,214,0,0.2); } }
     @keyframes shimmer { 0% { background-position: -1000px 0; } 100% { background-position: 1000px 0; } }
-    .pp-anim { opacity:0; transform:translateY(30px); transition:all .8s cubic-bezier(0.16, 1, 0.3, 1); }
+    .pp-anim { opacity:0; transform:translateY(40px); transition:all 1.2s cubic-bezier(0.16, 1, 0.3, 1); }
     .pp-visible { opacity:1; transform:translateY(0); }
     .pp-card-hover:hover { transform: translateY(-5px) scale(1.02); box-shadow: 0 20px 40px rgba(0,0,0,0.3) !important; border-color: rgba(255,214,0,0.5) !important; }
     .pp-btn-accept {
@@ -204,8 +204,8 @@ export default function PropostaPublica() {
 
       {/* DIAGNÓSTICO (DARK) */}
       {(p.principalProblema || (p.doresSelecionadas && p.doresSelecionadas.length > 0) || diag) && (
-        <section ref={addRef} className="pp-anim" style={{padding:'80px 24px',background:'#050508',position:'relative',zIndex:1}}>
-          <div style={{maxWidth:860,margin:'0 auto'}}>
+        <section style={{padding:'80px 24px',background:'#050508',position:'relative',zIndex:1}}>
+          <div ref={addRef} className="pp-anim" style={{maxWidth:860,margin:'0 auto'}}>
             <div style={{marginBottom:40}}>
               <div style={{fontSize:10,fontWeight:800,color:'#EF4444',letterSpacing:3,textTransform:'uppercase',marginBottom:8}}>Diagnóstico Executivo</div>
               <h2 style={{fontSize:32,fontWeight:800,color:'#fff'}}>Análise de Problemas <span style={{color:'#EF4444'}}>da {nome}</span></h2>
@@ -280,8 +280,8 @@ export default function PropostaPublica() {
       )}
 
       {/* METODOLOGIA (YELLOW) */}
-      <section ref={addRef} className="pp-anim" style={{padding:'80px 24px',background:'#FFD600',color:'#0A0A0D',position:'relative',zIndex:1}}>
-        <div style={{maxWidth:860,margin:'0 auto'}}>
+      <section style={{padding:'80px 24px',background:'#FFD600',color:'#0A0A0D',position:'relative',zIndex:1}}>
+        <div ref={addRef} className="pp-anim" style={{maxWidth:860,margin:'0 auto'}}>
           <h2 style={{fontSize:32,fontWeight:900,marginBottom:40,color:'#0A0A0D'}}>Não é sorte. É método.</h2>
           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:16}}>
             {[{icon:<Activity size={24}/>,t:'Estratégia',d:'Análise profunda e planejamento focado.'},{icon:<BarChart2 size={24}/>,t:'Dados',d:'Decisões baseadas em métricas reais.'},{icon:<Target size={24}/>,t:'Foco',d:'Ações direcionadas para clientes ideais.'},{icon:<Zap size={24}/>,t:'Resultado',d:'Crescimento escalável e previsível.'}].map((x,i) => (
@@ -296,9 +296,9 @@ export default function PropostaPublica() {
       </section>
 
       {/* PROJEÇÃO DE CRESCIMENTO (DARK) */}
-      <section ref={addRef} className="pp-anim" style={{padding:'80px 24px',background:'#050508',position:'relative',zIndex:1}}>
+      <section style={{padding:'80px 24px',background:'#050508',position:'relative',zIndex:1}}>
         <div style={{position:'absolute',top:'50%',right:0,width:400,height:400,background:'radial-gradient(circle,rgba(255,214,0,.08) 0%,transparent 70%)',transform:'translateY(-50%)',pointerEvents:'none'}}/>
-        <div style={{maxWidth:860,margin:'0 auto',position:'relative',zIndex:2}}>
+        <div ref={addRef} className="pp-anim" style={{maxWidth:860,margin:'0 auto',position:'relative',zIndex:2}}>
           <div style={{fontSize:10,fontWeight:800,color:'#FFD600',letterSpacing:3,textTransform:'uppercase',marginBottom:6}}>Visão de Futuro</div>
           <h2 style={{fontSize:28,fontWeight:800,marginBottom:8,color:'#fff'}}>Projeção de Escalabilidade</h2>
           <p style={{fontSize:13,color:'#bbb',marginBottom:40,maxWidth:500}}>Estimativa do impacto da estratégia acelerada ao longo dos próximos 6 meses na {nome}.</p>
@@ -321,8 +321,8 @@ export default function PropostaPublica() {
                   <XAxis dataKey="name" stroke="#888" fontSize={10} tickMargin={10} axisLine={false} tickLine={false} />
                   <YAxis stroke="#888" fontSize={10} tickFormatter={(val)=>`R$${(val/1000).toFixed(0)}k`} axisLine={false} tickLine={false} />
                   <Tooltip content={<CustomTooltip />} />
-                  <Area type="monotone" dataKey="organico" stroke="#666" strokeWidth={2} fillOpacity={1} fill="url(#colorOrganico)" isAnimationActive={true} animationDuration={2000} animationEasing="ease-out" />
-                  <Area type="monotone" dataKey="acelerado" stroke="#FFD600" strokeWidth={3} fillOpacity={1} fill="url(#colorAcelerado)" isAnimationActive={true} animationDuration={2500} animationEasing="ease-out" />
+                  <Area type="monotone" dataKey="organico" stroke="#666" strokeWidth={2} fillOpacity={1} fill="url(#colorOrganico)" isAnimationActive={true} animationDuration={3000} animationEasing="ease-out" />
+                  <Area type="monotone" dataKey="acelerado" stroke="#FFD600" strokeWidth={3} fillOpacity={1} fill="url(#colorAcelerado)" isAnimationActive={true} animationDuration={4000} animationEasing="ease-out" dot={{r: 4, fill: '#FFD600', strokeWidth: 0}} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -335,8 +335,8 @@ export default function PropostaPublica() {
       </section>
 
       {/* SERVIÇOS (YELLOW) */}
-      <section ref={addRef} className="pp-anim" style={{padding:'80px 24px',background:'#FFD600',color:'#0A0A0D',position:'relative',zIndex:1}}>
-        <div style={{maxWidth:860,margin:'0 auto',position:'relative',zIndex:2}}>
+      <section style={{padding:'80px 24px',background:'#FFD600',color:'#0A0A0D',position:'relative',zIndex:1}}>
+        <div ref={addRef} className="pp-anim" style={{maxWidth:860,margin:'0 auto',position:'relative',zIndex:2}}>
           <div style={{fontSize:10,fontWeight:800,color:'#0A0A0D',letterSpacing:3,textTransform:'uppercase',marginBottom:6}}>O que está incluso</div>
           <h2 style={{fontSize:28,fontWeight:900,marginBottom:8,color:'#0A0A0D'}}>Serviços para {nome}</h2>
           <p style={{fontSize:13,color:'#444',marginBottom:32,maxWidth:500}}>Cada serviço foi selecionado para maximizar seu retorno.</p>
@@ -354,10 +354,10 @@ export default function PropostaPublica() {
       </section>
 
       {/* INVESTIMENTO (DARK + PREMIUM EFFECTS) */}
-      <section ref={addRef} className="pp-anim" style={{padding:'100px 24px',background:'#050508',position:'relative',zIndex:1,overflow:'hidden'}}>
+      <section style={{padding:'100px 24px',background:'#050508',position:'relative',zIndex:1,overflow:'hidden'}}>
         <div style={{position:'absolute',bottom:0,left:'50%',transform:'translateX(-50%)',width:800,height:800,background:'radial-gradient(circle,rgba(255,214,0,.1) 0%,transparent 70%)',pointerEvents:'none'}}/>
         
-        <div style={{maxWidth:860,margin:'0 auto'}}>
+        <div ref={addRef} className="pp-anim" style={{maxWidth:860,margin:'0 auto'}}>
           <div className="pp-glass-panel" style={{animation:'float 6s ease-in-out infinite', border:'1px solid rgba(255,214,0,.3)',padding:50,borderRadius:24,position:'relative',overflow:'hidden',boxShadow:'0 30px 60px rgba(0,0,0,0.8), 0 0 40px rgba(255,214,0,0.1)'}}>
             <div className="shimmer-bg" style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',opacity:0.5,pointerEvents:'none'}}/>
             <div style={{position:'absolute',top:-100,right:-100,width:350,height:350,background:'radial-gradient(circle,rgba(255,214,0,.15) 0%,transparent 60%)',pointerEvents:'none'}}/>
