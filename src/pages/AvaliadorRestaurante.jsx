@@ -102,14 +102,28 @@ export default function AvaliadorRestaurante() {
   useEffect(() => {
     if (query.length < 2) { setSuggestions([]); return; }
     
-    // 1. Match from Local database
-    const q = query.toLowerCase();
-    const localMatches = restaurantDatabase.filter(r =>
-      r.nome.toLowerCase().includes(q) ||
-      r.categoria.toLowerCase().includes(q) ||
-      r.cidade.toLowerCase().includes(q) ||
-      r.bairro.toLowerCase().includes(q)
-    ).map(r => ({ ...r, source: 'local' })).slice(0, 4);
+    // Normalize accents and lowercase to make search robust (e.g. "burguês" -> "burgues")
+    const normalizeStr = (str) => {
+      if (!str) return '';
+      return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    };
+
+    const qNormal = normalizeStr(query);
+    const terms = qNormal.split(' ').filter(t => t.length > 0);
+
+    // 1. Match from Local database (AND logic: must match all words in any order)
+    const localMatches = restaurantDatabase.filter(r => {
+      return terms.every(term => {
+        // Approximate matching: map "burguês" or "burguer" to "burg" / "burger"
+        let termMatch = term;
+        if (term === 'burgues' || term === 'burguer') termMatch = 'burg';
+        
+        return normalizeStr(r.nome).includes(termMatch) ||
+               normalizeStr(r.categoria).includes(termMatch) ||
+               normalizeStr(r.cidade).includes(termMatch) ||
+               normalizeStr(r.bairro).includes(termMatch);
+      });
+    }).map(r => ({ ...r, source: 'local' })).slice(0, 4);
 
     // 2. Fetch from Google Places API if active
     if (googleAutocompleteService && query.length >= 3) {
