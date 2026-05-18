@@ -438,7 +438,19 @@ export default function AvaliadorRestaurante() {
                   <input ref={inputRef} className="form-input" value={query} onChange={e => setQuery(e.target.value)}
                     placeholder="Digite o nome do restaurante, cidade ou bairro..."
                     style={{ paddingLeft: 42, height: 52, fontSize: 16, borderRadius: 12 }}
-                    onKeyDown={e => { if (e.key === 'Enter' && suggestions.length > 0) handleSelect(suggestions[0]); }}
+                    onKeyDown={e => { 
+                      if (e.key === 'Enter') {
+                        // Only auto-select if there is an exact or near-exact match, otherwise let them click the suggestions
+                        const exactMatch = suggestions.find(s => s.nome.toLowerCase() === query.toLowerCase());
+                        if (exactMatch) {
+                          handleSelect(exactMatch);
+                        } else if (suggestions.length === 1) {
+                          handleSelect(suggestions[0]);
+                        } else {
+                          addToast('Selecione uma das opções sugeridas abaixo ou clique em Adicionar Manual.', 'info');
+                        }
+                      }
+                    }}
                   />
                 </div>
               </div>
