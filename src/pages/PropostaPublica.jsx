@@ -440,7 +440,7 @@ const L = {
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 *{box-sizing:border-box;margin:0}
-html,body,#root{margin:0;padding:0;background:#050508}
+html,body,#root{margin:0;padding:0;background:#050508;height:auto!important;min-height:100vh!important;overflow:visible!important;overflow-y:auto!important;overflow-x:hidden!important}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
 @keyframes slideUp{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
