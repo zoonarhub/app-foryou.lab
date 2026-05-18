@@ -121,10 +121,17 @@ export function AppProvider({ children }) {
     if (!error && data?.user) {
       const { data: invite } = await supabase.from('invites').select('*').eq('email', email).single();
       if (invite) {
-        await supabase.from('user_profiles').insert({
+        const { error: profileError } = await supabase.from('user_profiles').insert({
           id: data.user.id, agency_id: invite.agency_id, role: invite.role, email: email
         });
+        if (profileError) console.error("[Signup] Erro ao criar perfil por convite:", profileError);
         await supabase.from('invites').delete().eq('email', email);
+      } else {
+        // Cria perfil padrão de CEO para novos cadastros diretos (evita erros de RLS)
+        const { error: profileError } = await supabase.from('user_profiles').insert({
+          id: data.user.id, agency_id: data.user.id, role: 'CEO', email: email
+        });
+        if (profileError) console.error("[Signup] Erro ao criar perfil de CEO:", profileError);
       }
     }
     return !error;
@@ -143,13 +150,24 @@ export function AppProvider({ children }) {
     
     if (agencyId) {
       if (['campaignTrackings', 'optimizationLogs'].includes(key)) {
-         await supabase.from(table).insert({ ...newItem, user_id: agencyId });
+        const { error } = await supabase.from(table).insert({ ...newItem, user_id: agencyId });
+        if (error) {
+          console.error(`[Supabase] Erro ao inserir em ${table}:`, error);
+          addToast(`Erro ao salvar dados no servidor: ${error.message}`, 'error');
+        }
       } else {
-         await supabase.from(table).insert({ id, user_id: agencyId, data: newItem });
+        const { error } = await supabase.from(table).insert({ id, user_id: agencyId, data: newItem });
+        if (error) {
+          console.error(`[Supabase] Erro ao inserir em ${table}:`, error);
+          addToast(`Erro ao salvar dados no servidor: ${error.message}`, 'error');
+        }
       }
+    } else {
+      console.warn(`[Offline] Item adicionado a ${key} apenas na memória. Usuário não autenticado.`);
+      addToast('Aviso: Você não está autenticado. Os dados foram salvos apenas temporariamente na memória local.', 'warning');
     }
     return id;
-  }, [agencyId]);
+  }, [agencyId, addToast]);
 
   const updateItem = useCallback(async (key, id, updates) => {
     const table = toSnakeCase(key);
@@ -168,20 +186,32 @@ export function AppProvider({ children }) {
 
     if (agencyId && updatedItem) {
       if (['campaignTrackings', 'optimizationLogs'].includes(key)) {
-         await supabase.from(table).update(updates).eq('id', id).eq('user_id', agencyId);
+        const { error } = await supabase.from(table).update(updates).eq('id', id).eq('user_id', agencyId);
+        if (error) {
+          console.error(`[Supabase] Erro ao atualizar ${table}:`, error);
+          addToast(`Erro ao sincronizar atualização: ${error.message}`, 'error');
+        }
       } else {
-         await supabase.from(table).update({ data: updatedItem }).eq('id', id).eq('user_id', agencyId);
+        const { error } = await supabase.from(table).update({ data: updatedItem }).eq('id', id).eq('user_id', agencyId);
+        if (error) {
+          console.error(`[Supabase] Erro ao atualizar ${table}:`, error);
+          addToast(`Erro ao sincronizar atualização: ${error.message}`, 'error');
+        }
       }
     }
-  }, [agencyId]);
+  }, [agencyId, addToast]);
 
   const deleteItem = useCallback(async (key, id) => {
     const table = toSnakeCase(key);
     setData(prev => ({ ...prev, [key]: prev[key].filter(item => item.id !== id) }));
     if (agencyId) {
-      await supabase.from(table).delete().eq('id', id).eq('user_id', agencyId);
+      const { error } = await supabase.from(table).delete().eq('id', id).eq('user_id', agencyId);
+      if (error) {
+        console.error(`[Supabase] Erro ao excluir em ${table}:`, error);
+        addToast(`Erro ao sincronizar exclusão: ${error.message}`, 'error');
+      }
     }
-  }, [agencyId]);
+  }, [agencyId, addToast]);
 
   const addToast = useCallback((message, type = 'success') => {
     const id = Date.now().toString();
