@@ -6,6 +6,7 @@ import { useGoogleLogin } from '@react-oauth/google';
 
 const integrationsList = [
   { id: 'whatsapp', name: 'WhatsApp', desc: 'Evolution API — mensagens e automação', icon: '💬', category: 'Comunicação', connectType: 'qrcode' },
+  { id: 'google_places', name: 'Google Places API', desc: 'Busca dados reais do Google Maps', icon: '📍', category: 'Automação', connectType: 'apikey' },
   { id: 'google_calendar', name: 'Google Calendar', desc: 'Sincronize eventos e reuniões', icon: '📅', category: 'Produtividade', connectType: 'oauth' },
   { id: 'facebook_ads', name: 'Facebook Ads', desc: 'Meta Business — campanhas e métricas', icon: '📘', category: 'Marketing', connectType: 'oauth' },
   { id: 'google_ads', name: 'Google Ads', desc: 'Campanhas de pesquisa e display', icon: '🔍', category: 'Marketing', connectType: 'oauth' },
