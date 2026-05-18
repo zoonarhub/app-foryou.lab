@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { createClient } from '@supabase/supabase-js';
-import { Check, Clock, AlertTriangle, ChevronRight, ShieldCheck, Target, Zap, BarChart2, Activity, Timer } from 'lucide-react';
+import { Check, Clock, AlertTriangle, ChevronRight, ShieldCheck, Target, Zap, BarChart2, Activity, Timer, TrendingUp, DollarSign } from 'lucide-react';
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 
 const fmt = v => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:0}).format(v);
 const WA = "5511999999999";
@@ -13,6 +14,19 @@ const supabaseAnon = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY, 
   { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
 );
+
+const CustomTooltip = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    return (
+      <div style={{background:'rgba(5,5,8,0.95)', border:'1px solid rgba(255,214,0,0.2)', padding:'12px', borderRadius:'10px', boxShadow:'0 10px 30px rgba(0,0,0,0.5)'}}>
+        <p style={{fontSize:12, color:'#999', marginBottom:6}}>{label}</p>
+        <p style={{fontSize:14, fontWeight:700, color:'#FFD600'}}>Acelerado: {fmt(payload[0].value)}</p>
+        <p style={{fontSize:12, fontWeight:600, color:'#555'}}>Orgânico: {fmt(payload[1].value)}</p>
+      </div>
+    );
+  }
+  return null;
+};
 
 export default function PropostaPublica() {
   const { id } = useParams();
@@ -199,12 +213,12 @@ export default function PropostaPublica() {
       )}
 
       {/* METODOLOGIA */}
-      <section ref={addRef} className="pp-anim" style={{padding:'80px 24px',background:'#0a0a0d',borderTop:'1px solid #111'}}>
+      <section ref={addRef} className="pp-anim" style={{padding:'80px 24px',background:'linear-gradient(180deg, #050508 0%, #0a0a0d 100%)',borderTop:'1px solid #111'}}>
         <div style={{maxWidth:860,margin:'0 auto'}}>
-          <h2 style={{fontSize:32,fontWeight:800,marginBottom:40}}>Não é sorte. É <span style={{color:'#FFD600'}}>método.</span></h2>
+          <h2 style={{fontSize:32,fontWeight:800,marginBottom:40}}>Não é sorte. É <span style={{background:'linear-gradient(135deg,#FFD600,#FF9900)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>método.</span></h2>
           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:16}}>
             {[{icon:<Activity size={24}/>,t:'Estratégia',d:'Análise profunda e planejamento focado.'},{icon:<BarChart2 size={24}/>,t:'Dados',d:'Decisões baseadas em métricas reais.'},{icon:<Target size={24}/>,t:'Foco',d:'Ações direcionadas para clientes ideais.'},{icon:<Zap size={24}/>,t:'Resultado',d:'Crescimento escalável e previsível.'}].map((x,i) => (
-              <div key={i} className="pp-card-hover" style={{background:'rgba(255,255,255,.02)',border:'1px solid #1a1a1a',borderRadius:14,padding:24,transition:'all .3s'}}>
+              <div key={i} className="pp-card-hover" style={{background:'rgba(255,255,255,.015)',border:'1px solid rgba(255,255,255,.05)',boxShadow:'inset 0 0 20px rgba(255,214,0,.02)',borderRadius:16,padding:24,transition:'all .3s'}}>
                 <div style={{color:'#FFD600',marginBottom:14}}>{x.icon}</div>
                 <h3 style={{fontSize:15,fontWeight:700,marginBottom:6}}>{x.t}</h3>
                 <p style={{fontSize:12,color:'#666',lineHeight:1.6}}>{x.d}</p>
@@ -214,20 +228,59 @@ export default function PropostaPublica() {
         </div>
       </section>
 
+      {/* PROJEÇÃO DE CRESCIMENTO */}
+      <section ref={addRef} className="pp-anim" style={{padding:'80px 24px',borderTop:'1px solid #111',position:'relative'}}>
+        <div style={{position:'absolute',top:'50%',right:0,width:400,height:400,background:'radial-gradient(circle,rgba(255,214,0,.04) 0%,transparent 70%)',transform:'translateY(-50%)',pointerEvents:'none'}}/>
+        <div style={{maxWidth:860,margin:'0 auto',position:'relative',zIndex:2}}>
+          <div style={{fontSize:10,fontWeight:800,color:'#FFD600',letterSpacing:3,textTransform:'uppercase',marginBottom:6}}>Visão de Futuro</div>
+          <h2 style={{fontSize:28,fontWeight:800,marginBottom:8}}>Projeção de Escalabilidade</h2>
+          <p style={{fontSize:13,color:'#555',marginBottom:40,maxWidth:500}}>Estimativa do impacto da estratégia acelerada ao longo dos próximos 6 meses na {nome}.</p>
+          
+          <div style={{background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,214,0,.08)',borderRadius:20,padding:'32px 24px',boxShadow:'0 20px 40px rgba(0,0,0,.4)'}}>
+            <div style={{height:300,width:'100%'}}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={Array.from({length: 6}).map((_, i) => ({ name: `Mês ${i+1}`, organico: Math.round(((p.valorTotal||5000)*3) * Math.pow(1.02, i)), acelerado: Math.round(((p.valorTotal||5000)*3) * Math.pow(1.25, i)) }))} margin={{ top:10, right:10, left:-20, bottom:0 }}>
+                  <defs>
+                    <linearGradient id="colorAcelerado" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#FFD600" stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor="#FFD600" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorOrganico" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#333" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#333" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <XAxis dataKey="name" stroke="#555" fontSize={10} tickMargin={10} axisLine={false} tickLine={false} />
+                  <YAxis stroke="#555" fontSize={10} tickFormatter={(val)=>`R$${(val/1000).toFixed(0)}k`} axisLine={false} tickLine={false} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area type="monotone" dataKey="organico" stroke="#444" strokeWidth={2} fillOpacity={1} fill="url(#colorOrganico)" />
+                  <Area type="monotone" dataKey="acelerado" stroke="#FFD600" strokeWidth={3} fillOpacity={1} fill="url(#colorAcelerado)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+            <div style={{display:'flex',justifyContent:'center',gap:24,marginTop:24}}>
+              <div style={{display:'flex',alignItems:'center',gap:8}}><div style={{width:10,height:10,borderRadius:'50%',background:'#FFD600',boxShadow:'0 0 10px #FFD600'}}/><span style={{fontSize:11,color:'#ccc',fontWeight:600}}>Com o Método (Acelerado)</span></div>
+              <div style={{display:'flex',alignItems:'center',gap:8}}><div style={{width:10,height:10,borderRadius:'50%',background:'#444'}}/><span style={{fontSize:11,color:'#888',fontWeight:600}}>Crescimento Orgânico</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* SERVIÇOS */}
-      <section ref={addRef} className="pp-anim" style={{padding:'80px 24px',borderTop:'1px solid #111'}}>
-        <div style={{maxWidth:860,margin:'0 auto'}}>
+      <section ref={addRef} className="pp-anim" style={{padding:'80px 24px',borderTop:'1px solid #111',position:'relative'}}>
+        <div style={{maxWidth:860,margin:'0 auto',position:'relative',zIndex:2}}>
           <div style={{fontSize:10,fontWeight:800,color:'#FFD600',letterSpacing:3,textTransform:'uppercase',marginBottom:6}}>O que está incluso</div>
-          <h2 style={{fontSize:28,fontWeight:800,marginBottom:8}}>Serviços para <span style={{color:'#FFD600'}}>{nome}</span></h2>
+          <h2 style={{fontSize:28,fontWeight:800,marginBottom:8}}>Serviços para <span style={{background:'linear-gradient(135deg,#FFD600,#FF9900)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>{nome}</span></h2>
           <p style={{fontSize:13,color:'#555',marginBottom:32,maxWidth:500}}>Cada serviço foi selecionado para maximizar seu retorno.</p>
           <div style={{display:'flex',flexDirection:'column',gap:10}}>
             {(p.servicosItems||[]).map((s,i) => (
-              <div key={i} className="pp-card-hover" style={{background:'rgba(255,255,255,.02)',padding:'20px 24px',display:'flex',justifyContent:'space-between',alignItems:'center',border:'1px solid #1a1a1a',borderRadius:12,gap:16}}>
+              <div key={i} className="pp-card-hover" style={{background:'rgba(255,255,255,.01)',padding:'20px 24px',display:'flex',justifyContent:'space-between',alignItems:'center',border:'1px solid rgba(255,255,255,.05)',borderRadius:12,gap:16,boxShadow:'inset 0 0 10px rgba(0,0,0,0.5)'}}>
                 <div style={{display:'flex',gap:14,alignItems:'center',flex:1}}>
-                  <div style={{width:38,height:38,background:'linear-gradient(135deg,#FFD600,#FFB300)',borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Check size={18} color="#0A0A0A" strokeWidth={3}/></div>
+                  <div style={{width:38,height:38,background:'linear-gradient(135deg,#FFD600,#FF9900)',borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,boxShadow:'0 4px 10px rgba(255,214,0,0.3)'}}><Check size={18} color="#0A0A0A" strokeWidth={3}/></div>
                   <div><h3 style={{fontSize:15,fontWeight:700}}>{s.nome}</h3>{s.descricao && <p style={{fontSize:12,color:'#666',marginTop:2}}>{s.descricao}</p>}</div>
                 </div>
-                <div style={{fontSize:17,fontWeight:800,color:'#FFD600',whiteSpace:'nowrap'}}>{fmt(s.valor||0)}</div>
+                <div style={{fontSize:17,fontWeight:800,color:'#FFD600',whiteSpace:'nowrap',textShadow:'0 0 10px rgba(255,214,0,0.2)'}}>{fmt(s.valor||0)}</div>
               </div>
             ))}
           </div>
@@ -235,48 +288,48 @@ export default function PropostaPublica() {
       </section>
 
       {/* INVESTIMENTO */}
-      <section ref={addRef} className="pp-anim" style={{padding:'80px 24px',background:'#0a0a0d',borderTop:'1px solid #111'}}>
+      <section ref={addRef} className="pp-anim" style={{padding:'80px 24px',background:'linear-gradient(180deg, #0a0a0d 0%, #050508 100%)',borderTop:'1px solid #111'}}>
         <div style={{maxWidth:860,margin:'0 auto'}}>
-          <div style={{background:'rgba(255,255,255,.02)',border:'1px solid rgba(255,214,0,.08)',padding:44,borderRadius:20,position:'relative',overflow:'hidden'}}>
-            <div style={{position:'absolute',top:-60,right:-60,width:300,height:300,background:'radial-gradient(circle,rgba(255,214,0,.06) 0%,transparent 60%)',pointerEvents:'none'}}/>
+          <div style={{background:'linear-gradient(145deg, rgba(20,20,25,1) 0%, rgba(10,10,15,1) 100%)',border:'1px solid rgba(255,214,0,.15)',padding:44,borderRadius:20,position:'relative',overflow:'hidden',boxShadow:'0 30px 60px rgba(0,0,0,0.8)'}}>
+            <div style={{position:'absolute',top:-60,right:-60,width:300,height:300,background:'radial-gradient(circle,rgba(255,214,0,.08) 0%,transparent 60%)',pointerEvents:'none'}}/>
             <div style={{display:'flex',justifyContent:'space-between',flexWrap:'wrap',gap:28,position:'relative',zIndex:2}}>
               <div style={{flex:1,minWidth:220}}>
-                <div style={{fontSize:10,fontWeight:700,color:'#FFD600',letterSpacing:2,textTransform:'uppercase',marginBottom:10}}>Investimento</div>
-                <h2 style={{fontSize:26,fontWeight:800,marginBottom:10,lineHeight:1.15}}>{p.titulo || 'Proposta Estratégica'}</h2>
-                <p style={{color:'#666',fontSize:13,lineHeight:1.6}}>Investimento focado em retorno real para a {nome}.</p>
+                <div style={{fontSize:10,fontWeight:700,color:'#FFD600',letterSpacing:2,textTransform:'uppercase',marginBottom:10}}>Investimento Estratégico</div>
+                <h2 style={{fontSize:26,fontWeight:800,marginBottom:10,lineHeight:1.15}}>{p.titulo || 'Proposta de Crescimento'}</h2>
+                <p style={{color:'#777',fontSize:13,lineHeight:1.6}}>Valores estruturados para escalar suas vendas e garantir ROI positivo para a {nome}.</p>
               </div>
-              <div style={{background:'#0a0a0d',padding:24,border:'1px solid #1a1a1a',borderRadius:14,minWidth:250}}>
-                <div style={{display:'flex',justifyContent:'space-between',marginBottom:10,fontSize:13,color:'#666'}}><span>Subtotal</span><span>{fmt(sub)}</span></div>
-                {(p.desconto||0) > 0 && <div style={{display:'flex',justifyContent:'space-between',marginBottom:10,fontSize:13,color:'#FFD600'}}><span>Desconto</span><span>- {fmt(dsc)}</span></div>}
-                <div style={{borderTop:'1px solid #222',margin:'14px 0'}}/>
-                <div style={{fontSize:9,color:'#555',letterSpacing:1,textTransform:'uppercase',marginBottom:4}}>Total</div>
-                <div style={{fontSize:36,fontWeight:900,lineHeight:1}}>{fmt(p.valorTotal||0)}</div>
-                {p.periodo && <div style={{color:'#444',fontSize:11,marginTop:4}}>por período: {p.periodo}</div>}
+              <div style={{background:'rgba(0,0,0,0.3)',padding:24,border:'1px solid rgba(255,255,255,0.05)',borderRadius:14,minWidth:250,boxShadow:'inset 0 0 20px rgba(0,0,0,0.5)'}}>
+                <div style={{display:'flex',justifyContent:'space-between',marginBottom:10,fontSize:13,color:'#777'}}><span>Subtotal</span><span>{fmt(sub)}</span></div>
+                {(p.desconto||0) > 0 && <div style={{display:'flex',justifyContent:'space-between',marginBottom:10,fontSize:13,color:'#22C55E'}}><span>Economia</span><span>- {fmt(dsc)}</span></div>}
+                <div style={{borderTop:'1px solid rgba(255,255,255,0.05)',margin:'14px 0'}}/>
+                <div style={{fontSize:9,color:'#777',letterSpacing:1,textTransform:'uppercase',marginBottom:4}}>Total</div>
+                <div style={{fontSize:36,fontWeight:900,lineHeight:1,background:'linear-gradient(135deg,#fff,#ccc)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>{fmt(p.valorTotal||0)}</div>
+                {p.periodo && <div style={{color:'#555',fontSize:11,marginTop:4,letterSpacing:1}}>PERÍODO DE FATURAMENTO: {p.periodo.toUpperCase()}</div>}
               </div>
             </div>
             {p.observacoes && (
-              <div style={{marginTop:28,paddingTop:20,borderTop:'1px solid #151518',position:'relative',zIndex:2}}>
-                <div style={{fontSize:10,fontWeight:700,color:'#FFD600',letterSpacing:2,textTransform:'uppercase',marginBottom:6}}>Observações</div>
+              <div style={{marginTop:28,paddingTop:20,borderTop:'1px solid rgba(255,255,255,0.05)',position:'relative',zIndex:2}}>
+                <div style={{fontSize:10,fontWeight:700,color:'#FFD600',letterSpacing:2,textTransform:'uppercase',marginBottom:6}}>Termos e Condições</div>
                 <p style={{color:'#666',fontSize:13,lineHeight:1.6,whiteSpace:'pre-wrap'}}>{p.observacoes}</p>
               </div>
             )}
           </div>
 
           {/* CTA */}
-          <div style={{marginTop:48,textAlign:'center'}}>
+          <div style={{marginTop:64,textAlign:'center'}}>
             {!expired && !approved && (<>
-              <h3 style={{fontSize:22,fontWeight:800,marginBottom:6}}>Tudo pronto para iniciarmos?</h3>
-              <p style={{color:'#555',fontSize:13,marginBottom:24}}>{p.linkPagamento ? 'Ao aceitar, você será direcionado para o pagamento.' : 'Clique abaixo para aprovar e iniciar.'}</p>
+              <h3 style={{fontSize:24,fontWeight:800,marginBottom:8}}>Pronto para dominar seu mercado?</h3>
+              <p style={{color:'#777',fontSize:14,marginBottom:24}}>{p.linkPagamento ? 'Aprove sua proposta abaixo e inicie a jornada.' : 'Aprove agora e vamos escalar seus resultados.'}</p>
               <div style={{display:'flex',justifyContent:'center',gap:12,flexWrap:'wrap'}}>
-                <button onClick={handleAccept} className="pp-cta" style={{background:'linear-gradient(135deg,#FFD600,#FFB300)',color:'#0A0A0A',padding:'16px 36px',fontSize:15,fontWeight:800,border:'none',borderRadius:12,display:'inline-flex',alignItems:'center',gap:8,cursor:'pointer'}}>
-                  {p.linkPagamento ? '✅ Aceitar e Pagar' : '✅ Aceitar Proposta'} <ChevronRight size={18} strokeWidth={3}/>
+                <button onClick={handleAccept} className="pp-cta pp-pulse" style={{background:'linear-gradient(135deg,#FFD600,#FF9900)',color:'#0A0A0A',padding:'18px 42px',fontSize:15,fontWeight:800,border:'none',borderRadius:100,display:'inline-flex',alignItems:'center',gap:8,cursor:'pointer',boxShadow:'0 10px 30px rgba(255,214,0,0.3)'}}>
+                  {p.linkPagamento ? '✅ Aceitar e Pagar' : '✅ Aceitar Estratégia'} <ChevronRight size={18} strokeWidth={3}/>
                 </button>
-                <a href={`https://wa.me/${WA}?text=${encodeURIComponent('Olá, tenho dúvidas sobre a proposta comercial!')}`} target="_blank" rel="noreferrer" className="pp-cta" style={{background:'rgba(255,255,255,.04)',color:'#fff',padding:'16px 28px',fontSize:14,fontWeight:700,textDecoration:'none',borderRadius:12,display:'inline-flex',alignItems:'center',gap:8,border:'1px solid #333'}}>
+                <a href={`https://wa.me/${WA}?text=${encodeURIComponent('Olá, tenho dúvidas sobre a proposta comercial!')}`} target="_blank" rel="noreferrer" className="pp-cta" style={{background:'rgba(255,255,255,.02)',color:'#fff',padding:'18px 32px',fontSize:14,fontWeight:700,textDecoration:'none',borderRadius:100,display:'inline-flex',alignItems:'center',gap:8,border:'1px solid rgba(255,255,255,0.1)'}}>
                   💬 Tirar Dúvidas
                 </a>
               </div>
             </>)}
-            {approved && <div style={{display:'inline-flex',alignItems:'center',gap:12,background:'rgba(34,197,94,.06)',border:'1px solid rgba(34,197,94,.2)',color:'#22C55E',padding:'20px 40px',fontSize:18,fontWeight:800,borderRadius:14}}><ShieldCheck size={28}/> Proposta Aprovada!</div>}
+            {approved && <div style={{display:'inline-flex',alignItems:'center',gap:12,background:'rgba(34,197,94,.06)',border:'1px solid rgba(34,197,94,.2)',color:'#22C55E',padding:'20px 40px',fontSize:18,fontWeight:800,borderRadius:100}}><ShieldCheck size={28}/> Proposta Aprovada! Vamos crescer juntos.</div>}
           </div>
         </div>
       </section>
@@ -306,6 +359,8 @@ html,body,#root{overflow-x:hidden;overflow-y:auto!important;height:auto!importan
 @keyframes ringDraw{from{stroke-dasharray:0 377}to{}}
 @keyframes barGrow{from{width:0}to{}}
 @keyframes pulseGlow{0%,100%{box-shadow:0 0 30px rgba(255,214,0,.04)}50%{box-shadow:0 0 60px rgba(255,214,0,.1)}}
+@keyframes ppPulse{0%{box-shadow:0 0 0 0 rgba(255,214,0,0.4)}70%{box-shadow:0 0 0 20px rgba(255,214,0,0)}100%{box-shadow:0 0 0 0 rgba(255,214,0,0)}}
+.pp-pulse{animation:ppPulse 2s infinite}
 .pp-glow{animation:pulseGlow 4s ease-in-out infinite}
 .pp-anim{opacity:0;transform:translateY(40px);transition:all .8s cubic-bezier(.22,1,.36,1)}
 .pp-visible{opacity:1!important;transform:translateY(0)!important}
@@ -315,7 +370,7 @@ html,body,#root{overflow-x:hidden;overflow-y:auto!important;height:auto!importan
 .pp-card-hover{transition:all .3s ease!important}
 .pp-card-hover:hover{border-color:rgba(255,214,0,.2)!important;transform:translateY(-3px);box-shadow:0 8px 32px rgba(0,0,0,.3)}
 .pp-cta{transition:all .25s ease!important;cursor:pointer}
-.pp-cta:hover{transform:translateY(-2px)!important;box-shadow:0 8px 32px rgba(255,214,0,.2)!important}
+.pp-cta:hover{transform:translateY(-2px)!important;box-shadow:0 8px 32px rgba(255,214,0,.5)!important}
 @media(max-width:768px){
   header{padding:12px 16px!important}
   section{padding-left:16px!important;padding-right:16px!important}
