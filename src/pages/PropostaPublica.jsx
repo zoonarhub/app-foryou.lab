@@ -150,7 +150,7 @@ export default function PropostaPublica() {
   `;
 
   return (
-    <div style={{fontFamily:"'Inter',system-ui,-apple-system,sans-serif",background:'#050508',color:'#fff',minHeight:'100vh',overflowX:'hidden',overflowY:'auto',position:'relative'}}>
+    <div style={{fontFamily:"'Inter',system-ui,-apple-system,sans-serif",background:'#050508',color:'#fff',minHeight:'100vh',position:'relative'}}>
       <style>{CSS}</style>
       {/* HEADER */}
       <header style={{background:'#050508',padding:'16px 28px',display:'flex',justifyContent:'space-between',alignItems:'center',position:'sticky',top:0,zIndex:100,borderBottom:'1px solid rgba(255,214,0,.1)'}}>
@@ -440,7 +440,7 @@ const L = {
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 *{box-sizing:border-box;margin:0}
-html,body,#root{overflow-x:hidden;overflow-y:auto!important;height:auto!important;min-height:100vh}
+html,body,#root{margin:0;padding:0;background:#050508}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
 @keyframes slideUp{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
