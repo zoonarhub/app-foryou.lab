@@ -36,6 +36,44 @@ export default function PropostaPublica() {
   const [cd, setCd] = useState(null);
   const [err, setErr] = useState(null);
   const refs = useRef([]);
+  useEffect(() => {
+    // 1. Capturar estilos inline originais para restauração
+    const origHtmlOverflow = document.documentElement.style.overflow;
+    const origHtmlHeight = document.documentElement.style.height;
+    const origBodyOverflow = document.body.style.overflow;
+    const origBodyHeight = document.body.style.height;
+    
+    const rootEl = document.getElementById('root');
+    const origRootOverflow = rootEl ? rootEl.style.overflow : '';
+    const origRootHeight = rootEl ? rootEl.style.height : '';
+
+    // 2. Forçar liberação total do scroll nos elementos pais
+    document.documentElement.style.setProperty('overflow', 'visible', 'important');
+    document.documentElement.style.setProperty('overflow-y', 'auto', 'important');
+    document.documentElement.style.setProperty('height', 'auto', 'important');
+
+    document.body.style.setProperty('overflow', 'visible', 'important');
+    document.body.style.setProperty('overflow-y', 'auto', 'important');
+    document.body.style.setProperty('height', 'auto', 'important');
+
+    if (rootEl) {
+      rootEl.style.setProperty('overflow', 'visible', 'important');
+      rootEl.style.setProperty('overflow-y', 'auto', 'important');
+      rootEl.style.setProperty('height', 'auto', 'important');
+    }
+
+    // 3. Restaurar ao desmontar o componente
+    return () => {
+      document.documentElement.style.overflow = origHtmlOverflow;
+      document.documentElement.style.height = origHtmlHeight;
+      document.body.style.overflow = origBodyOverflow;
+      document.body.style.height = origBodyHeight;
+      if (rootEl) {
+        rootEl.style.overflow = origRootOverflow;
+        rootEl.style.height = origRootHeight;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
