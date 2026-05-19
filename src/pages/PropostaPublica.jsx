@@ -422,10 +422,10 @@ export default function PropostaPublica() {
                   <span style={{fontSize:24,fontWeight:800,color:'#FFD600'}}>{fmt(p.valorPlano)}</span>
                 </div>
               )}
-              {p.valorSetup > 0 && (
+              {p.taxaSetup > 0 && (
                 <div style={{marginBottom:32,display:'flex',alignItems:'baseline',justifyContent:'center',gap:8}}>
                   <span style={{fontSize:16,color:'#aaa',fontWeight:600}}>Taxa de Setup:</span>
-                  <span style={{fontSize:24,fontWeight:800,color:'#fff'}}>{fmt(p.valorSetup)}</span>
+                  <span style={{fontSize:24,fontWeight:800,color:'#fff'}}>{fmt(p.taxaSetup)}</span>
                 </div>
               )}
 

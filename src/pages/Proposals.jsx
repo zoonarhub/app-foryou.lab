@@ -31,12 +31,12 @@ export default function Proposals() {
   const totalAprovadas = (proposals||[]).filter(p=>p?.status==='aprovada').length;
   const totalValor = (proposals||[]).reduce((a,p)=>a+(p?.valorTotal||0),0);
 
-  const openClassic = () => { setEditing(null); setForm({clienteId:'',leadId:'',titulo:'',servicosItems:[{nome:'',descricao:'',valor:0}],desconto:0,descontoTipo:'pct',validade:'',periodo:'mensal',observacoes:'',responsavel:'tm1',diagnosticoId:'',linkPagamento:''}); setShowModal(true); };
-  const editClassic = (p) => { setEditing(p); setForm({...p,servicosItems:p.servicosItems||[{nome:'',descricao:'',valor:0}]}); setShowModal(true); };
+  const openClassic = () => { setEditing(null); setForm({clienteId:'',leadId:'',titulo:'',servicosItems:[],desconto:0,descontoTipo:'pct',validade:'',periodo:'mensal',observacoes:'',responsavel:'tm1',diagnosticoId:'',linkPagamento:''}); setShowModal(true); };
+  const editClassic = (p) => { setEditing(p); setForm({...p,servicosItems:p.servicosItems||[]}); setShowModal(true); };
 
   const saveClassic = () => {
     if(!form.titulo && !form.nomeCliente){addToast('Preencha os campos obrigatórios','error');return;}
-    const subtotal = form.planoOrbita ? (form.valorPlano||0) + (form.taxaSetup||0) : (form.servicosItems||[]).reduce((a,s)=>a+(s.valor||0),0);
+    const subtotal = (form.valorPlano||0) + (form.taxaSetup||0);
     const desc = form.descontoTipo==='pct' ? subtotal*(form.desconto/100) : form.desconto;
     const total = subtotal - desc;
     
@@ -148,8 +148,8 @@ export default function Proposals() {
         </>)}
       </div>
 
-      {/* Órbita Modal */}
-      <Modal isOpen={showModal} onClose={()=>setShowModal(false)} title={editing?'Editar Proposta Órbita':'Nova Proposta Órbita'} size="lg" footer={<><button className="btn btn-secondary" onClick={()=>setShowModal(false)}>Cancelar</button><button className="btn btn-primary" onClick={saveClassic}>Salvar Proposta</button></>}>
+      {/* ForYou.Lab Modal */}
+      <Modal isOpen={showModal} onClose={()=>setShowModal(false)} title={editing?'Editar Proposta ForYou.Lab':'Nova Proposta ForYou.Lab'} size="lg" footer={<><button className="btn btn-secondary" onClick={()=>setShowModal(false)}>Cancelar</button><button className="btn btn-primary" onClick={saveClassic}>Salvar Proposta</button></>}>
         
         {/* Dados da Empresa */}
         <div style={{border:'1px solid var(--card-border)',borderRadius:8,padding:16,marginBottom:16}}>
@@ -171,7 +171,7 @@ export default function Proposals() {
             <div className="form-group"><label className="form-label">Estado</label><input className="form-input" value={form.estado||''} onChange={e=>setForm({...form,estado:e.target.value})}/></div>
           </div>
           <div className="form-row">
-            <div className="form-group"><label className="form-label">Consultor Zoonar</label><input className="form-input" value={form.consultorZoonar||''} onChange={e=>setForm({...form,consultorZoonar:e.target.value})}/></div>
+            <div className="form-group"><label className="form-label">Consultor ForYou.Lab</label><input className="form-input" value={form.consultorForyou||''} onChange={e=>setForm({...form,consultorForyou:e.target.value})}/></div>
             <div className="form-group"><label className="form-label">Validade da Proposta (dias)</label><input className="form-input" type="number" value={form.validadeDias||''} onChange={e=>setForm({...form,validadeDias:e.target.value})}/></div>
           </div>
         </div>
@@ -204,29 +204,31 @@ export default function Proposals() {
           <div className="form-group"><label className="form-label">Descrição detalhada das dores e frustrações</label><textarea className="form-textarea" value={form.descricaoDores||''} onChange={e=>setForm({...form,descricaoDores:e.target.value})}/></div>
         </div>
 
-        {/* Plano Órbita */}
+        {/* Serviços */}
         <div style={{border:'1px solid var(--card-border)',borderRadius:8,padding:16}}>
-          <div style={{display:'flex',alignItems:'center',gap:8,fontSize:14,fontWeight:700,marginBottom:16,color:'#22C55E'}}><Target size={18}/> Plano Órbita</div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}}>
-            {[
-              {id:'Órbita Start',d:'Para empresas que querem estruturar o crescimento'},
-              {id:'Órbita Control',d:'Crescimento previsível com controle operacional'},
-              {id:'Órbita Pro',d:'A empresa entra em órbita real de crescimento'},
-              {id:'Órbita Elite',d:'Modelo empresarial de alto crescimento e escala'}
-            ].map(pl => (
-              <div key={pl.id} onClick={()=>setForm({...form, planoOrbita:pl.id, servicosItems:[{nome:pl.id, valor:form.valorPlano, descricao:pl.d}]})} style={{border:form.planoOrbita===pl.id?'2px solid #22C55E':'1px solid var(--card-border)',borderRadius:8,padding:12,cursor:'pointer',background:form.planoOrbita===pl.id?'rgba(34,197,94,0.05)':'transparent'}}>
-                <div style={{fontWeight:700,marginBottom:4}}>{pl.id}</div>
-                <div style={{fontSize:11,color:'var(--text-secondary)'}}>{pl.d}</div>
-              </div>
-            ))}
+          <div style={{display:'flex',alignItems:'center',gap:8,fontSize:14,fontWeight:700,marginBottom:16,color:'#22C55E'}}><Target size={18}/> Serviços Contratados</div>
+          
+          <div className="form-group"><label className="form-label">Selecione o Serviço *</label>
+            <select className="form-select" value={form.servicoSelecionadoId||''} onChange={e=>{
+              const svcId = e.target.value;
+              const svc = services.find(s => s.id === svcId);
+              if (svc) {
+                setForm({...form, servicoSelecionadoId: svcId, servicoNome: svc.nome, valorPlano: Number(svc.preco||0), servicosItems: [{nome: svc.nome, valor: Number(svc.preco||0), descricao: svc.descricao}]});
+              } else {
+                setForm({...form, servicoSelecionadoId: '', servicoNome: '', valorPlano: 0, servicosItems: []});
+              }
+            }}>
+              <option value="">Selecione um serviço...</option>
+              {(services||[]).map(s => <option key={s.id} value={s.id}>{s.nome} - {fmt(s.preco||0)}</option>)}
+            </select>
           </div>
 
           <div className="form-row">
-            <div className="form-group"><label className="form-label">Valor do Plano (Mensalidade) *</label><div style={{display:'flex',alignItems:'center',gap:4}}><span style={{color:'var(--text-secondary)'}}>R$</span><input className="form-input" type="number" value={form.valorPlano||0} onChange={e=>{const v=Number(e.target.value); setForm({...form, valorPlano:v, servicosItems:[{nome:form.planoOrbita||'Plano Órbita', valor:v}]});}}/></div></div>
-            <div className="form-group"><label className="form-label">Taxa de Setup (única)</label><div style={{display:'flex',alignItems:'center',gap:4}}><span style={{color:'var(--text-secondary)'}}>R$</span><input className="form-input" type="number" value={form.taxaSetup||0} onChange={e=>setForm({...form,taxaSetup:Number(e.target.value)})}/></div></div>
+            <div className="form-group"><label className="form-label">Valor do Serviço (Mensalidade) *</label><div style={{display:'flex',alignItems:'center',gap:4}}><span style={{color:'var(--text-secondary)'}}>R$</span><input className="form-input" type="number" value={form.valorPlano||0} onChange={e=>{const v=Number(e.target.value); setForm({...form, valorPlano:v, servicosItems:[{nome:form.servicoNome||'Serviço', valor:v}]});}}/></div></div>
+            <div className="form-group"><label className="form-label">Valor de Implementação (Setup)</label><div style={{display:'flex',alignItems:'center',gap:4}}><span style={{color:'var(--text-secondary)'}}>R$</span><input className="form-input" type="number" value={form.taxaSetup||0} onChange={e=>setForm({...form,taxaSetup:Number(e.target.value)})}/></div></div>
           </div>
           <div style={{background:'#0a0a0d',borderRadius:8,padding:16,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-            <div><div style={{fontWeight:700}}>Valor Total:</div><div style={{fontSize:11,color:'var(--text-secondary)'}}>Mensalidade + Taxa de Setup</div></div>
+            <div><div style={{fontWeight:700}}>Valor Total:</div><div style={{fontSize:11,color:'var(--text-secondary)'}}>Mensalidade + Valor de Implementação</div></div>
             <div style={{fontSize:24,fontWeight:800}}>{fmt((form.valorPlano||0) + (form.taxaSetup||0))}</div>
           </div>
           
