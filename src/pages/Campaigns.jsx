@@ -167,7 +167,10 @@ export default function CampaignsPage() {
         fetchAdAccounts(token);
         addToast('Conectado ao Meta Ads!');
       }
-    }, { scope: 'ads_management,ads_read,business_management', auth_type: 'rerequest' });
+    }, { 
+      scope: 'ads_management,ads_read,business_management,pages_read_engagement,pages_show_list', 
+      auth_type: 'rerequest' 
+    });
   };
 
   const loginWithGoogle = useGoogleLogin({
@@ -194,10 +197,36 @@ export default function CampaignsPage() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div style={{ background: COLORS.bgDark, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 8, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>{activeAccount ? activeAccount.name : 'Nenhuma conta'}</span>
-            <ChevronDown size={16} color={COLORS.textMuted} />
-          </div>
+          {fbConnected && adAccounts.length > 0 ? (
+            <select
+              value={activeAccount?.id || ''}
+              onChange={e => {
+                const selected = adAccounts.find(acc => acc.id === e.target.value);
+                if (selected) setActiveAccount(selected);
+              }}
+              style={{
+                background: COLORS.bgDark,
+                border: `1px solid ${COLORS.cardBorder}`,
+                color: COLORS.text,
+                borderRadius: 8,
+                padding: '8px 16px',
+                fontSize: 13,
+                fontWeight: 600,
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              {adAccounts.map(acc => (
+                <option key={acc.id} value={acc.id} style={{ background: '#000', color: '#FFF' }}>{acc.name}</option>
+              ))}
+            </select>
+          ) : (
+            <div style={{ background: COLORS.bgDark, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 8, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMuted }}>
+                {fbConnected ? 'Nenhuma conta' : 'Meta Ads Desconectado'}
+              </span>
+            </div>
+          )}
 
           <select value={datePreset} onChange={e => setDatePreset(e.target.value)} style={{ background: COLORS.bgDark, border: `1px solid ${COLORS.cardBorder}`, color: COLORS.text, borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 600, outline: 'none', cursor: 'pointer' }}>
             {DATE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
@@ -241,10 +270,28 @@ export default function CampaignsPage() {
 
       {/* 3. CONTEÚDO */}
       <div style={{ flex: 1, overflowY: 'auto', padding: 24, paddingBottom: 60 }}>
-        {activeMainTab === 'dashboard' && <DashboardTab kpis={realKPIs} chartData={realChartData} campaigns={realCampaigns} />}
-        {activeMainTab === 'meta' && <MetaAdsTab activeMetaTab={activeMetaTab} setActiveMetaTab={setActiveMetaTab} campaigns={realCampaigns} />}
+        {activeMainTab === 'dashboard' && (
+          fbConnected ? (
+            <DashboardTab kpis={realKPIs} chartData={realChartData} campaigns={realCampaigns} syncing={syncing} />
+          ) : (
+            <ConnectMetaState onConnect={handleFBLogin} />
+          )
+        )}
+        {activeMainTab === 'meta' && (
+          fbConnected ? (
+            <MetaAdsTab activeMetaTab={activeMetaTab} setActiveMetaTab={setActiveMetaTab} campaigns={realCampaigns} />
+          ) : (
+            <ConnectMetaState onConnect={handleFBLogin} />
+          )
+        )}
         {activeMainTab === 'google' && <GoogleAdsTab googleConnected={!!googleAccessToken} onConnect={loginWithGoogle} />}
-        {activeMainTab === 'relatorios' && <ReportsTab campaigns={realCampaigns} kpis={realKPIs} />}
+        {activeMainTab === 'relatorios' && (
+          fbConnected ? (
+            <ReportsTab campaigns={realCampaigns} kpis={realKPIs} />
+          ) : (
+            <ConnectMetaState onConnect={handleFBLogin} />
+          )
+        )}
         {activeMainTab === 'utm' && <UtmSalesTab />}
       </div>
     </div>
@@ -254,8 +301,15 @@ export default function CampaignsPage() {
 // ==========================================
 // REMAINING COMPONENTS
 // =============================
-function DashboardTab({ kpis, chartData, campaigns }) {
-  if (!kpis) return <div style={{ color: COLORS.textMuted }}>Carregando dados...</div>;
+function DashboardTab({ kpis, chartData, campaigns, syncing }) {
+  if (!kpis) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '40vh', gap: 16 }}>
+        <RefreshCw size={32} className="spin" color={COLORS.yellow} style={{ animation: 'spin 1.2s linear infinite' }} />
+        <div style={{ fontSize: 14, color: COLORS.textMuted }}>Carregando dados do Meta Ads...</div>
+      </div>
+    );
+  }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
@@ -350,4 +404,23 @@ function ReportsTab({ campaigns }) {
 
 function UtmSalesTab() {
   return <div style={{ padding: 40, textAlign: 'center', color: COLORS.textMuted }}>Módulo de UTMs.</div>;
+}
+
+function ConnectMetaState({ onConnect }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+      <div className="card" style={{ maxWidth: 500, padding: 40, textAlign: 'center', background: 'rgba(20,20,25,0.7)', backdropFilter: 'blur(20px)', border: `1px solid rgba(255,214,0,0.15)`, borderRadius: 16 }}>
+        <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(255,214,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
+          <Megaphone size={32} color={COLORS.yellow} />
+        </div>
+        <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 12, color: '#FFF' }}>Conecte seu Meta Ads</h3>
+        <p style={{ fontSize: 14, color: COLORS.textMuted, lineHeight: 1.6, marginBottom: 28 }}>
+          Visualize métricas de performance, gerencie suas campanhas de Facebook & Instagram Ads e tenha insights em tempo real diretamente no seu dashboard.
+        </p>
+        <button onClick={onConnect} style={{ width: '100%', padding: '12px 24px', background: COLORS.yellow, border: 'none', color: '#000', borderRadius: 8, fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 14px rgba(255, 214, 0, 0.3)' }}>
+          <Plus size={18} /> Conectar Conta do Facebook
+        </button>
+      </div>
+    </div>
+  );
 }

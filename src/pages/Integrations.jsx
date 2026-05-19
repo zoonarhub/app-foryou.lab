@@ -19,7 +19,14 @@ const integrationsList = [
 export default function Integrations() {
   const { addToast, googleAccessToken, saveGoogleToken, user, agencyId: storeAgencyId } = useApp();
   const [connections, setConnections] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('foryoulab_integrations') || '{}'); } catch { return {}; }
+    try {
+      const stored = localStorage.getItem('foryoulab_integrations');
+      if (!stored || stored === 'null') return {};
+      const parsed = JSON.parse(stored);
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return {};
+    }
   });
   const [showModal, setShowModal] = useState(null);
   const [apiKeyInput, setApiKeyInput] = useState('');
@@ -27,27 +34,12 @@ export default function Integrations() {
 
   const [fbConnected, setFbConnected] = useState(() => !!localStorage.getItem('fb_ads_token'));
 
-  // Sync real status for Google & FB
-  useEffect(() => {
-    const newConn = { ...connections };
-    if (googleAccessToken) {
-      newConn.google_calendar = { status: 'connected', connectedAt: new Date().toISOString(), lastSync: new Date().toISOString() };
-    } else {
-      delete newConn.google_calendar;
-    }
-
-    if (fbConnected) {
-      newConn.facebook_ads = { status: 'connected', connectedAt: new Date().toISOString(), lastSync: new Date().toISOString() };
-    } else {
-      delete newConn.facebook_ads;
-    }
-    setConnections(newConn);
-    // Don't save this mapped status to localStorage so we always depend on the real tokens.
-  }, [googleAccessToken, fbConnected]);
+  // State is derived dynamically in the render function to prevent state synchronization bugs and mount-time crashes.
 
   const save = (c) => { 
-    setConnections(c); 
-    localStorage.setItem('foryoulab_integrations', JSON.stringify(c)); 
+    const verified = c && typeof c === 'object' ? c : {};
+    setConnections(verified); 
+    localStorage.setItem('foryoulab_integrations', JSON.stringify(verified)); 
   };
 
   const loginWithGoogle = useGoogleLogin({
@@ -142,8 +134,16 @@ export default function Integrations() {
       <div className="page-body">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16 }}>
           {integrationsList.map(integ => {
-            const conn = connections[integ.id];
-            const isConnected = conn?.status === 'connected';
+            let conn = (connections || {})[integ.id];
+            let isConnected = conn?.status === 'connected';
+
+            if (integ.id === 'google_calendar') {
+              isConnected = !!googleAccessToken;
+              conn = isConnected ? { status: 'connected', lastSync: new Date().toISOString() } : null;
+            } else if (integ.id === 'facebook_ads') {
+              isConnected = !!fbConnected;
+              conn = isConnected ? { status: 'connected', lastSync: new Date().toISOString() } : null;
+            }
             return (
               <div key={integ.id} className="card" style={{ padding: 20 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
@@ -156,7 +156,7 @@ export default function Integrations() {
                   </div>
                   <span className={`badge ${isConnected ? 'badge-green' : 'badge-gray'}`}>{isConnected ? '✅ Conectado' : '⬜ Não conectado'}</span>
                 </div>
-                {isConnected && conn.lastSync && (
+                {isConnected && conn?.lastSync && (
                   <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
                     <RefreshCw size={10} /> Sincronizado: {new Date(conn.lastSync).toLocaleString('pt-BR')}
                   </div>
