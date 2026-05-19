@@ -66,6 +66,16 @@ export default function CampaignsPage() {
 
   const fetchAdAccounts = async (token) => {
     setSyncing(true);
+    if (token === 'mock_token_123' || token === 'mock_token') {
+      const mockAccounts = [
+        { id: 'act_123456', name: 'ForYou.Lab (Conta Principal)', status: 'active' },
+        { id: 'act_987654', name: 'Cliente XYZ', status: 'active' }
+      ];
+      setAdAccounts(mockAccounts);
+      setActiveAccount(mockAccounts[0]);
+      setSyncing(false);
+      return;
+    }
     try {
       const response = await axios.get(`https://graph.facebook.com/v18.0/me/adaccounts`, {
         params: { access_token: token, fields: 'name,account_id,account_status' }
@@ -91,6 +101,30 @@ export default function CampaignsPage() {
     if (!activeAccount) return;
     setSyncing(true);
     const token = localStorage.getItem('fb_ads_token');
+    
+    if (token === 'mock_token_123' || token === 'mock_token') {
+       setRealKPIs({
+         spend: 4500, revenue: 15200, roas: 3.37, clicks: 12500,
+         cpm: 12.5, cpc: 0.36, ctr: 1.8, frequency: 2.1, impressions: 450000,
+         results: 450, cpl: 10
+       });
+       setRealCampaigns([
+         { id: 'c1', name: 'Campanha de Conversão - Vendas', status: 'ativo', objective: 'CONVERSIONS', budget: 150, spend: 2500, revenue: 8500, roas: 3.4, cpl: 8.5, ctr: 2.1, cpc: 0.3, impressions: 210000, clicks: 8000, results: 294 },
+         { id: 'c2', name: 'Captação de Leads - Ebook', status: 'ativo', objective: 'LEAD_GENERATION', budget: 50, spend: 1000, revenue: 4200, roas: 4.2, cpl: 6.0, ctr: 1.5, cpc: 0.45, impressions: 120000, clicks: 3500, results: 166 },
+         { id: 'c3', name: 'Remarketing 30D', status: 'inativo', objective: 'CONVERSIONS', budget: 20, spend: 1000, revenue: 2500, roas: 2.5, cpl: 15, ctr: 1.1, cpc: 0.6, impressions: 120000, clicks: 1000, results: 66 }
+       ]);
+       setRealChartData([
+         { date: '12/5', gasto: 150, receita: 500 },
+         { date: '13/5', gasto: 160, receita: 800 },
+         { date: '14/5', gasto: 150, receita: 600 },
+         { date: '15/5', gasto: 180, receita: 1200 },
+         { date: '16/5', gasto: 175, receita: 950 },
+       ]);
+       setLastSync(new Date().toLocaleTimeString());
+       setSyncing(false);
+       return;
+    }
+
     try {
       const kpiRes = await axios.get(`https://graph.facebook.com/v18.0/${activeAccount.id}/insights`, {
         params: { access_token: token, date_preset: datePreset, fields: 'spend,clicks,cpm,cpc,ctr,frequency,impressions,actions' }
