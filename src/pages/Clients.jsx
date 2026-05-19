@@ -9,7 +9,10 @@ const fmt = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: '
 const etapas = ['diagnostico', 'estrutura', 'performance', 'escala'];
 const etapaLabel = { diagnostico: '01 — Diagnóstico', estrutura: '02 — Estrutura', performance: '03 — Performance', escala: '04 — Escala' };
 
-const emptyClient = { nome: '', empresa: '', cnpj: '', email: '', whatsapp: '', segmento: '', cidade: '', plano: 'Growth', mrr: 0, status: 'onboarding', responsavel: '', dataInicio: '', mesesContrato: 12, etapaLaboratorio: 'diagnostico', nps: '', observacoes: '', motivoCancelamento: '' };
+const PRICES = { 'Starter': 1500, 'Growth': 3000, 'Scale': 5000, 'Custom': 0 };
+const PLANOS_DISPONIVEIS = Object.keys(PRICES);
+
+const emptyClient = { nome: '', empresa: '', cnpj: '', email: '', whatsapp: '', segmento: '', cidade: '', plano: ['Growth'], mrr: 3000, status: 'onboarding', responsavel: '', dataInicio: '', mesesContrato: 12, etapaLaboratorio: 'diagnostico', nps: '', observacoes: '', motivoCancelamento: '' };
 
 export default function Clients() {
   const { clients, teamMembers, projects, financials, updateItem, addItem, deleteItem, addToast } = useApp();
@@ -29,7 +32,7 @@ export default function Clients() {
     return true;
   }), [clients, search, filterStatus, filterPlano]);
 
-  const planos = [...new Set(clients.map(c => c.plano).filter(Boolean))];
+  const planos = [...new Set(clients.flatMap(c => Array.isArray(c.plano) ? c.plano : [c.plano]).filter(Boolean))];
 
   const openCreate = () => { setEditingClient(null); setFormData(emptyClient); setShowModal(true); };
   const openEdit = (client, e) => { e?.stopPropagation(); setEditingClient(client); setFormData({ ...emptyClient, ...client }); setShowModal(true); };
@@ -119,7 +122,7 @@ export default function Clients() {
                   </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 13 }}>
-                  <div><span style={{ color: 'var(--text-secondary)' }}>Plano:</span> <strong>{client.plano}</strong></div>
+                  <div><span style={{ color: 'var(--text-secondary)' }}>Plano:</span> <strong>{Array.isArray(client.plano) ? client.plano.join(', ') : client.plano}</strong></div>
                   <div><span style={{ color: 'var(--text-secondary)' }}>MRR:</span> <strong style={{ color: '#22C55E' }}>{fmt(client.mrr)}</strong></div>
                   <div><span style={{ color: 'var(--text-secondary)' }}>Account:</span> {member?.nome.split(' ')[0] || '—'}</div>
                   <div><span style={{ color: 'var(--text-secondary)' }}>NPS:</span> {client.nps ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>{client.nps} <Star size={12} fill="#FFD600" color="#FFD600" /></span> : '—'}</div>
@@ -139,7 +142,7 @@ export default function Clients() {
           </div>
           {activeTab === 'dados' && (
             <div>
-              {[['Nome', selectedClient.nome], ['Empresa', selectedClient.empresa], ['CNPJ', selectedClient.cnpj], ['Email', selectedClient.email], ['WhatsApp', selectedClient.whatsapp], ['Segmento', selectedClient.segmento], ['Cidade', selectedClient.cidade], ['Plano', selectedClient.plano], ['MRR', fmt(selectedClient.mrr)], ['Status', statusLabel[selectedClient.status]], ['Início', selectedClient.dataInicio ? new Date(selectedClient.dataInicio).toLocaleDateString('pt-BR') : '—'], ['Contrato (Meses)', selectedClient.mesesContrato || '—']].map(([k,v]) => (
+              {[['Nome', selectedClient.nome], ['Empresa', selectedClient.empresa], ['CNPJ', selectedClient.cnpj], ['Email', selectedClient.email], ['WhatsApp', selectedClient.whatsapp], ['Segmento', selectedClient.segmento], ['Cidade', selectedClient.cidade], ['Plano', Array.isArray(selectedClient.plano) ? selectedClient.plano.join(', ') : selectedClient.plano], ['MRR', fmt(selectedClient.mrr)], ['Status', statusLabel[selectedClient.status]], ['Início', selectedClient.dataInicio ? new Date(selectedClient.dataInicio).toLocaleDateString('pt-BR') : '—'], ['Contrato (Meses)', selectedClient.mesesContrato || '—']].map(([k,v]) => (
                 <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--card-border)', fontSize: 13 }}>
                   <span style={{ color: 'var(--text-secondary)' }}>{k}</span><span style={{ fontWeight: 600 }}>{v || '—'}</span>
                 </div>
@@ -153,7 +156,7 @@ export default function Clients() {
           )}
           {activeTab === 'servicos' && (
             <div style={{ padding: 16, background: 'rgba(255,214,0,.08)', borderRadius: 8 }}>
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>Plano {selectedClient.plano}</div>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>Planos: {Array.isArray(selectedClient.plano) ? selectedClient.plano.join(', ') : selectedClient.plano}</div>
               <div style={{ fontSize: 13, color: '#22C55E', fontWeight: 600 }}>MRR: {fmt(selectedClient.mrr)}/mês</div>
             </div>
           )}
@@ -213,11 +216,25 @@ export default function Clients() {
           <div className="form-group"><label className="form-label">Segmento</label><input className="form-input" value={formData.segmento} onChange={e => setFormData({...formData, segmento: e.target.value})} /></div>
         </div>
         <div className="form-row">
-          <div className="form-group"><label className="form-label">Plano</label>
-            <select className="form-select" value={formData.plano} onChange={e => setFormData({...formData, plano: e.target.value})}>
-              <option>Starter</option><option>Growth</option><option>Scale</option><option>Custom</option>
-            </select></div>
-          <div className="form-group"><label className="form-label">MRR (R$)</label><input className="form-input" type="number" value={formData.mrr} onChange={e => setFormData({...formData, mrr: Number(e.target.value)})} /></div>
+          <div className="form-group" style={{ flex: 1.5 }}><label className="form-label">Plano</label>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 8 }}>
+              {PLANOS_DISPONIVEIS.map(p => {
+                const planosAtuais = Array.isArray(formData.plano) ? formData.plano : (formData.plano ? [formData.plano] : []);
+                const isSelected = planosAtuais.includes(p);
+                return (
+                  <label key={p} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer', background: isSelected ? 'rgba(255,214,0,0.1)' : 'transparent', padding: '4px 8px', borderRadius: 6, border: isSelected ? '1px solid var(--yellow)' : '1px solid var(--card-border)' }}>
+                    <input type="checkbox" checked={isSelected} onChange={(e) => {
+                      let novos = isSelected ? planosAtuais.filter(x => x !== p) : [...planosAtuais, p];
+                      let novoMrr = novos.reduce((sum, plan) => sum + (PRICES[plan] || 0), 0);
+                      setFormData({...formData, plano: novos, mrr: novoMrr});
+                    }} style={{ cursor: 'pointer' }} />
+                    {p}
+                  </label>
+                )
+              })}
+            </div>
+          </div>
+          <div className="form-group" style={{ flex: 0.5 }}><label className="form-label">MRR (R$)</label><input className="form-input" type="number" value={formData.mrr} onChange={e => setFormData({...formData, mrr: Number(e.target.value)})} /></div>
         </div>
         <div className="form-row">
           <div className="form-group"><label className="form-label">Data de Início</label><input className="form-input" type="date" value={formData.dataInicio || ''} onChange={e => setFormData({...formData, dataInicio: e.target.value})} /></div>

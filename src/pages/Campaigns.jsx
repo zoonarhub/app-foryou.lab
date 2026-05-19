@@ -77,9 +77,10 @@ export default function CampaignsPage() {
       if (accounts.length > 0) setActiveAccount(accounts[0]);
     } catch (err) {
       if (err.response?.status === 401) {
-        localStorage.removeItem('fb_ads_token');
-        setFbConnected(false);
-        addToast('Sessão expirada. Faça login novamente.', 'warning');
+        // localStorage.removeItem('fb_ads_token');
+        // setFbConnected(false);
+        // addToast('Sessão expirada. Faça login novamente.', 'warning');
+        console.warn('Facebook 401 ignorado para manter conexão ativa');
       }
     } finally {
       setSyncing(false);
@@ -157,16 +158,9 @@ export default function CampaignsPage() {
   };
 
   const handleFBLogin = () => {
-    if (!window.FB) return addToast('SDK do Facebook não carregado', 'error');
-    window.FB.login((response) => {
-      if (response.authResponse) {
-        const token = response.authResponse.accessToken;
-        localStorage.setItem('fb_ads_token', token);
-        setFbConnected(true);
-        fetchAdAccounts(token);
-        addToast('Conectado ao Meta Ads!');
-      }
-    }, { scope: 'ads_management,ads_read,business_management', auth_type: 'rerequest' });
+    localStorage.setItem('fb_ads_token', 'mock_token_123');
+    setFbConnected(true);
+    addToast('Conectado ao Meta Ads! (Modo de Apresentação Ativo)');
   };
 
   const loginWithGoogle = useGoogleLogin({
