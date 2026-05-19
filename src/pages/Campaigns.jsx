@@ -192,9 +192,22 @@ export default function CampaignsPage() {
   };
 
   const handleFBLogin = () => {
+    if (!window.FB) return addToast('SDK do Facebook não carregado. Desative o AdBlock.', 'error');
+    window.FB.login((response) => {
+      if (response.authResponse) {
+        const token = response.authResponse.accessToken;
+        localStorage.setItem('fb_ads_token', token);
+        setFbConnected(true);
+        fetchAdAccounts(token);
+        addToast('Conectado ao Meta Ads!');
+      }
+    }, { scope: 'ads_management,ads_read,business_management', auth_type: 'rerequest' });
+  };
+
+  const handleFBMockLogin = () => {
     localStorage.setItem('fb_ads_token', 'mock_token_123');
     setFbConnected(true);
-    addToast('Conectado ao Meta Ads! (Modo de Apresentação Ativo)');
+    addToast('Meta Ads conectado (Modo Apresentação)');
   };
 
   const loginWithGoogle = useGoogleLogin({
@@ -236,9 +249,14 @@ export default function CampaignsPage() {
               {syncing ? 'Sincronizando...' : `Sync: ${lastSync}`}
             </button>
           ) : (
-            <button onClick={handleFBLogin} style={{ background: COLORS.yellow, border: 'none', color: '#000', borderRadius: 8, padding: '8px 16px', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-              <Plus size={16} /> Conectar Conta
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={handleFBMockLogin} title="Modo Apresentação (Mock)" style={{ background: 'transparent', border: `1px solid ${COLORS.cardBorder}`, color: COLORS.textMuted, borderRadius: 8, padding: '8px 12px', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                <Eye size={14} /> Mock
+              </button>
+              <button onClick={handleFBLogin} style={{ background: COLORS.yellow, border: 'none', color: '#000', borderRadius: 8, padding: '8px 16px', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                <Plus size={16} /> Conectar Conta
+              </button>
+            </div>
           )}
         </div>
       </div>

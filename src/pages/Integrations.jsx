@@ -50,15 +50,40 @@ export default function Integrations() {
     localStorage.setItem('foryoulab_integrations', JSON.stringify(c)); 
   };
 
-  const loginWithGoogle = () => {
+  const loginWithGoogle = useGoogleLogin({
+    onSuccess: tokenResponse => {
+      saveGoogleToken(tokenResponse.access_token);
+      addToast('Google Calendar conectado com sucesso!');
+    },
+    scope: 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events'
+  });
+
+  const loginWithGoogleMock = () => {
     saveGoogleToken('mock_token_123');
-    addToast('Google Calendar conectado com sucesso! (Modo Apresentação Ativo)');
+    addToast('Google Calendar conectado (Mock)');
   };
 
   const handleFBLogin = () => {
+    if (!window.FB) return addToast('SDK do Facebook não carregado. Desative o AdBlock.', 'error');
+    window.FB.login((response) => {
+      if (response.authResponse) {
+        const token = response.authResponse.accessToken;
+        localStorage.setItem('fb_ads_token', token);
+        setFbConnected(true);
+        addToast('Meta Ads conectado com sucesso!');
+      } else {
+        addToast('Login do Facebook cancelado.', 'warning');
+      }
+    }, { 
+      scope: 'ads_management,ads_read,business_management,pages_read_engagement,pages_show_list',
+      auth_type: 'rerequest' 
+    });
+  };
+
+  const handleFBMockLogin = () => {
     localStorage.setItem('fb_ads_token', 'mock_token_123');
     setFbConnected(true);
-    addToast('Meta Ads conectado com sucesso! (Modo Apresentação Ativo)');
+    addToast('Meta Ads conectado (Mock)');
   };
 
   const connect = (id, type) => {
@@ -154,7 +179,14 @@ export default function Integrations() {
                       <button onClick={() => setShowLogs(integ)} className="btn btn-sm btn-secondary"><ExternalLink size={12} /> Logs</button>
                     </>
                   ) : (
-                    <button onClick={() => connect(integ.id, integ.connectType)} className="btn btn-sm btn-primary" style={{ flex: 1 }}><Plug size={12} /> Conectar</button>
+                    <>
+                      <button onClick={() => connect(integ.id, integ.connectType)} className="btn btn-sm btn-primary" style={{ flex: 1 }}><Plug size={12} /> Conectar</button>
+                      {(integ.id === 'facebook_ads' || integ.id === 'google_calendar') && (
+                        <button onClick={() => integ.id === 'facebook_ads' ? handleFBMockLogin() : loginWithGoogleMock()} title="Conectar dados fictícios (Modo Apresentação)" className="btn btn-sm btn-secondary" style={{ padding: '0 8px' }}>
+                          <Eye size={12} /> Mock
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
