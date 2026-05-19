@@ -8,7 +8,8 @@ const emptyData = {
   clients: [], leads: [], proposals: [], modularProposals: [], resultProjections: [],
   projects: [], tasks: [], financials: [], alerts: [], teamMembers: [], 
   services: [], channels: [], chatMessages: [], whatsappConversations: [], 
-  integrations: [], campaignTrackings: [], optimizationLogs: [], diagnosticos: []
+  integrations: [], campaignTrackings: [], optimizationLogs: [], diagnosticos: [],
+  reports: []
 };
 
 const toSnakeCase = str => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);

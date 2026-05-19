@@ -127,6 +127,16 @@ export default function Financial() {
               <option value="">Nenhum</option>{clients.map(c => <option key={c.id} value={c.id}>{c.empresa}</option>)}
             </select></div>
         </div>
+        <div className="form-row">
+          <div className="form-group"><label className="form-label">Status</label>
+            <select className="form-select" value={formData.status || 'pendente'} onChange={e => setFormData({...formData, status: e.target.value})}>
+              <option value="pendente">Pendente</option>
+              <option value="pago">Pago</option>
+              <option value="atrasado">Atrasado</option>
+              <option value="cancelado">Cancelado</option>
+            </select></div>
+          <div className="form-group"><label className="form-label">Data de Pagamento</label><input className="form-input" type="date" value={formData.dataPagamento || ''} onChange={e => setFormData({...formData, dataPagamento: e.target.value})} /></div>
+        </div>
       </Modal>
 
       <Modal isOpen={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="⚠️ Excluir" size="sm"

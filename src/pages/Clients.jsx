@@ -9,7 +9,7 @@ const fmt = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: '
 const etapas = ['diagnostico', 'estrutura', 'performance', 'escala'];
 const etapaLabel = { diagnostico: '01 — Diagnóstico', estrutura: '02 — Estrutura', performance: '03 — Performance', escala: '04 — Escala' };
 
-const emptyClient = { nome: '', empresa: '', cnpj: '', email: '', whatsapp: '', segmento: '', cidade: '', plano: 'Growth', mrr: 0, status: 'onboarding', responsavel: '', dataInicio: '', etapaLaboratorio: 'diagnostico', nps: '', observacoes: '', motivoCancelamento: '' };
+const emptyClient = { nome: '', empresa: '', cnpj: '', email: '', whatsapp: '', segmento: '', cidade: '', plano: 'Growth', mrr: 0, status: 'onboarding', responsavel: '', dataInicio: '', mesesContrato: 12, etapaLaboratorio: 'diagnostico', nps: '', observacoes: '', motivoCancelamento: '' };
 
 export default function Clients() {
   const { clients, teamMembers, projects, financials, updateItem, addItem, deleteItem, addToast } = useApp();
@@ -34,10 +34,35 @@ export default function Clients() {
   const openCreate = () => { setEditingClient(null); setFormData(emptyClient); setShowModal(true); };
   const openEdit = (client, e) => { e?.stopPropagation(); setEditingClient(client); setFormData({ ...emptyClient, ...client }); setShowModal(true); };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.nome || !formData.empresa) { addToast('Nome e Empresa obrigatórios', 'error'); return; }
-    if (editingClient) { updateItem('clients', editingClient.id, formData); addToast('Cliente atualizado!'); }
-    else { addItem('clients', { ...formData, dataInicio: formData.dataInicio || new Date().toISOString().split('T')[0] }); addToast('Cliente criado!'); }
+    if (editingClient) { 
+      updateItem('clients', editingClient.id, formData); 
+      addToast('Cliente atualizado!'); 
+    } else { 
+      const dataInicio = formData.dataInicio || new Date().toISOString().split('T')[0];
+      const newClientData = { ...formData, dataInicio };
+      const clientId = await addItem('clients', newClientData); 
+      addToast('Cliente criado!'); 
+
+      if (formData.mesesContrato && formData.mrr > 0) {
+        const [yy, mm, dd] = dataInicio.split('-').map(Number);
+        for (let i = 0; i < formData.mesesContrato; i++) {
+          const vDate = new Date(yy, mm - 1 + i, dd);
+          await addItem('financials', {
+            descricao: `Mensalidade ${i + 1}/${formData.mesesContrato} - ${formData.empresa}`,
+            tipo: 'receita',
+            valor: formData.mrr,
+            status: 'pendente',
+            dataVencimento: vDate.toISOString().split('T')[0],
+            dataPagamento: '',
+            categoria: 'Mensalidade',
+            clienteId: clientId
+          });
+        }
+        addToast(`${formData.mesesContrato} faturamentos gerados!`);
+      }
+    }
     setShowModal(false);
   };
 
@@ -114,7 +139,7 @@ export default function Clients() {
           </div>
           {activeTab === 'dados' && (
             <div>
-              {[['Nome', selectedClient.nome], ['Empresa', selectedClient.empresa], ['CNPJ', selectedClient.cnpj], ['Email', selectedClient.email], ['WhatsApp', selectedClient.whatsapp], ['Segmento', selectedClient.segmento], ['Cidade', selectedClient.cidade], ['Plano', selectedClient.plano], ['MRR', fmt(selectedClient.mrr)], ['Status', statusLabel[selectedClient.status]], ['Início', selectedClient.dataInicio ? new Date(selectedClient.dataInicio).toLocaleDateString('pt-BR') : '—']].map(([k,v]) => (
+              {[['Nome', selectedClient.nome], ['Empresa', selectedClient.empresa], ['CNPJ', selectedClient.cnpj], ['Email', selectedClient.email], ['WhatsApp', selectedClient.whatsapp], ['Segmento', selectedClient.segmento], ['Cidade', selectedClient.cidade], ['Plano', selectedClient.plano], ['MRR', fmt(selectedClient.mrr)], ['Status', statusLabel[selectedClient.status]], ['Início', selectedClient.dataInicio ? new Date(selectedClient.dataInicio).toLocaleDateString('pt-BR') : '—'], ['Contrato (Meses)', selectedClient.mesesContrato || '—']].map(([k,v]) => (
                 <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--card-border)', fontSize: 13 }}>
                   <span style={{ color: 'var(--text-secondary)' }}>{k}</span><span style={{ fontWeight: 600 }}>{v || '—'}</span>
                 </div>
@@ -193,6 +218,10 @@ export default function Clients() {
               <option>Starter</option><option>Growth</option><option>Scale</option><option>Custom</option>
             </select></div>
           <div className="form-group"><label className="form-label">MRR (R$)</label><input className="form-input" type="number" value={formData.mrr} onChange={e => setFormData({...formData, mrr: Number(e.target.value)})} /></div>
+        </div>
+        <div className="form-row">
+          <div className="form-group"><label className="form-label">Data de Início</label><input className="form-input" type="date" value={formData.dataInicio || ''} onChange={e => setFormData({...formData, dataInicio: e.target.value})} /></div>
+          <div className="form-group"><label className="form-label">Meses de Contrato</label><input className="form-input" type="number" min="1" value={formData.mesesContrato || ''} onChange={e => setFormData({...formData, mesesContrato: Number(e.target.value)})} /></div>
         </div>
         <div className="form-row">
           <div className="form-group"><label className="form-label">Status</label>

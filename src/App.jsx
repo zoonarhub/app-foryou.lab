@@ -32,6 +32,7 @@ const PropostaPublica = lazy(() => import('./pages/PropostaPublica'));
 const PropostaModularPublica = lazy(() => import('./pages/PropostaModularPublica'));
 const OptimizationManagement = lazy(() => import('./pages/OptimizationManagement'));
 const AvaliadorRestaurante = lazy(() => import('./pages/AvaliadorRestaurante'));
+const RelatorioPublico = lazy(() => import('./pages/RelatorioPublico'));
 
 function PageLoader() {
   return (
@@ -119,6 +120,7 @@ export default function App() {
         <Routes>
           <Route path="/proposta/:id" element={<Suspense fallback={<PageLoader />}><PropostaPublica /></Suspense>} />
           <Route path="/proposta-modular/:id" element={<Suspense fallback={<PageLoader />}><PropostaModularPublica /></Suspense>} />
+          <Route path="/relatorio/:id" element={<Suspense fallback={<PageLoader />}><RelatorioPublico /></Suspense>} />
           <Route path="*" element={<AuthGuard />} />
         </Routes>
       </AppProvider>
