@@ -221,21 +221,30 @@ export default function Reports() {
         </div>
 
         <div className="form-group">
-          <label className="form-label">Conta de Anúncio</label>
-          {adAccounts.length > 0 ? (
-            <select className="form-select" value={form.contaAnuncioId} onChange={e => {
+          <label className="form-label">Conta de Anúncio *</label>
+          <select 
+            className="form-select" 
+            value={form.contaAnuncioId} 
+            onChange={e => {
               const acc = adAccounts.find(a => a.id === e.target.value);
               setForm({ ...form, contaAnuncioId: e.target.value, contaAnuncioNome: acc?.name || '' });
-            }}>
-              <option value="">Selecione a conta...</option>
-              {adAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
-          ) : (
-            <div>
-              <input className="form-input" placeholder="Nome da conta de anúncio" value={form.contaAnuncioNome} onChange={e => setForm({ ...form, contaAnuncioNome: e.target.value })} />
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-                {fbToken ? (loadingAccounts ? '⏳ Carregando contas...' : '⚠️ Nenhuma conta encontrada — digite manualmente') : '💡 Conecte o Meta Ads em Campanhas para carregar as contas automaticamente'}
-              </div>
+            }}
+            disabled={adAccounts.length === 0}
+          >
+            {adAccounts.length > 0 ? (
+              <>
+                <option value="">Selecione a conta...</option>
+                {adAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </>
+            ) : (
+              <option value="">
+                {fbToken ? (loadingAccounts ? '⏳ Carregando contas...' : '⚠️ Nenhuma conta encontrada') : '💡 Conecte o Meta Ads em Campanhas'}
+              </option>
+            )}
+          </select>
+          {!fbToken && (
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+              * É necessário conectar a integração do Meta Ads na aba <strong>Campanhas</strong> para carregar as contas de anúncios aqui.
             </div>
           )}
         </div>
