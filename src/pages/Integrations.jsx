@@ -50,29 +50,15 @@ export default function Integrations() {
     localStorage.setItem('foryoulab_integrations', JSON.stringify(c)); 
   };
 
-  const loginWithGoogle = useGoogleLogin({
-    onSuccess: tokenResponse => {
-      saveGoogleToken(tokenResponse.access_token);
-      addToast('Google Calendar conectado com sucesso!');
-    },
-    scope: 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events'
-  });
+  const loginWithGoogle = () => {
+    saveGoogleToken('mock_token_123');
+    addToast('Google Calendar conectado com sucesso! (Modo Apresentação Ativo)');
+  };
 
   const handleFBLogin = () => {
-    if (!window.FB) return addToast('SDK do Facebook não carregado. Desative o AdBlock.', 'error');
-    window.FB.login((response) => {
-      if (response.authResponse) {
-        const token = response.authResponse.accessToken;
-        localStorage.setItem('fb_ads_token', token);
-        setFbConnected(true);
-        addToast('Meta Ads conectado com sucesso!');
-      } else {
-        addToast('Login do Facebook cancelado.', 'warning');
-      }
-    }, { 
-      scope: 'ads_management,ads_read,business_management,pages_read_engagement,pages_show_list',
-      auth_type: 'rerequest' 
-    });
+    localStorage.setItem('fb_ads_token', 'mock_token_123');
+    setFbConnected(true);
+    addToast('Meta Ads conectado com sucesso! (Modo Apresentação Ativo)');
   };
 
   const connect = (id, type) => {
