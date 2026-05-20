@@ -150,42 +150,43 @@ export function AppProvider({ children }) {
     await supabase.auth.signOut();
   };
 
-  const addItem = useCallback(async (key, item) => {
+  const addItem = useCallback((key, item) => {
     const id = item.id || crypto.randomUUID();
     const table = toSnakeCase(key);
     const newItem = { ...item, id };
     
+    // 1) Atualização otimista — UI atualiza instantaneamente
     setData(prev => ({ ...prev, [key]: [...prev[key], newItem] }));
     
+    // 2) Sync com Supabase em background (fire-and-forget)
     if (agencyId) {
-      try {
-        let insertPromise;
-        if (['campaignTrackings', 'optimizationLogs'].includes(key)) {
-          insertPromise = supabase.from(table).insert({ ...newItem, user_id: agencyId });
-        } else {
-          insertPromise = supabase.from(table).insert({ id, user_id: agencyId, data: newItem });
+      const doInsert = async () => {
+        try {
+          let result;
+          if (['campaignTrackings', 'optimizationLogs'].includes(key)) {
+            result = await supabase.from(table).insert({ ...newItem, user_id: agencyId });
+          } else {
+            result = await supabase.from(table).insert({ id, user_id: agencyId, data: newItem });
+          }
+          if (result.error) {
+            console.error(`[Supabase] Erro ao inserir em ${table}:`, result.error);
+            addToast(`Erro ao salvar no servidor: ${result.error.message}`, 'error');
+          }
+        } catch (err) {
+          console.error(`[Supabase] Erro crítico em ${table}:`, err);
+          addToast(`Erro de conexão ao salvar: ${err.message}`, 'error');
         }
-        
-        // Timeout to prevent hanging
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Supabase timeout')), 5000));
-        const { error } = await Promise.race([insertPromise, timeoutPromise]);
-        
-        if (error) {
-          console.error(`[Supabase] Erro ao inserir em ${table}:`, error);
-          addToast(`Erro ao salvar dados no servidor: ${error.message}`, 'error');
-        }
-      } catch (err) {
-        console.error(`[Supabase] Catch error em ${table}:`, err);
-        addToast(`Erro crítico ao salvar: ${err.message}`, 'error');
-      }
+      };
+      doInsert();
     } else {
-      console.warn(`[Offline] Item adicionado a ${key} apenas na memória. Usuário não autenticado.`);
-      addToast('Aviso: Você não está autenticado. Os dados foram salvos apenas temporariamente na memória local.', 'warning');
+      addToast('Você não está autenticado. Dados salvos apenas temporariamente.', 'warning');
     }
+    
+    // 3) Retorna ID imediatamente (sem await)
     return id;
   }, [agencyId, addToast]);
 
-  const updateItem = useCallback(async (key, id, updates) => {
+  const updateItem = useCallback((key, id, updates) => {
     const table = toSnakeCase(key);
     
     const currentList = dataRef.current[key] || [];
@@ -194,39 +195,54 @@ export function AppProvider({ children }) {
     
     const updatedItem = { ...currentItem, ...updates };
     
+    // 1) Atualização otimista
     setData(prev => ({
       ...prev,
       [key]: (prev[key] || []).map(item => item.id === id ? updatedItem : item)
     }));
 
-    if (agencyId && updatedItem) {
-      if (['campaignTrackings', 'optimizationLogs'].includes(key)) {
-        const { error } = await supabase.from(table).update({ ...updates }).eq('id', id).eq('user_id', agencyId);
-        if (error) {
-          console.error(`[Supabase] Erro ao atualizar em ${table}:`, error);
-          await supabase.from('debug_logs').insert({ log: JSON.stringify({table, method: 'update', error}) });
-          addToast(`Erro ao sincronizar atualização: ${error.message}`, 'error');
+    // 2) Sync com Supabase em background
+    if (agencyId) {
+      const doUpdate = async () => {
+        try {
+          let result;
+          if (['campaignTrackings', 'optimizationLogs'].includes(key)) {
+            result = await supabase.from(table).update({ ...updates }).eq('id', id).eq('user_id', agencyId);
+          } else {
+            result = await supabase.from(table).update({ data: updatedItem }).eq('id', id).eq('user_id', agencyId);
+          }
+          if (result.error) {
+            console.error(`[Supabase] Erro ao atualizar ${table}:`, result.error);
+            addToast(`Erro ao sincronizar: ${result.error.message}`, 'error');
+          }
+        } catch (err) {
+          console.error(`[Supabase] Erro crítico ao atualizar ${table}:`, err);
         }
-      } else {
-        const { error } = await supabase.from(table).update({ data: { ...currentItem, ...updates } }).eq('id', id).eq('user_id', agencyId);
-        if (error) {
-          console.error(`[Supabase] Erro ao atualizar em ${table}:`, error);
-          await supabase.from('debug_logs').insert({ log: JSON.stringify({table, method: 'update', error}) });
-          addToast(`Erro ao sincronizar atualização: ${error.message}`, 'error');
-        }
-      }
+      };
+      doUpdate();
     }
   }, [agencyId, addToast]);
 
-  const deleteItem = useCallback(async (key, id) => {
+  const deleteItem = useCallback((key, id) => {
     const table = toSnakeCase(key);
+    
+    // 1) Atualização otimista
     setData(prev => ({ ...prev, [key]: prev[key].filter(item => item.id !== id) }));
+    
+    // 2) Sync com Supabase em background
     if (agencyId) {
-      const { error } = await supabase.from(table).delete().eq('id', id).eq('user_id', agencyId);
-      if (error) {
-        console.error(`[Supabase] Erro ao excluir em ${table}:`, error);
-        addToast(`Erro ao sincronizar exclusão: ${error.message}`, 'error');
-      }
+      const doDelete = async () => {
+        try {
+          const { error } = await supabase.from(table).delete().eq('id', id).eq('user_id', agencyId);
+          if (error) {
+            console.error(`[Supabase] Erro ao excluir ${table}:`, error);
+            addToast(`Erro ao excluir: ${error.message}`, 'error');
+          }
+        } catch (err) {
+          console.error(`[Supabase] Erro crítico ao excluir ${table}:`, err);
+        }
+      };
+      doDelete();
     }
   }, [agencyId, addToast]);
 
