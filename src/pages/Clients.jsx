@@ -9,13 +9,10 @@ const fmt = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: '
 const etapas = ['diagnostico', 'estrutura', 'performance', 'escala'];
 const etapaLabel = { diagnostico: '01 — Diagnóstico', estrutura: '02 — Estrutura', performance: '03 — Performance', escala: '04 — Escala' };
 
-const PRICES = { 'Starter': 1500, 'Growth': 3000, 'Scale': 5000, 'Custom': 0 };
-const PLANOS_DISPONIVEIS = Object.keys(PRICES);
-
-const emptyClient = { nome: '', empresa: '', cnpj: '', email: '', whatsapp: '', segmento: '', cidade: '', plano: ['Growth'], mrr: 3000, status: 'onboarding', responsavel: '', dataInicio: '', mesesContrato: 12, etapaLaboratorio: 'diagnostico', nps: '', observacoes: '', motivoCancelamento: '' };
+const emptyClient = { nome: '', empresa: '', cnpj: '', email: '', whatsapp: '', segmento: '', cidade: '', plano: [], mrr: 0, status: 'onboarding', responsavel: '', dataInicio: '', mesesContrato: 12, etapaLaboratorio: 'diagnostico', nps: '', observacoes: '', motivoCancelamento: '' };
 
 export default function Clients() {
-  const { clients, teamMembers, projects, financials, updateItem, addItem, deleteItem, addToast } = useApp();
+  const { clients, teamMembers, projects, financials, services, updateItem, addItem, deleteItem, addToast } = useApp();
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterPlano, setFilterPlano] = useState('');
@@ -33,6 +30,11 @@ export default function Clients() {
   }), [clients, search, filterStatus, filterPlano]);
 
   const planos = [...new Set(clients.flatMap(c => Array.isArray(c.plano) ? c.plano : [c.plano]).filter(Boolean))];
+
+  const planOptions = [
+    ...(services || []).map(s => ({ id: s.id, name: s.nome, price: Number(s.preco) || 0 })),
+    { id: 'custom', name: 'Customizado', price: 0 }
+  ];
 
   const openCreate = () => { setEditingClient(null); setFormData(emptyClient); setShowModal(true); };
   const openEdit = (client, e) => { e?.stopPropagation(); setEditingClient(client); setFormData({ ...emptyClient, ...client }); setShowModal(true); };
@@ -216,19 +218,28 @@ export default function Clients() {
           <div className="form-group"><label className="form-label">Segmento</label><input className="form-input" value={formData.segmento} onChange={e => setFormData({...formData, segmento: e.target.value})} /></div>
         </div>
         <div className="form-row">
-          <div className="form-group" style={{ flex: 1.5 }}><label className="form-label">Plano</label>
+          <div className="form-group" style={{ flex: 1.5 }}><label className="form-label">Planos e Serviços</label>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 8 }}>
-              {PLANOS_DISPONIVEIS.map(p => {
+              {planOptions.map(p => {
                 const planosAtuais = Array.isArray(formData.plano) ? formData.plano : (formData.plano ? [formData.plano] : []);
-                const isSelected = planosAtuais.includes(p);
+                const isSelected = planosAtuais.includes(p.name);
                 return (
-                  <label key={p} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer', background: isSelected ? 'rgba(255,214,0,0.1)' : 'transparent', padding: '4px 8px', borderRadius: 6, border: isSelected ? '1px solid var(--yellow)' : '1px solid var(--card-border)' }}>
+                  <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer', background: isSelected ? 'rgba(255,214,0,0.1)' : 'transparent', padding: '4px 8px', borderRadius: 6, border: isSelected ? '1px solid var(--yellow)' : '1px solid var(--card-border)' }}>
                     <input type="checkbox" checked={isSelected} onChange={(e) => {
-                      let novos = isSelected ? planosAtuais.filter(x => x !== p) : [...planosAtuais, p];
-                      let novoMrr = novos.reduce((sum, plan) => sum + (PRICES[plan] || 0), 0);
-                      setFormData({...formData, plano: novos, mrr: novoMrr});
+                      let novos = isSelected ? planosAtuais.filter(x => x !== p.name) : [...planosAtuais, p.name];
+                      let isCustom = novos.includes('Customizado');
+                      
+                      if (isCustom) {
+                        setFormData({...formData, plano: novos});
+                      } else {
+                        let novoMrr = novos.reduce((sum, planName) => {
+                          const s = planOptions.find(opt => opt.name === planName);
+                          return sum + (s ? s.price : 0);
+                        }, 0);
+                        setFormData({...formData, plano: novos, mrr: novoMrr});
+                      }
                     }} style={{ cursor: 'pointer' }} />
-                    {p}
+                    {p.name}
                   </label>
                 )
               })}
