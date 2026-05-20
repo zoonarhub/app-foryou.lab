@@ -68,11 +68,16 @@ export default function CampaignsPage() {
     setSyncing(true);
     try {
       const response = await axios.get(`https://graph.facebook.com/v18.0/me/adaccounts`, {
-        params: { access_token: token, fields: 'name,account_id,account_status' }
+        params: { access_token: token, fields: 'name,account_id,account_status,business{name}' }
       });
-      const accounts = response.data.data.map(acc => ({
-        id: acc.id, name: acc.name, status: acc.account_status === 1 ? 'active' : 'paused'
-      }));
+      const accounts = response.data.data.map(acc => {
+        const portfolioName = acc.business?.name || 'Portfólio Desconhecido';
+        return {
+          id: acc.id, 
+          name: `${portfolioName} — ${acc.name}`, 
+          status: acc.account_status === 1 ? 'active' : 'paused'
+        };
+      });
       setAdAccounts(accounts);
       if (accounts.length > 0) setActiveAccount(accounts[0]);
     } catch (err) {
@@ -223,7 +228,7 @@ export default function CampaignsPage() {
           ) : (
             <div style={{ background: COLORS.bgDark, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 8, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMuted }}>
-                {fbConnected ? 'Nenhuma conta' : 'Meta Ads Desconectado'}
+                {fbConnected ? 'Nenhum portfólio' : 'Meta Ads Desconectado'}
               </span>
             </div>
           )}
@@ -239,7 +244,7 @@ export default function CampaignsPage() {
             </button>
           ) : (
             <button onClick={handleFBLogin} style={{ background: COLORS.yellow, border: 'none', color: '#000', borderRadius: 8, padding: '8px 16px', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-              <Plus size={16} /> Conectar Conta
+              <Plus size={16} /> Conectar Portfólio
             </button>
           )}
         </div>
@@ -418,7 +423,7 @@ function ConnectMetaState({ onConnect }) {
           Visualize métricas de performance, gerencie suas campanhas de Facebook & Instagram Ads e tenha insights em tempo real diretamente no seu dashboard.
         </p>
         <button onClick={onConnect} style={{ width: '100%', padding: '12px 24px', background: COLORS.yellow, border: 'none', color: '#000', borderRadius: 8, fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 14px rgba(255, 214, 0, 0.3)' }}>
-          <Plus size={18} /> Conectar Conta do Facebook
+          <Plus size={18} /> Conectar Portfólio Empresarial
         </button>
       </div>
     </div>
