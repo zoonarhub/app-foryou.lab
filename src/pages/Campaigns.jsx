@@ -43,6 +43,7 @@ export default function CampaignsPage() {
   const [fbConnected, setFbConnected] = useState(() => !!localStorage.getItem('fb_ads_token'));
   const [syncing, setSyncing] = useState(false);
   const [adAccounts, setAdAccounts] = useState([]);
+  const [activePortfolio, setActivePortfolio] = useState(null);
   const [activeAccount, setActiveAccount] = useState(null);
   const [datePreset, setDatePreset] = useState('last_30d');
   
@@ -68,18 +69,26 @@ export default function CampaignsPage() {
     setSyncing(true);
     try {
       const response = await axios.get(`https://graph.facebook.com/v18.0/me/adaccounts`, {
-        params: { access_token: token, fields: 'name,account_id,account_status,business{name}' }
+        params: { access_token: token, fields: 'name,account_id,account_status,business{name,id}' }
       });
       const accounts = response.data.data.map(acc => {
-        const portfolioName = acc.business?.name || 'Portfólio Desconhecido';
+        const portfolioName = acc.business?.name || 'Portfólio Pessoal (Sem BM)';
+        const portfolioId = acc.business?.id || 'personal';
         return {
           id: acc.id, 
-          name: `${portfolioName} — ${acc.name}`, 
-          status: acc.account_status === 1 ? 'active' : 'paused'
+          name: acc.name, 
+          status: acc.account_status === 1 ? 'active' : 'paused',
+          portfolioId,
+          portfolioName
         };
       });
       setAdAccounts(accounts);
-      if (accounts.length > 0) setActiveAccount(accounts[0]);
+      if (accounts.length > 0) {
+        const uniquePortfolios = [...new Map(accounts.map(item => [item.portfolioId, { id: item.portfolioId, name: item.portfolioName }])).values()];
+        setActivePortfolio(uniquePortfolios[0].id);
+        const firstAccount = accounts.find(a => a.portfolioId === uniquePortfolios[0].id);
+        if (firstAccount) setActiveAccount(firstAccount);
+      }
     } catch (err) {
       if (err.response?.status === 401) {
         localStorage.removeItem('fb_ads_token');
@@ -203,28 +212,62 @@ export default function CampaignsPage() {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           {fbConnected && adAccounts.length > 0 ? (
-            <select
-              value={activeAccount?.id || ''}
-              onChange={e => {
-                const selected = adAccounts.find(acc => acc.id === e.target.value);
-                if (selected) setActiveAccount(selected);
-              }}
-              style={{
-                background: COLORS.bgDark,
-                border: `1px solid ${COLORS.cardBorder}`,
-                color: COLORS.text,
-                borderRadius: 8,
-                padding: '8px 16px',
-                fontSize: 13,
-                fontWeight: 600,
-                outline: 'none',
-                cursor: 'pointer'
-              }}
-            >
-              {adAccounts.map(acc => (
-                <option key={acc.id} value={acc.id} style={{ background: '#000', color: '#FFF' }}>{acc.name}</option>
-              ))}
-            </select>
+            <>
+              <select
+                value={activePortfolio || ''}
+                onChange={e => {
+                  setActivePortfolio(e.target.value);
+                  const firstOfPortfolio = adAccounts.find(acc => acc.portfolioId === e.target.value);
+                  if (firstOfPortfolio) setActiveAccount(firstOfPortfolio);
+                }}
+                style={{
+                  background: COLORS.bgDark,
+                  border: `1px solid ${COLORS.cardBorder}`,
+                  color: COLORS.text,
+                  borderRadius: 8,
+                  padding: '8px 16px',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  outline: 'none',
+                  cursor: 'pointer',
+                  maxWidth: 220,
+                  textOverflow: 'ellipsis'
+                }}
+              >
+                {[...new Map(adAccounts.map(item => [item.portfolioId, item])).values()].map(acc => (
+                  <option key={acc.portfolioId} value={acc.portfolioId} style={{ background: '#000', color: '#FFF' }}>
+                    {acc.portfolioName}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={activeAccount?.id || ''}
+                onChange={e => {
+                  const selected = adAccounts.find(acc => acc.id === e.target.value);
+                  if (selected) setActiveAccount(selected);
+                }}
+                style={{
+                  background: COLORS.bgDark,
+                  border: `1px solid ${COLORS.cardBorder}`,
+                  color: COLORS.text,
+                  borderRadius: 8,
+                  padding: '8px 16px',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  outline: 'none',
+                  cursor: 'pointer',
+                  maxWidth: 220,
+                  textOverflow: 'ellipsis'
+                }}
+              >
+                {adAccounts.filter(a => a.portfolioId === activePortfolio).map(acc => (
+                  <option key={acc.id} value={acc.id} style={{ background: '#000', color: '#FFF' }}>
+                    {acc.name}
+                  </option>
+                ))}
+              </select>
+            </>
           ) : (
             <div style={{ background: COLORS.bgDark, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 8, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMuted }}>
