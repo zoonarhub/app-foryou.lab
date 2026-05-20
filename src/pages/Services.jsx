@@ -18,17 +18,21 @@ export default function Services() {
   const openCreate = () => { setEditingService(null); setFormData({ nome: '', descricao: '', preco: 0 }); setShowModal(true); };
   const openEdit = (s) => { setEditingService(s); setFormData({ ...s }); setShowModal(true); };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.nome || formData.preco <= 0) { addToast('Nome e preço são obrigatórios', 'error'); return; }
     
-    if (editingService) {
-      updateItem('services', editingService.id, formData);
-      addToast('Serviço atualizado!');
-    } else {
-      addItem('services', formData);
-      addToast('Serviço criado!');
+    try {
+      if (editingService) {
+        await updateItem('services', editingService.id, formData);
+        addToast('Serviço atualizado!');
+      } else {
+        await addItem('services', formData);
+        addToast('Serviço criado!');
+      }
+      setShowModal(false);
+    } catch (error) {
+      console.error("Erro ao salvar serviço:", error);
     }
-    setShowModal(false);
   };
 
   const handleDelete = (id) => {

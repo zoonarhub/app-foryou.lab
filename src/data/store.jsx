@@ -150,7 +150,7 @@ export function AppProvider({ children }) {
     await supabase.auth.signOut();
   };
 
-  const addItem = useCallback((key, item) => {
+  const addItem = useCallback(async (key, item) => {
     const id = item.id || crypto.randomUUID();
     const table = toSnakeCase(key);
     const newItem = { ...item, id };
@@ -158,35 +158,36 @@ export function AppProvider({ children }) {
     // 1) Atualização otimista — UI atualiza instantaneamente
     setData(prev => ({ ...prev, [key]: [...prev[key], newItem] }));
     
-    // 2) Sync com Supabase em background (fire-and-forget)
+    // 2) Sync com Supabase — agora awaitable
     if (agencyId) {
-      const doInsert = async () => {
-        try {
-          let result;
-          if (['campaignTrackings', 'optimizationLogs'].includes(key)) {
-            result = await supabase.from(table).insert({ ...newItem, user_id: agencyId });
-          } else {
-            result = await supabase.from(table).insert({ id, user_id: agencyId, data: newItem });
-          }
-          if (result.error) {
-            console.error(`[Supabase] Erro ao inserir em ${table}:`, result.error);
-            addToast(`Erro ao salvar no servidor: ${result.error.message}`, 'error');
-          }
-        } catch (err) {
-          console.error(`[Supabase] Erro crítico em ${table}:`, err);
-          addToast(`Erro de conexão ao salvar: ${err.message}`, 'error');
+      try {
+        let result;
+        if (['campaignTrackings', 'optimizationLogs'].includes(key)) {
+          result = await supabase.from(table).insert({ ...newItem, user_id: agencyId });
+        } else {
+          result = await supabase.from(table).insert({ id, user_id: agencyId, data: newItem });
         }
-      };
-      doInsert();
+        if (result.error) {
+          console.error(`[Supabase] Erro ao inserir em ${table}:`, result.error);
+          // Reverte a atualização otimista
+          setData(prev => ({ ...prev, [key]: prev[key].filter(i => i.id !== id) }));
+          throw new Error(result.error.message);
+        }
+      } catch (err) {
+        console.error(`[Supabase] Erro crítico em ${table}:`, err);
+        // Reverte a atualização otimista
+        setData(prev => ({ ...prev, [key]: prev[key].filter(i => i.id !== id) }));
+        throw err;
+      }
     } else {
       addToast('Você não está autenticado. Dados salvos apenas temporariamente.', 'warning');
     }
     
-    // 3) Retorna ID imediatamente (sem await)
+    // 3) Retorna ID após confirmar persistência
     return id;
   }, [agencyId, addToast]);
 
-  const updateItem = useCallback((key, id, updates) => {
+  const updateItem = useCallback(async (key, id, updates) => {
     const table = toSnakeCase(key);
     
     const currentList = dataRef.current[key] || [];
@@ -201,25 +202,33 @@ export function AppProvider({ children }) {
       [key]: (prev[key] || []).map(item => item.id === id ? updatedItem : item)
     }));
 
-    // 2) Sync com Supabase em background
+    // 2) Sync com Supabase — agora awaitable
     if (agencyId) {
-      const doUpdate = async () => {
-        try {
-          let result;
-          if (['campaignTrackings', 'optimizationLogs'].includes(key)) {
-            result = await supabase.from(table).update({ ...updates }).eq('id', id).eq('user_id', agencyId);
-          } else {
-            result = await supabase.from(table).update({ data: updatedItem }).eq('id', id).eq('user_id', agencyId);
-          }
-          if (result.error) {
-            console.error(`[Supabase] Erro ao atualizar ${table}:`, result.error);
-            addToast(`Erro ao sincronizar: ${result.error.message}`, 'error');
-          }
-        } catch (err) {
-          console.error(`[Supabase] Erro crítico ao atualizar ${table}:`, err);
+      try {
+        let result;
+        if (['campaignTrackings', 'optimizationLogs'].includes(key)) {
+          result = await supabase.from(table).update({ ...updates }).eq('id', id).eq('user_id', agencyId);
+        } else {
+          result = await supabase.from(table).update({ data: updatedItem }).eq('id', id).eq('user_id', agencyId);
         }
-      };
-      doUpdate();
+        if (result.error) {
+          console.error(`[Supabase] Erro ao atualizar ${table}:`, result.error);
+          // Reverte a atualização otimista
+          setData(prev => ({
+            ...prev,
+            [key]: (prev[key] || []).map(item => item.id === id ? currentItem : item)
+          }));
+          throw new Error(result.error.message);
+        }
+      } catch (err) {
+        console.error(`[Supabase] Erro crítico ao atualizar ${table}:`, err);
+        // Reverte a atualização otimista
+        setData(prev => ({
+          ...prev,
+          [key]: (prev[key] || []).map(item => item.id === id ? currentItem : item)
+        }));
+        throw err;
+      }
     }
   }, [agencyId, addToast]);
 

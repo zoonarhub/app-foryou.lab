@@ -45,36 +45,42 @@ export default function Clients() {
   const openCreate = () => { setEditingClient(null); setFormData(emptyClient); setShowModal(true); };
   const openEdit = (client, e) => { e?.stopPropagation(); setEditingClient(client); setFormData({ ...emptyClient, ...client }); setShowModal(true); };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.nome || !formData.empresa) { addToast('Nome e Empresa obrigatórios', 'error'); return; }
-    if (editingClient) { 
-      updateItem('clients', editingClient.id, formData); 
-      addToast('Cliente atualizado!'); 
-    } else { 
-      const dataInicio = formData.dataInicio || new Date().toISOString().split('T')[0];
-      const newClientData = { ...formData, dataInicio };
-      const clientId = addItem('clients', newClientData); 
-      addToast('Cliente criado!'); 
+    
+    try {
+      if (editingClient) { 
+        await updateItem('clients', editingClient.id, formData); 
+        addToast('Cliente atualizado!'); 
+      } else { 
+        const dataInicio = formData.dataInicio || new Date().toISOString().split('T')[0];
+        const newClientData = { ...formData, dataInicio };
+        const clientId = await addItem('clients', newClientData); 
+        addToast('Cliente criado!'); 
 
-      if (formData.mesesContrato && formData.mrr > 0) {
-        const [yy, mm, dd] = dataInicio.split('-').map(Number);
-        for (let i = 0; i < formData.mesesContrato; i++) {
-          const vDate = new Date(yy, mm - 1 + i, dd);
-          addItem('financials', {
-            descricao: `Mensalidade ${i + 1}/${formData.mesesContrato} - ${formData.empresa}`,
-            tipo: 'receita',
-            valor: formData.mrr,
-            status: 'pendente',
-            dataVencimento: vDate.toISOString().split('T')[0],
-            dataPagamento: '',
-            categoria: 'Mensalidade',
-            clienteId: clientId
-          });
+        if (formData.mesesContrato && formData.mrr > 0) {
+          const [yy, mm, dd] = dataInicio.split('-').map(Number);
+          for (let i = 0; i < formData.mesesContrato; i++) {
+            const vDate = new Date(yy, mm - 1 + i, dd);
+            await addItem('financials', {
+              descricao: `Mensalidade ${i + 1}/${formData.mesesContrato} - ${formData.empresa}`,
+              tipo: 'receita',
+              valor: formData.mrr,
+              status: 'pendente',
+              dataVencimento: vDate.toISOString().split('T')[0],
+              dataPagamento: '',
+              categoria: 'Mensalidade',
+              clienteId: clientId
+            });
+          }
+          addToast(`${formData.mesesContrato} faturamentos gerados!`);
         }
-        addToast(`${formData.mesesContrato} faturamentos gerados!`);
       }
+      setShowModal(false);
+    } catch (error) {
+      // O addToast de erro já é chamado dentro do addItem/updateItem
+      console.error("Erro ao salvar cliente:", error);
     }
-    setShowModal(false);
   };
 
   const handleDelete = (id, e) => {
