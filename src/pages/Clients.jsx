@@ -5,7 +5,7 @@ import Modal from '../components/Modal';
 
 const statusBadge = { ativo: 'badge-green', onboarding: 'badge-blue', pausado: 'badge-yellow', cancelado: 'badge-red' };
 const statusLabel = { ativo: 'Ativo', onboarding: 'Onboarding', pausado: 'Pausado', cancelado: 'Cancelado' };
-const fmt = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 }).format(v);
+const fmt = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 }).format(v || 0);
 const etapas = ['diagnostico', 'estrutura', 'performance', 'escala'];
 const etapaLabel = { diagnostico: '01 — Diagnóstico', estrutura: '02 — Estrutura', performance: '03 — Performance', escala: '04 — Escala' };
 
@@ -22,14 +22,20 @@ export default function Clients() {
   const [editingClient, setEditingClient] = useState(null);
   const [formData, setFormData] = useState(emptyClient);
 
-  const filtered = useMemo(() => clients.filter(c => {
-    if (search && !c.nome.toLowerCase().includes(search.toLowerCase()) && !c.empresa.toLowerCase().includes(search.toLowerCase())) return false;
+  const filtered = useMemo(() => (clients || []).filter(c => {
+    if (!c) return false;
+    const nome = c.nome || '';
+    const empresa = c.empresa || '';
+    if (search && !nome.toLowerCase().includes(search.toLowerCase()) && !empresa.toLowerCase().includes(search.toLowerCase())) return false;
     if (filterStatus && c.status !== filterStatus) return false;
-    if (filterPlano && c.plano !== filterPlano) return false;
+    if (filterPlano) {
+      const planosAtuais = Array.isArray(c.plano) ? c.plano : (c.plano ? [c.plano] : []);
+      if (!planosAtuais.includes(filterPlano)) return false;
+    }
     return true;
   }), [clients, search, filterStatus, filterPlano]);
 
-  const planos = [...new Set(clients.flatMap(c => Array.isArray(c.plano) ? c.plano : [c.plano]).filter(Boolean))];
+  const planos = [...new Set((clients || []).flatMap(c => Array.isArray(c.plano) ? c.plano : [c.plano]).filter(Boolean))];
 
   const planOptions = [
     ...(services || []).map(s => ({ id: s.id, name: s.nome, price: Number(s.preco) || 0 })),
@@ -104,29 +110,30 @@ export default function Clients() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16 }}>
           {filtered.map(client => {
-            const member = teamMembers.find(m => m.id === client.responsavel);
+            const member = (teamMembers || []).find(m => m.id === client.responsavel);
+            const empresaNome = client.empresa || 'Sem Empresa';
             return (
               <div key={client.id} className="card" style={{ padding: 20, cursor: 'pointer' }} onClick={() => { setSelectedClient(client); setActiveTab('dados'); }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                   <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                     <div className="avatar avatar-lg" style={{ background: client.status === 'ativo' ? '#FFD600' : '#2a2a2a' }}>
-                      {client.empresa.slice(0, 2).toUpperCase()}
+                      {empresaNome.slice(0, 2).toUpperCase()}
                     </div>
                     <div>
-                      <div style={{ fontWeight: 700, fontSize: 15 }}>{client.empresa}</div>
-                      <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{client.nome}</div>
+                      <div style={{ fontWeight: 700, fontSize: 15 }}>{empresaNome}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{client.nome || 'Sem Nome'}</div>
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                    <span className={`badge ${statusBadge[client.status]}`}>{statusLabel[client.status]}</span>
+                    <span className={`badge ${statusBadge[client.status] || 'badge-gray'}`}>{statusLabel[client.status] || client.status}</span>
                     <button onClick={e => openEdit(client, e)} className="btn btn-sm btn-secondary" style={{ padding: '3px 6px' }}><Edit2 size={12} /></button>
                     <button onClick={e => handleDelete(client.id, e)} className="btn btn-sm btn-secondary" style={{ padding: '3px 6px', color: 'var(--red)', borderColor: 'var(--card-border)' }}><Trash2 size={12} /></button>
                   </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 13 }}>
-                  <div><span style={{ color: 'var(--text-secondary)' }}>Plano:</span> <strong>{Array.isArray(client.plano) ? client.plano.join(', ') : client.plano}</strong></div>
+                  <div><span style={{ color: 'var(--text-secondary)' }}>Plano:</span> <strong>{Array.isArray(client.plano) ? client.plano.join(', ') : (client.plano || '—')}</strong></div>
                   <div><span style={{ color: 'var(--text-secondary)' }}>MRR:</span> <strong style={{ color: '#22C55E' }}>{fmt(client.mrr)}</strong></div>
-                  <div><span style={{ color: 'var(--text-secondary)' }}>Account:</span> {member?.nome.split(' ')[0] || '—'}</div>
+                  <div><span style={{ color: 'var(--text-secondary)' }}>Account:</span> {member?.nome ? member.nome.split(' ')[0] : '—'}</div>
                   <div><span style={{ color: 'var(--text-secondary)' }}>NPS:</span> {client.nps ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>{client.nps} <Star size={12} fill="#FFD600" color="#FFD600" /></span> : '—'}</div>
                 </div>
               </div>
@@ -144,7 +151,7 @@ export default function Clients() {
           </div>
           {activeTab === 'dados' && (
             <div>
-              {[['Nome', selectedClient.nome], ['Empresa', selectedClient.empresa], ['CNPJ', selectedClient.cnpj], ['Email', selectedClient.email], ['WhatsApp', selectedClient.whatsapp], ['Segmento', selectedClient.segmento], ['Cidade', selectedClient.cidade], ['Plano', Array.isArray(selectedClient.plano) ? selectedClient.plano.join(', ') : selectedClient.plano], ['MRR', fmt(selectedClient.mrr)], ['Status', statusLabel[selectedClient.status]], ['Início', selectedClient.dataInicio ? new Date(selectedClient.dataInicio).toLocaleDateString('pt-BR') : '—'], ['Contrato (Meses)', selectedClient.mesesContrato || '—']].map(([k,v]) => (
+              {[['Nome', selectedClient.nome], ['Empresa', selectedClient.empresa], ['CNPJ', selectedClient.cnpj], ['Email', selectedClient.email], ['WhatsApp', selectedClient.whatsapp], ['Segmento', selectedClient.segmento], ['Cidade', selectedClient.cidade], ['Plano', Array.isArray(selectedClient.plano) ? selectedClient.plano.join(', ') : selectedClient.plano], ['MRR', fmt(selectedClient.mrr)], ['Status', statusLabel[selectedClient.status] || selectedClient.status], ['Início', selectedClient.dataInicio ? new Date(selectedClient.dataInicio).toLocaleDateString('pt-BR') : '—'], ['Contrato (Meses)', selectedClient.mesesContrato || '—']].map(([k,v]) => (
                 <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--card-border)', fontSize: 13 }}>
                   <span style={{ color: 'var(--text-secondary)' }}>{k}</span><span style={{ fontWeight: 600 }}>{v || '—'}</span>
                 </div>
@@ -158,19 +165,19 @@ export default function Clients() {
           )}
           {activeTab === 'servicos' && (
             <div style={{ padding: 16, background: 'rgba(255,214,0,.08)', borderRadius: 8 }}>
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>Planos: {Array.isArray(selectedClient.plano) ? selectedClient.plano.join(', ') : selectedClient.plano}</div>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>Planos: {Array.isArray(selectedClient.plano) ? selectedClient.plano.join(', ') : (selectedClient.plano || '—')}</div>
               <div style={{ fontSize: 13, color: '#22C55E', fontWeight: 600 }}>MRR: {fmt(selectedClient.mrr)}/mês</div>
             </div>
           )}
           {activeTab === 'financeiro' && (
-            <div>{financials.filter(f => f.clienteId === selectedClient.id).length > 0 ? financials.filter(f => f.clienteId === selectedClient.id).map(f => (
+            <div>{(financials || []).filter(f => f.clienteId === selectedClient.id).length > 0 ? (financials || []).filter(f => f.clienteId === selectedClient.id).map(f => (
               <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--card-border)', fontSize: 13 }}>
                 <span>{f.descricao}</span><span style={{ color: f.tipo === 'receita' ? '#22C55E' : '#EF4444', fontWeight: 600 }}>{fmt(f.valor)}</span>
               </div>
             )) : <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>Sem lançamentos vinculados.</div>}</div>
           )}
           {activeTab === 'projetos' && (
-            <div>{projects.filter(p => p.clienteId === selectedClient.id).length > 0 ? projects.filter(p => p.clienteId === selectedClient.id).map(p => (
+            <div>{(projects || []).filter(p => p.clienteId === selectedClient.id).length > 0 ? (projects || []).filter(p => p.clienteId === selectedClient.id).map(p => (
               <div key={p.id} style={{ padding: 12, border: '1px solid var(--card-border)', borderRadius: 8, marginBottom: 8 }}>
                 <div style={{ fontWeight: 600, fontSize: 13 }}>{p.titulo}</div>
                 <div className="progress-bar" style={{ marginTop: 6, height: 4 }}><div className="progress-fill" style={{ width: `${p.progresso || 0}%` }} /></div>
@@ -179,7 +186,7 @@ export default function Clients() {
           )}
           {activeTab === 'laboratorio' && (
             <div>
-              <div style={{ fontWeight: 700, marginBottom: 12 }}>Etapa: {etapaLabel[selectedClient.etapaLaboratorio]}</div>
+              <div style={{ fontWeight: 700, marginBottom: 12 }}>Etapa: {etapaLabel[selectedClient.etapaLaboratorio] || selectedClient.etapaLaboratorio}</div>
               <div style={{ display: 'flex', gap: 8 }}>
                 {etapas.map((e, i) => {
                   const active = selectedClient.etapaLaboratorio === e;
@@ -206,16 +213,16 @@ export default function Clients() {
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editingClient ? '✏️ Editar Cliente' : '➕ Novo Cliente'} size="lg"
         footer={<><button className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancelar</button><button className="btn btn-primary" onClick={handleSave}>{editingClient ? 'Salvar' : 'Criar'}</button></>}>
         <div className="form-row">
-          <div className="form-group"><label className="form-label">Nome *</label><input className="form-input" value={formData.nome} onChange={e => setFormData({...formData, nome: e.target.value})} /></div>
-          <div className="form-group"><label className="form-label">Empresa *</label><input className="form-input" value={formData.empresa} onChange={e => setFormData({...formData, empresa: e.target.value})} /></div>
+          <div className="form-group"><label className="form-label">Nome *</label><input className="form-input" value={formData.nome || ''} onChange={e => setFormData({...formData, nome: e.target.value})} /></div>
+          <div className="form-group"><label className="form-label">Empresa *</label><input className="form-input" value={formData.empresa || ''} onChange={e => setFormData({...formData, empresa: e.target.value})} /></div>
         </div>
         <div className="form-row">
-          <div className="form-group"><label className="form-label">CNPJ</label><input className="form-input" value={formData.cnpj} onChange={e => setFormData({...formData, cnpj: e.target.value})} /></div>
-          <div className="form-group"><label className="form-label">Email</label><input className="form-input" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /></div>
+          <div className="form-group"><label className="form-label">CNPJ</label><input className="form-input" value={formData.cnpj || ''} onChange={e => setFormData({...formData, cnpj: e.target.value})} /></div>
+          <div className="form-group"><label className="form-label">Email</label><input className="form-input" type="email" value={formData.email || ''} onChange={e => setFormData({...formData, email: e.target.value})} /></div>
         </div>
         <div className="form-row">
-          <div className="form-group"><label className="form-label">WhatsApp</label><input className="form-input" value={formData.whatsapp} onChange={e => setFormData({...formData, whatsapp: e.target.value})} /></div>
-          <div className="form-group"><label className="form-label">Segmento</label><input className="form-input" value={formData.segmento} onChange={e => setFormData({...formData, segmento: e.target.value})} /></div>
+          <div className="form-group"><label className="form-label">WhatsApp</label><input className="form-input" value={formData.whatsapp || ''} onChange={e => setFormData({...formData, whatsapp: e.target.value})} /></div>
+          <div className="form-group"><label className="form-label">Segmento</label><input className="form-input" value={formData.segmento || ''} onChange={e => setFormData({...formData, segmento: e.target.value})} /></div>
         </div>
         <div className="form-row">
           <div className="form-group" style={{ flex: 1.5 }}><label className="form-label">Planos e Serviços</label>
@@ -245,7 +252,7 @@ export default function Clients() {
               })}
             </div>
           </div>
-          <div className="form-group" style={{ flex: 0.5 }}><label className="form-label">MRR (R$)</label><input className="form-input" type="number" value={formData.mrr} onChange={e => setFormData({...formData, mrr: Number(e.target.value)})} /></div>
+          <div className="form-group" style={{ flex: 0.5 }}><label className="form-label">MRR (R$)</label><input className="form-input" type="number" value={formData.mrr || 0} onChange={e => setFormData({...formData, mrr: Number(e.target.value)})} /></div>
         </div>
         <div className="form-row">
           <div className="form-group"><label className="form-label">Data de Início</label><input className="form-input" type="date" value={formData.dataInicio || ''} onChange={e => setFormData({...formData, dataInicio: e.target.value})} /></div>
@@ -253,12 +260,12 @@ export default function Clients() {
         </div>
         <div className="form-row">
           <div className="form-group"><label className="form-label">Status</label>
-            <select className="form-select" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
+            <select className="form-select" value={formData.status || 'onboarding'} onChange={e => setFormData({...formData, status: e.target.value})}>
               {Object.entries(statusLabel).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
             </select></div>
           <div className="form-group"><label className="form-label">Responsável</label>
-            <select className="form-select" value={formData.responsavel} onChange={e => setFormData({...formData, responsavel: e.target.value})}>
-              <option value="">Selecione...</option>{teamMembers.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
+            <select className="form-select" value={formData.responsavel || ''} onChange={e => setFormData({...formData, responsavel: e.target.value})}>
+              <option value="">Selecione...</option>{(teamMembers || []).map(m => <option key={m.id} value={m.id}>{m.nome || ''}</option>)}
             </select></div>
         </div>
         {formData.status === 'cancelado' && (
@@ -269,3 +276,4 @@ export default function Clients() {
     </>
   );
 }
+
