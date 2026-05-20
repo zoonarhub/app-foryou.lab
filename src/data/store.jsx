@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
 const AppContext = createContext(null);
@@ -16,6 +16,9 @@ const toSnakeCase = str => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCas
 
 export function AppProvider({ children }) {
   const [data, setData] = useState(emptyData);
+  const dataRef = useRef(data);
+  useEffect(() => { dataRef.current = data; }, [data]);
+
   const [toasts, setToasts] = useState([]);
   const [auth, setAuth] = useState(null);
   const [agencyId, setAgencyId] = useState(null);
@@ -148,7 +151,7 @@ export function AppProvider({ children }) {
   };
 
   const addItem = useCallback(async (key, item) => {
-    const id = Date.now().toString();
+    const id = item.id || crypto.randomUUID();
     const table = toSnakeCase(key);
     const newItem = { ...item, id };
     
@@ -177,18 +180,17 @@ export function AppProvider({ children }) {
 
   const updateItem = useCallback(async (key, id, updates) => {
     const table = toSnakeCase(key);
-    let updatedItem = null;
     
-    setData(prev => {
-      const items = prev[key].map(item => {
-        if (item.id === id) {
-          updatedItem = { ...item, ...updates };
-          return updatedItem;
-        }
-        return item;
-      });
-      return { ...prev, [key]: items };
-    });
+    const currentList = dataRef.current[key] || [];
+    const currentItem = currentList.find(item => item.id === id);
+    if (!currentItem) return;
+    
+    const updatedItem = { ...currentItem, ...updates };
+    
+    setData(prev => ({
+      ...prev,
+      [key]: (prev[key] || []).map(item => item.id === id ? updatedItem : item)
+    }));
 
     if (agencyId && updatedItem) {
       if (['campaignTrackings', 'optimizationLogs'].includes(key)) {
