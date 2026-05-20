@@ -157,17 +157,24 @@ export function AppProvider({ children }) {
     
     setData(prev => ({ ...prev, [key]: [...prev[key], newItem] }));
     
+    // DEBUG: Log every attempt
+    try {
+      await supabase.from('debug_logs').insert({ log: JSON.stringify({ action: 'addItem_start', key, agencyId, id, newItem }) });
+    } catch(e) {}
+    
     if (agencyId) {
       if (['campaignTrackings', 'optimizationLogs'].includes(key)) {
         const { error } = await supabase.from(table).insert({ ...newItem, user_id: agencyId });
         if (error) {
           console.error(`[Supabase] Erro ao inserir em ${table}:`, error);
+          await supabase.from('debug_logs').insert({ log: JSON.stringify({table, error, payload: { ...newItem, user_id: agencyId }}) });
           addToast(`Erro ao salvar dados no servidor: ${error.message}`, 'error');
         }
       } else {
         const { error } = await supabase.from(table).insert({ id, user_id: agencyId, data: newItem });
         if (error) {
           console.error(`[Supabase] Erro ao inserir em ${table}:`, error);
+          await supabase.from('debug_logs').insert({ log: JSON.stringify({table, error, payload: { id, user_id: agencyId, data: newItem }}) });
           addToast(`Erro ao salvar dados no servidor: ${error.message}`, 'error');
         }
       }
@@ -194,15 +201,17 @@ export function AppProvider({ children }) {
 
     if (agencyId && updatedItem) {
       if (['campaignTrackings', 'optimizationLogs'].includes(key)) {
-        const { error } = await supabase.from(table).update(updates).eq('id', id).eq('user_id', agencyId);
+        const { error } = await supabase.from(table).update({ ...updates }).eq('id', id).eq('user_id', agencyId);
         if (error) {
-          console.error(`[Supabase] Erro ao atualizar ${table}:`, error);
+          console.error(`[Supabase] Erro ao atualizar em ${table}:`, error);
+          await supabase.from('debug_logs').insert({ log: JSON.stringify({table, method: 'update', error}) });
           addToast(`Erro ao sincronizar atualização: ${error.message}`, 'error');
         }
       } else {
-        const { error } = await supabase.from(table).update({ data: updatedItem }).eq('id', id).eq('user_id', agencyId);
+        const { error } = await supabase.from(table).update({ data: { ...currentItem, ...updates } }).eq('id', id).eq('user_id', agencyId);
         if (error) {
-          console.error(`[Supabase] Erro ao atualizar ${table}:`, error);
+          console.error(`[Supabase] Erro ao atualizar em ${table}:`, error);
+          await supabase.from('debug_logs').insert({ log: JSON.stringify({table, method: 'update', error}) });
           addToast(`Erro ao sincronizar atualização: ${error.message}`, 'error');
         }
       }
