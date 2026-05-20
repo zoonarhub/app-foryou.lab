@@ -157,26 +157,26 @@ export function AppProvider({ children }) {
     
     setData(prev => ({ ...prev, [key]: [...prev[key], newItem] }));
     
-    // DEBUG: Log every attempt
-    try {
-      await supabase.from('debug_logs').insert({ log: JSON.stringify({ action: 'addItem_start', key, agencyId, id, newItem }) });
-    } catch(e) {}
-    
     if (agencyId) {
-      if (['campaignTrackings', 'optimizationLogs'].includes(key)) {
-        const { error } = await supabase.from(table).insert({ ...newItem, user_id: agencyId });
+      try {
+        let insertPromise;
+        if (['campaignTrackings', 'optimizationLogs'].includes(key)) {
+          insertPromise = supabase.from(table).insert({ ...newItem, user_id: agencyId });
+        } else {
+          insertPromise = supabase.from(table).insert({ id, user_id: agencyId, data: newItem });
+        }
+        
+        // Timeout to prevent hanging
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Supabase timeout')), 5000));
+        const { error } = await Promise.race([insertPromise, timeoutPromise]);
+        
         if (error) {
           console.error(`[Supabase] Erro ao inserir em ${table}:`, error);
-          await supabase.from('debug_logs').insert({ log: JSON.stringify({table, error, payload: { ...newItem, user_id: agencyId }}) });
           addToast(`Erro ao salvar dados no servidor: ${error.message}`, 'error');
         }
-      } else {
-        const { error } = await supabase.from(table).insert({ id, user_id: agencyId, data: newItem });
-        if (error) {
-          console.error(`[Supabase] Erro ao inserir em ${table}:`, error);
-          await supabase.from('debug_logs').insert({ log: JSON.stringify({table, error, payload: { id, user_id: agencyId, data: newItem }}) });
-          addToast(`Erro ao salvar dados no servidor: ${error.message}`, 'error');
-        }
+      } catch (err) {
+        console.error(`[Supabase] Catch error em ${table}:`, err);
+        addToast(`Erro crítico ao salvar: ${err.message}`, 'error');
       }
     } else {
       console.warn(`[Offline] Item adicionado a ${key} apenas na memória. Usuário não autenticado.`);
