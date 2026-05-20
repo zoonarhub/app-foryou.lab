@@ -151,7 +151,12 @@ export function AppProvider({ children }) {
   };
 
   const addItem = useCallback(async (key, item) => {
-    const id = item.id || crypto.randomUUID();
+    // Evita crashes em contextos onde crypto.randomUUID não existe
+    const generateId = () => {
+      if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+      return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    };
+    const id = item.id || generateId();
     const table = toSnakeCase(key);
     const newItem = { ...item, id };
     
@@ -169,12 +174,14 @@ export function AppProvider({ children }) {
         }
         if (result.error) {
           console.error(`[Supabase] Erro ao inserir em ${table}:`, result.error);
+          addToast(`Erro ao salvar no servidor: ${result.error.message}`, 'error');
           // Reverte a atualização otimista
           setData(prev => ({ ...prev, [key]: prev[key].filter(i => i.id !== id) }));
           throw new Error(result.error.message);
         }
       } catch (err) {
         console.error(`[Supabase] Erro crítico em ${table}:`, err);
+        addToast(`Erro de conexão: ${err.message}`, 'error');
         // Reverte a atualização otimista
         setData(prev => ({ ...prev, [key]: prev[key].filter(i => i.id !== id) }));
         throw err;
@@ -213,6 +220,7 @@ export function AppProvider({ children }) {
         }
         if (result.error) {
           console.error(`[Supabase] Erro ao atualizar ${table}:`, result.error);
+          addToast(`Erro ao sincronizar: ${result.error.message}`, 'error');
           // Reverte a atualização otimista
           setData(prev => ({
             ...prev,
@@ -222,6 +230,7 @@ export function AppProvider({ children }) {
         }
       } catch (err) {
         console.error(`[Supabase] Erro crítico ao atualizar ${table}:`, err);
+        addToast(`Erro crítico: ${err.message}`, 'error');
         // Reverte a atualização otimista
         setData(prev => ({
           ...prev,

@@ -78,8 +78,8 @@ export default function Clients() {
       }
       setShowModal(false);
     } catch (error) {
-      // O addToast de erro já é chamado dentro do addItem/updateItem
       console.error("Erro ao salvar cliente:", error);
+      addToast(`Erro ao salvar: ${error.message || error}`, 'error');
     }
   };
 
