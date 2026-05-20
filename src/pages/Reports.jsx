@@ -46,28 +46,33 @@ export default function Reports() {
   const totalReports = (reports || []).length;
   const activeReports = (reports || []).filter(r => r?.status === 'ativo').length;
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!form.nome.trim()) { addToast('Digite o nome do relatório', 'error'); return; }
     if (!form.clienteId) { addToast('Selecione um cliente', 'error'); return; }
 
-    const client = clients.find(c => c.id === form.clienteId);
-    const member = teamMembers.find(m => m.id === form.responsavelId);
-    const account = adAccounts.find(a => a.id === form.contaAnuncioId);
+    try {
+      const client = clients.find(c => c.id === form.clienteId);
+      const member = teamMembers.find(m => m.id === form.responsavelId);
+      const account = adAccounts.find(a => a.id === form.contaAnuncioId);
 
-    addItem('reports', {
-      nome: form.nome.trim(),
-      clienteId: form.clienteId,
-      clienteNome: client?.empresa || '',
-      contaAnuncioId: form.contaAnuncioId || '',
-      contaAnuncioNome: account?.name || form.contaAnuncioNome || '',
-      responsavelId: form.responsavelId || '',
-      responsavelNome: member?.nome || '',
-      status: 'ativo',
-      criadoEm: new Date().toISOString(),
-    });
-    addToast('Relatório criado com sucesso!');
-    setShowModal(false);
-    setForm({ nome: '', clienteId: '', contaAnuncioId: '', contaAnuncioNome: '', responsavelId: '' });
+      await addItem('reports', {
+        nome: form.nome.trim(),
+        clienteId: form.clienteId,
+        clienteNome: client?.empresa || '',
+        contaAnuncioId: form.contaAnuncioId || '',
+        contaAnuncioNome: account?.name || form.contaAnuncioNome || '',
+        responsavelId: form.responsavelId || '',
+        responsavelNome: member?.nome || '',
+        status: 'ativo',
+        criadoEm: new Date().toISOString(),
+      });
+      addToast('Relatório criado com sucesso!');
+      setShowModal(false);
+      setForm({ nome: '', clienteId: '', contaAnuncioId: '', contaAnuncioNome: '', responsavelId: '' });
+    } catch (error) {
+      console.error("Erro ao salvar relatório:", error);
+      addToast(`Erro ao salvar: ${error.message || error}`, 'error');
+    }
   };
 
   const handleDelete = (id) => {
