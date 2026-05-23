@@ -151,7 +151,6 @@ export function AppProvider({ children }) {
   };
 
   const addItem = useCallback(async (key, item) => {
-    // Evita crashes em contextos onde crypto.randomUUID não existe
     const generateId = () => {
       if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
       return Date.now().toString(36) + Math.random().toString(36).substr(2);
@@ -160,37 +159,43 @@ export function AppProvider({ children }) {
     const table = toSnakeCase(key);
     const newItem = { ...item, id };
     
-    // 1) Atualização otimista — UI atualiza instantaneamente
+    // 1) Atualização otimista
     setData(prev => ({ ...prev, [key]: [...prev[key], newItem] }));
     
-    // 2) Sync com Supabase — agora awaitable
+    // 2) Sync com Supabase
     if (agencyId) {
+      let result;
       try {
-        let result;
+        await supabase.from('debug_logs').insert({ log: `addItem starting: table=${table}, id=${id}, user_id=${agencyId}` }).catch(() => {});
         if (['campaignTrackings', 'optimizationLogs'].includes(key)) {
           result = await supabase.from(table).insert({ ...newItem, user_id: agencyId });
         } else {
           result = await supabase.from(table).insert({ id, user_id: agencyId, data: newItem });
         }
-        if (result.error) {
-          console.error(`[Supabase] Erro ao inserir em ${table}:`, result.error);
-          addToast(`Erro ao salvar no servidor: ${result.error.message}`, 'error');
-          // Reverte a atualização otimista
-          setData(prev => ({ ...prev, [key]: prev[key].filter(i => i.id !== id) }));
-          throw new Error(result.error.message);
-        }
-      } catch (err) {
-        console.error(`[Supabase] Erro crítico em ${table}:`, err);
-        addToast(`Erro de conexão: ${err.message}`, 'error');
-        // Reverte a atualização otimista
+      } catch (networkErr) {
+        console.error(`[Supabase] Erro de rede em ${table}:`, networkErr);
+        await supabase.from('debug_logs').insert({ log: `addItem network error on table ${table}: ${networkErr.message || networkErr}` }).catch(() => {});
         setData(prev => ({ ...prev, [key]: prev[key].filter(i => i.id !== id) }));
-        throw err;
+        const msg = networkErr.message || 'Erro de conexão';
+        addToast(msg, 'error');
+        throw new Error(msg);
+      }
+      
+      if (result.error) {
+        console.error(`[Supabase] Erro ao inserir em ${table}:`, result.error);
+        await supabase.from('debug_logs').insert({ log: `addItem error on table ${table}: code=${result.error.code}, message=${result.error.message}, details=${result.error.details || ''}, hint=${result.error.hint || ''}` }).catch(() => {});
+        setData(prev => ({ ...prev, [key]: prev[key].filter(i => i.id !== id) }));
+        const msg = result.error.message || 'Erro desconhecido';
+        addToast(`Erro: ${msg}`, 'error');
+        throw new Error(msg);
+      } else {
+        await supabase.from('debug_logs').insert({ log: `addItem SUCCESS on table ${table} with id ${id}` }).catch(() => {});
       }
     } else {
-      addToast('Você não está autenticado. Dados salvos apenas temporariamente.', 'warning');
+      await supabase.from('debug_logs').insert({ log: `addItem failed: agencyId is missing/null` }).catch(() => {});
+      addToast('Você não está autenticado no banco de dados.', 'warning');
     }
     
-    // 3) Retorna ID após confirmar persistência
     return id;
   }, [agencyId, addToast]);
 
@@ -209,35 +214,44 @@ export function AppProvider({ children }) {
       [key]: (prev[key] || []).map(item => item.id === id ? updatedItem : item)
     }));
 
-    // 2) Sync com Supabase — agora awaitable
+    // 2) Sync com Supabase
     if (agencyId) {
+      let result;
       try {
-        let result;
+        await supabase.from('debug_logs').insert({ log: `updateItem starting: table=${table}, id=${id}, user_id=${agencyId}` }).catch(() => {});
         if (['campaignTrackings', 'optimizationLogs'].includes(key)) {
           result = await supabase.from(table).update({ ...updates }).eq('id', id).eq('user_id', agencyId);
         } else {
           result = await supabase.from(table).update({ data: updatedItem }).eq('id', id).eq('user_id', agencyId);
         }
-        if (result.error) {
-          console.error(`[Supabase] Erro ao atualizar ${table}:`, result.error);
-          addToast(`Erro ao sincronizar: ${result.error.message}`, 'error');
-          // Reverte a atualização otimista
-          setData(prev => ({
-            ...prev,
-            [key]: (prev[key] || []).map(item => item.id === id ? currentItem : item)
-          }));
-          throw new Error(result.error.message);
-        }
-      } catch (err) {
-        console.error(`[Supabase] Erro crítico ao atualizar ${table}:`, err);
-        addToast(`Erro crítico: ${err.message}`, 'error');
-        // Reverte a atualização otimista
+      } catch (networkErr) {
+        console.error(`[Supabase] Erro de rede ao atualizar ${table}:`, networkErr);
+        await supabase.from('debug_logs').insert({ log: `updateItem network error on table ${table}: ${networkErr.message || networkErr}` }).catch(() => {});
         setData(prev => ({
           ...prev,
           [key]: (prev[key] || []).map(item => item.id === id ? currentItem : item)
         }));
-        throw err;
+        const msg = networkErr.message || 'Erro de conexão';
+        addToast(msg, 'error');
+        throw new Error(msg);
       }
+      
+      if (result.error) {
+        console.error(`[Supabase] Erro ao atualizar ${table}:`, result.error);
+        await supabase.from('debug_logs').insert({ log: `updateItem error on table ${table}: code=${result.error.code}, message=${result.error.message}, details=${result.error.details || ''}` }).catch(() => {});
+        setData(prev => ({
+          ...prev,
+          [key]: (prev[key] || []).map(item => item.id === id ? currentItem : item)
+        }));
+        const msg = result.error.message || 'Erro desconhecido';
+        addToast(`Erro: ${msg}`, 'error');
+        throw new Error(msg);
+      } else {
+        await supabase.from('debug_logs').insert({ log: `updateItem SUCCESS on table ${table} with id ${id}` }).catch(() => {});
+      }
+    } else {
+      await supabase.from('debug_logs').insert({ log: `updateItem failed: agencyId is missing/null` }).catch(() => {});
+      addToast('Você não está autenticado no banco de dados.', 'warning');
     }
   }, [agencyId, addToast]);
 

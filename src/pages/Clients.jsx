@@ -45,9 +45,13 @@ export default function Clients() {
   const openCreate = () => { setEditingClient(null); setFormData(emptyClient); setShowModal(true); };
   const openEdit = (client, e) => { e?.stopPropagation(); setEditingClient(client); setFormData({ ...emptyClient, ...client }); setShowModal(true); };
 
+  const [isSaving, setIsSaving] = useState(false);
+
   const handleSave = async () => {
     if (!formData.nome || !formData.empresa) { addToast('Nome e Empresa obrigatórios', 'error'); return; }
+    if (isSaving) return;
     
+    setIsSaving(true);
     try {
       if (editingClient) { 
         await updateItem('clients', editingClient.id, formData); 
@@ -59,27 +63,50 @@ export default function Clients() {
         addToast('Cliente criado!'); 
 
         if (formData.mesesContrato && formData.mrr > 0) {
-          const [yy, mm, dd] = dataInicio.split('-').map(Number);
-          for (let i = 0; i < formData.mesesContrato; i++) {
-            const vDate = new Date(yy, mm - 1 + i, dd);
-            await addItem('financials', {
-              descricao: `Mensalidade ${i + 1}/${formData.mesesContrato} - ${formData.empresa}`,
-              tipo: 'receita',
-              valor: formData.mrr,
-              status: 'pendente',
-              dataVencimento: vDate.toISOString().split('T')[0],
-              dataPagamento: '',
-              categoria: 'Mensalidade',
-              clienteId: clientId
-            });
+          let yy, mm, dd;
+          if (dataInicio.includes('-')) {
+            [yy, mm, dd] = dataInicio.split('-').map(Number);
+          } else if (dataInicio.includes('/')) {
+            const parts = dataInicio.split('/');
+            if (parts[0].length === 4) {
+              [yy, mm, dd] = parts.map(Number);
+            } else {
+              [dd, mm, yy] = parts.map(Number);
+            }
+          } else {
+            const now = new Date();
+            yy = now.getFullYear();
+            mm = now.getMonth() + 1;
+            dd = now.getDate();
           }
-          addToast(`${formData.mesesContrato} faturamentos gerados!`);
+
+          // Verificação extra para evitar qualquer valor inválido de data
+          if (!isNaN(yy) && !isNaN(mm) && !isNaN(dd)) {
+            for (let i = 0; i < formData.mesesContrato; i++) {
+              const vDate = new Date(yy, mm - 1 + i, dd);
+              if (!isNaN(vDate.getTime())) {
+                await addItem('financials', {
+                  descricao: `Mensalidade ${i + 1}/${formData.mesesContrato} - ${formData.empresa}`,
+                  tipo: 'receita',
+                  valor: formData.mrr,
+                  status: 'pendente',
+                  dataVencimento: vDate.toISOString().split('T')[0],
+                  dataPagamento: '',
+                  categoria: 'Mensalidade',
+                  clienteId: clientId
+                });
+              }
+            }
+            addToast(`${formData.mesesContrato} faturamentos gerados!`);
+          }
         }
       }
       setShowModal(false);
     } catch (error) {
       console.error("Erro ao salvar cliente:", error);
       addToast(`Erro ao salvar: ${error.message || error}`, 'error');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -217,7 +244,7 @@ export default function Clients() {
 
       {/* Create/Edit Modal */}
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editingClient ? '✏️ Editar Cliente' : '➕ Novo Cliente'} size="lg"
-        footer={<><button className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancelar</button><button className="btn btn-primary" onClick={handleSave}>{editingClient ? 'Salvar' : 'Criar'}</button></>}>
+        footer={<><button className="btn btn-secondary" onClick={() => setShowModal(false)} disabled={isSaving}>Cancelar</button><button className="btn btn-primary" onClick={handleSave} disabled={isSaving}>{isSaving ? 'Salvando...' : (editingClient ? 'Salvar' : 'Criar')}</button></>}>
         <div className="form-row">
           <div className="form-group"><label className="form-label">Nome *</label><input className="form-input" value={formData.nome || ''} onChange={e => setFormData({...formData, nome: e.target.value})} /></div>
           <div className="form-group"><label className="form-label">Empresa *</label><input className="form-input" value={formData.empresa || ''} onChange={e => setFormData({...formData, empresa: e.target.value})} /></div>

@@ -59,22 +59,12 @@ export default function Leads() {
   const openCreate = () => { setEditingLead(null); setFormData(emptyLead); setShowModal(true); };
   const openEdit = (lead) => { setEditingLead(lead); setFormData({ ...emptyLead, ...lead }); setShowModal(true); };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!formData.nome || !formData.empresa) { addToast('Nome e Empresa obrigatórios', 'error'); return; }
-    try {
-      const data = { ...formData, score: calcScore(formData) };
-      if (editingLead) { 
-        await updateItem('leads', editingLead.id, data); 
-        addToast('Lead atualizado!'); 
-      } else { 
-        await addItem('leads', { ...data, dataEntrada: new Date().toISOString() }); 
-        addToast('Lead criado!'); 
-      }
-      setShowModal(false);
-    } catch (error) {
-      console.error("Erro ao salvar lead:", error);
-      addToast(`Erro ao salvar: ${error.message || error}`, 'error');
-    }
+    const data = { ...formData, score: calcScore(formData) };
+    if (editingLead) { updateItem('leads', editingLead.id, data); addToast('Lead atualizado!'); }
+    else { addItem('leads', { ...data, dataEntrada: new Date().toISOString() }); addToast('Lead criado!'); }
+    setShowModal(false);
   };
 
   const fmtPhone = (n) => (n || '').replace(/[\s\-\(\)\.]/g, '');
