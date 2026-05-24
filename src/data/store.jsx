@@ -89,6 +89,11 @@ export function AppProvider({ children }) {
     }
   }, [agencyId]);
 
+  const fetchDataRef = useRef(fetchData);
+  useEffect(() => {
+    fetchDataRef.current = fetchData;
+  }, [fetchData]);
+
   // Initialize Supabase Auth and load data
   useEffect(() => {
     const handleSession = async (session) => {
@@ -112,13 +117,13 @@ export function AppProvider({ children }) {
       }
       
       setAgencyId(currentAgencyId);
-      await fetchData(currentAgencyId);
+      await fetchDataRef.current(currentAgencyId);
     };
 
     supabase.auth.getSession().then(({ data: { session } }) => handleSession(session));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => handleSession(session));
     return () => subscription.unsubscribe();
-  }, [fetchData]);
+  }, []);
 
   const login = async (email, password) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
