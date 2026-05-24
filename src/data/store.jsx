@@ -155,14 +155,6 @@ export function AppProvider({ children }) {
     await supabase.auth.signOut();
   };
 
-  const logToDebug = async (message) => {
-    try {
-      await supabase.from('debug_logs').insert({ log: message });
-    } catch (e) {
-      console.warn("Erro ao gravar debug log:", e);
-    }
-  };
-
   const addItem = useCallback(async (key, item) => {
     const generateId = () => {
       if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
@@ -179,7 +171,6 @@ export function AppProvider({ children }) {
     if (agencyId) {
       let result;
       try {
-        await logToDebug(`addItem starting: table=${table}, id=${id}, user_id=${agencyId}`);
         if (['campaignTrackings', 'optimizationLogs'].includes(key)) {
           result = await supabase.from(table).insert({ ...newItem, user_id: agencyId });
         } else {
@@ -187,7 +178,6 @@ export function AppProvider({ children }) {
         }
       } catch (networkErr) {
         console.error(`[Supabase] Erro de rede em ${table}:`, networkErr);
-        await logToDebug(`addItem network error on table ${table}: ${networkErr.message || networkErr}`);
         setData(prev => ({ ...prev, [key]: prev[key].filter(i => i.id !== id) }));
         const msg = networkErr.message || 'Erro de conexão';
         addToast(msg, 'error');
@@ -196,16 +186,12 @@ export function AppProvider({ children }) {
       
       if (result.error) {
         console.error(`[Supabase] Erro ao inserir em ${table}:`, result.error);
-        await logToDebug(`addItem error on table ${table}: code=${result.error.code}, message=${result.error.message}, details=${result.error.details || ''}, hint=${result.error.hint || ''}`);
         setData(prev => ({ ...prev, [key]: prev[key].filter(i => i.id !== id) }));
         const msg = result.error.message || 'Erro desconhecido';
         addToast(`Erro: ${msg}`, 'error');
         throw new Error(msg);
-      } else {
-        await logToDebug(`addItem SUCCESS on table ${table} with id ${id}`);
       }
     } else {
-      await logToDebug(`addItem failed: agencyId is missing/null`);
       addToast('Você não está autenticado no banco de dados.', 'warning');
     }
     
@@ -231,7 +217,6 @@ export function AppProvider({ children }) {
     if (agencyId) {
       let result;
       try {
-        await logToDebug(`updateItem starting: table=${table}, id=${id}, user_id=${agencyId}`);
         if (['campaignTrackings', 'optimizationLogs'].includes(key)) {
           result = await supabase.from(table).update({ ...updates }).eq('id', id).eq('user_id', agencyId);
         } else {
@@ -239,7 +224,6 @@ export function AppProvider({ children }) {
         }
       } catch (networkErr) {
         console.error(`[Supabase] Erro de rede ao atualizar ${table}:`, networkErr);
-        await logToDebug(`updateItem network error on table ${table}: ${networkErr.message || networkErr}`);
         setData(prev => ({
           ...prev,
           [key]: (prev[key] || []).map(item => item.id === id ? currentItem : item)
@@ -251,7 +235,6 @@ export function AppProvider({ children }) {
       
       if (result.error) {
         console.error(`[Supabase] Erro ao atualizar ${table}:`, result.error);
-        await logToDebug(`updateItem error on table ${table}: code=${result.error.code}, message=${result.error.message}, details=${result.error.details || ''}`);
         setData(prev => ({
           ...prev,
           [key]: (prev[key] || []).map(item => item.id === id ? currentItem : item)
@@ -259,11 +242,8 @@ export function AppProvider({ children }) {
         const msg = result.error.message || 'Erro desconhecido';
         addToast(`Erro: ${msg}`, 'error');
         throw new Error(msg);
-      } else {
-        await logToDebug(`updateItem SUCCESS on table ${table} with id ${id}`);
       }
     } else {
-      await logToDebug(`updateItem failed: agencyId is missing/null`);
       addToast('Você não está autenticado no banco de dados.', 'warning');
     }
   }, [agencyId, addToast]);
