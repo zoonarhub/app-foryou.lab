@@ -14,6 +14,9 @@ const emptyData = {
 
 const toSnakeCase = str => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
 
+// Tabelas com colunas individuais (sem coluna 'data' JSONB)
+const STRUCTURED_TABLES = ['campaignTrackings', 'optimizationLogs'];
+
 export function AppProvider({ children }) {
   const [data, setData] = useState(emptyData);
   const dataRef = useRef(data);
@@ -22,6 +25,9 @@ export function AppProvider({ children }) {
   const [toasts, setToasts] = useState([]);
   const [auth, setAuth] = useState(null);
   const [agencyId, setAgencyId] = useState(null);
+  const agencyIdRef = useRef(null);
+  useEffect(() => { agencyIdRef.current = agencyId; }, [agencyId]);
+
   const [theme, setThemeState] = useState(() => localStorage.getItem(THEME_KEY) || 'dark');
   const [loadingData, setLoadingData] = useState(true);
 
@@ -46,7 +52,7 @@ export function AppProvider({ children }) {
 
   // Fetch Data from Supabase
   const fetchData = useCallback(async (forcedAgencyId) => {
-    const activeAgencyId = forcedAgencyId || agencyId;
+    const activeAgencyId = forcedAgencyId || agencyIdRef.current;
     if (!activeAgencyId) {
       setLoadingData(false);
       return;
@@ -58,20 +64,20 @@ export function AppProvider({ children }) {
       const results = await Promise.all(keys.map(async (key) => {
         const table = toSnakeCase(key);
         try {
-          // Tabelas Estruturadas (sem coluna 'data')
-          if (['campaignTrackings', 'optimizationLogs'].includes(key)) {
+          if (STRUCTURED_TABLES.includes(key)) {
             const { data: rows, error } = await supabase.from(table).select('*').eq('user_id', activeAgencyId);
+            if (error) console.warn(`[fetchData] Erro em ${table}:`, error.message);
             return { key, val: !error && rows ? rows : [] };
           }
           
-          // Tabelas baseadas em JSONB
-          const { data: rows, error } = await supabase.from(table).select('data').eq('user_id', activeAgencyId);
+          const { data: rows, error } = await supabase.from(table).select('id, data').eq('user_id', activeAgencyId);
+          if (error) console.warn(`[fetchData] Erro em ${table}:`, error.message);
           if (!error && rows) {
-            return { key, val: rows.map(r => r.data) };
+            return { key, val: rows.map(r => ({ ...r.data, _dbId: r.id })) };
           }
           return { key, val: [] };
         } catch (e) {
-          console.warn(`Erro ao carregar tabela ${table}:`, e);
+          console.warn(`[fetchData] Exceção em ${table}:`, e);
           return { key, val: [] };
         }
       }));
@@ -83,11 +89,11 @@ export function AppProvider({ children }) {
       
       setData(newData);
     } catch (error) {
-      console.error("Erro geral no fetchData:", error);
+      console.error("[fetchData] Erro geral:", error);
     } finally {
       setLoadingData(false);
     }
-  }, [agencyId]);
+  }, []);
 
   const fetchDataRef = useRef(fetchData);
   useEffect(() => {
@@ -101,7 +107,8 @@ export function AppProvider({ children }) {
       if (!user) {
         setAuth(null);
         setAgencyId(null);
-        setLoadingData(false); // Libera o carregamento para mostrar o Login
+        agencyIdRef.current = null;
+        setLoadingData(false);
         return;
       }
       setAuth(user);
@@ -117,6 +124,8 @@ export function AppProvider({ children }) {
       }
       
       setAgencyId(currentAgencyId);
+      agencyIdRef.current = currentAgencyId;
+      console.log('[Auth] agencyId definido:', currentAgencyId);
       await fetchDataRef.current(currentAgencyId);
     };
 
@@ -141,7 +150,6 @@ export function AppProvider({ children }) {
         if (profileError) console.error("[Signup] Erro ao criar perfil por convite:", profileError);
         await supabase.from('invites').delete().eq('email', email);
       } else {
-        // Cria perfil padrão de CEO para novos cadastros diretos (evita erros de RLS)
         const { error: profileError } = await supabase.from('user_profiles').insert({
           id: data.user.id, agency_id: data.user.id, role: 'CEO', email: email
         });
@@ -155,7 +163,12 @@ export function AppProvider({ children }) {
     await supabase.auth.signOut();
   };
 
+  // ═══════════════════════════════════════════════════════════════
+  // addItem — Usa agencyIdRef para evitar stale closure
+  // ═══════════════════════════════════════════════════════════════
   const addItem = useCallback(async (key, item) => {
+    const currentAgencyId = agencyIdRef.current;
+    
     const generateId = () => {
       if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
       return Date.now().toString(36) + Math.random().toString(36).substr(2);
@@ -164,46 +177,63 @@ export function AppProvider({ children }) {
     const table = toSnakeCase(key);
     const newItem = { ...item, id };
     
-    // 1) Atualização otimista
-    setData(prev => ({ ...prev, [key]: [...prev[key], newItem] }));
+    // 1) Atualização otimista local
+    setData(prev => ({ ...prev, [key]: [...(prev[key] || []), newItem] }));
     
-    // 2) Sync com Supabase
-    if (agencyId) {
-      let result;
-      try {
-        if (['campaignTrackings', 'optimizationLogs'].includes(key)) {
-          result = await supabase.from(table).insert({ ...newItem, user_id: agencyId });
-        } else {
-          result = await supabase.from(table).insert({ id, user_id: agencyId, data: newItem });
-        }
-      } catch (networkErr) {
-        console.error(`[Supabase] Erro de rede em ${table}:`, networkErr);
-        setData(prev => ({ ...prev, [key]: prev[key].filter(i => i.id !== id) }));
-        const msg = networkErr.message || 'Erro de conexão';
-        addToast(msg, 'error');
-        throw new Error(msg);
+    // 2) Persistir no Supabase
+    if (!currentAgencyId) {
+      console.warn(`[addItem] agencyId não disponível para ${table}. Dados salvos apenas localmente.`);
+      addToast('Sessão não encontrada. Faça login novamente.', 'warning');
+      return id;
+    }
+
+    console.log(`[addItem] Inserindo em ${table}:`, { id, user_id: currentAgencyId });
+    
+    try {
+      let payload;
+      if (STRUCTURED_TABLES.includes(key)) {
+        payload = { ...newItem, user_id: currentAgencyId };
+      } else {
+        payload = { id, user_id: currentAgencyId, data: newItem };
       }
       
-      if (result.error) {
-        console.error(`[Supabase] Erro ao inserir em ${table}:`, result.error);
-        setData(prev => ({ ...prev, [key]: prev[key].filter(i => i.id !== id) }));
-        const msg = result.error.message || 'Erro desconhecido';
-        addToast(`Erro: ${msg}`, 'error');
-        throw new Error(msg);
+      const { error } = await supabase.from(table).insert(payload);
+      
+      if (error) {
+        console.error(`[addItem] ERRO Supabase em ${table}:`, error);
+        // Reverter atualização otimista
+        setData(prev => ({ ...prev, [key]: (prev[key] || []).filter(i => i.id !== id) }));
+        addToast(`Erro ao salvar: ${error.message}`, 'error');
+        throw new Error(error.message);
       }
-    } else {
-      addToast('Você não está autenticado no banco de dados.', 'warning');
+      
+      console.log(`[addItem] ✅ Sucesso em ${table}, id: ${id}`);
+    } catch (err) {
+      if (err.message && !err.message.startsWith('Erro ao salvar')) {
+        // Erro de rede (não Supabase)
+        console.error(`[addItem] Erro de rede em ${table}:`, err);
+        setData(prev => ({ ...prev, [key]: (prev[key] || []).filter(i => i.id !== id) }));
+        addToast(`Erro de conexão: ${err.message}`, 'error');
+      }
+      throw err;
     }
     
     return id;
-  }, [agencyId, addToast]);
+  }, [addToast]);
 
+  // ═══════════════════════════════════════════════════════════════
+  // updateItem — Usa agencyIdRef para evitar stale closure
+  // ═══════════════════════════════════════════════════════════════
   const updateItem = useCallback(async (key, id, updates) => {
+    const currentAgencyId = agencyIdRef.current;
     const table = toSnakeCase(key);
     
     const currentList = dataRef.current[key] || [];
     const currentItem = currentList.find(item => item.id === id);
-    if (!currentItem) return;
+    if (!currentItem) {
+      console.warn(`[updateItem] Item ${id} não encontrado em ${key}`);
+      return;
+    }
     
     const updatedItem = { ...currentItem, ...updates };
     
@@ -213,63 +243,78 @@ export function AppProvider({ children }) {
       [key]: (prev[key] || []).map(item => item.id === id ? updatedItem : item)
     }));
 
-    // 2) Sync com Supabase
-    if (agencyId) {
+    // 2) Persistir no Supabase
+    if (!currentAgencyId) {
+      console.warn(`[updateItem] agencyId não disponível para ${table}.`);
+      addToast('Sessão não encontrada. Faça login novamente.', 'warning');
+      return;
+    }
+
+    console.log(`[updateItem] Atualizando ${table}, id: ${id}`);
+
+    try {
       let result;
-      try {
-        if (['campaignTrackings', 'optimizationLogs'].includes(key)) {
-          result = await supabase.from(table).update({ ...updates }).eq('id', id).eq('user_id', agencyId);
-        } else {
-          result = await supabase.from(table).update({ data: updatedItem }).eq('id', id).eq('user_id', agencyId);
-        }
-      } catch (networkErr) {
-        console.error(`[Supabase] Erro de rede ao atualizar ${table}:`, networkErr);
-        setData(prev => ({
-          ...prev,
-          [key]: (prev[key] || []).map(item => item.id === id ? currentItem : item)
-        }));
-        const msg = networkErr.message || 'Erro de conexão';
-        addToast(msg, 'error');
-        throw new Error(msg);
+      if (STRUCTURED_TABLES.includes(key)) {
+        result = await supabase.from(table).update({ ...updates }).eq('id', id).eq('user_id', currentAgencyId);
+      } else {
+        result = await supabase.from(table).update({ data: updatedItem }).eq('id', id).eq('user_id', currentAgencyId);
       }
       
       if (result.error) {
-        console.error(`[Supabase] Erro ao atualizar ${table}:`, result.error);
+        console.error(`[updateItem] ERRO Supabase em ${table}:`, result.error);
         setData(prev => ({
           ...prev,
           [key]: (prev[key] || []).map(item => item.id === id ? currentItem : item)
         }));
-        const msg = result.error.message || 'Erro desconhecido';
-        addToast(`Erro: ${msg}`, 'error');
-        throw new Error(msg);
+        addToast(`Erro ao atualizar: ${result.error.message}`, 'error');
+        throw new Error(result.error.message);
       }
-    } else {
-      addToast('Você não está autenticado no banco de dados.', 'warning');
+      
+      console.log(`[updateItem] ✅ Sucesso em ${table}, id: ${id}`);
+    } catch (err) {
+      if (err.message && !err.message.startsWith('Erro ao atualizar')) {
+        console.error(`[updateItem] Erro de rede em ${table}:`, err);
+        setData(prev => ({
+          ...prev,
+          [key]: (prev[key] || []).map(item => item.id === id ? currentItem : item)
+        }));
+        addToast(`Erro de conexão: ${err.message}`, 'error');
+      }
+      throw err;
     }
-  }, [agencyId, addToast]);
+  }, [addToast]);
 
-  const deleteItem = useCallback((key, id) => {
+  // ═══════════════════════════════════════════════════════════════
+  // deleteItem — Usa agencyIdRef
+  // ═══════════════════════════════════════════════════════════════
+  const deleteItem = useCallback(async (key, id) => {
+    const currentAgencyId = agencyIdRef.current;
     const table = toSnakeCase(key);
     
     // 1) Atualização otimista
-    setData(prev => ({ ...prev, [key]: prev[key].filter(item => item.id !== id) }));
+    const previousList = dataRef.current[key] || [];
+    setData(prev => ({ ...prev, [key]: (prev[key] || []).filter(item => item.id !== id) }));
     
-    // 2) Sync com Supabase em background
-    if (agencyId) {
-      const doDelete = async () => {
-        try {
-          const { error } = await supabase.from(table).delete().eq('id', id).eq('user_id', agencyId);
-          if (error) {
-            console.error(`[Supabase] Erro ao excluir ${table}:`, error);
-            addToast(`Erro ao excluir: ${error.message}`, 'error');
-          }
-        } catch (err) {
-          console.error(`[Supabase] Erro crítico ao excluir ${table}:`, err);
-        }
-      };
-      doDelete();
+    // 2) Persistir no Supabase
+    if (!currentAgencyId) {
+      console.warn(`[deleteItem] agencyId não disponível para ${table}.`);
+      return;
     }
-  }, [agencyId, addToast]);
+
+    try {
+      const { error } = await supabase.from(table).delete().eq('id', id).eq('user_id', currentAgencyId);
+      if (error) {
+        console.error(`[deleteItem] ERRO Supabase em ${table}:`, error);
+        setData(prev => ({ ...prev, [key]: previousList }));
+        addToast(`Erro ao excluir: ${error.message}`, 'error');
+      } else {
+        console.log(`[deleteItem] ✅ Sucesso em ${table}, id: ${id}`);
+      }
+    } catch (err) {
+      console.error(`[deleteItem] Erro de rede em ${table}:`, err);
+      setData(prev => ({ ...prev, [key]: previousList }));
+    }
+  }, [addToast]);
 
   const setEvoConfig = useCallback((url, key) => {
     localStorage.setItem('evo_url', url);

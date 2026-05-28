@@ -25,11 +25,21 @@ export default function Team() {
   const openCreate = () => { setEditingMember(null); setFormData(emptyMember); setShowModal(true); };
   const openEdit = (member) => { setEditingMember(member); setFormData({ ...emptyMember, ...member }); setShowModal(true); };
 
-  const handleSave = () => {
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async () => {
     if (!formData.nome || !formData.cargo) { addToast('Nome e cargo obrigatórios', 'error'); return; }
-    if (editingMember) { updateItem('teamMembers', editingMember.id, formData); addToast('Membro atualizado!'); }
-    else { addItem('teamMembers', formData); addToast('Membro adicionado!'); }
-    setShowModal(false);
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      if (editingMember) { await updateItem('teamMembers', editingMember.id, formData); addToast('Membro atualizado!'); }
+      else { await addItem('teamMembers', formData); addToast('Membro adicionado!'); }
+      setShowModal(false);
+    } catch (error) {
+      console.error("Erro ao salvar membro:", error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDelete = (id) => {

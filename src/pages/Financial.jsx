@@ -29,11 +29,21 @@ export default function Financial() {
   const openCreate = (tipo) => { setEditingItem(null); setFormData({ ...emptyFin, tipo }); setShowModal(true); };
   const openEdit = (item) => { setEditingItem(item); setFormData({ ...item }); setShowModal(true); };
 
-  const handleSave = () => {
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async () => {
     if (!formData.descricao || !formData.valor) { addToast('Descrição e valor obrigatórios', 'error'); return; }
-    if (editingItem) { updateItem('financials', editingItem.id, formData); addToast('Atualizado!'); }
-    else { addItem('financials', formData); addToast('Lançamento criado!'); }
-    setShowModal(false);
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      if (editingItem) { await updateItem('financials', editingItem.id, formData); addToast('Atualizado!'); }
+      else { await addItem('financials', formData); addToast('Lançamento criado!'); }
+      setShowModal(false);
+    } catch (error) {
+      console.error("Erro ao salvar financeiro:", error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const markPaid = (id) => { updateItem('financials', id, { status: 'pago', dataPagamento: new Date().toISOString().split('T')[0] }); addToast('Marcado como pago!'); };

@@ -27,6 +27,7 @@ export default function ProjecaoFaturamento() {
   const [taxaCrescimento, setTaxaCrescimento] = useState(40);
   const [showSave, setShowSave] = useState(false);
   const [saveClient, setSaveClient] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   const totalMultiplier = useMemo(() => {
     let m = 1;
@@ -58,16 +59,24 @@ export default function ProjecaoFaturamento() {
   const roiCalc = (investAtual + investAdicional) * horizonte > 0 ? (fatProjetado - fat) / ((investAtual + investAdicional) * horizonte) : 0;
   const novosClientesTotal = projData.reduce((a,d) => a + d.novosClientes, 0);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!saveClient) { addToast('Selecione um cliente','error'); return; }
-    addItem('resultProjections', {
-      clienteId: saveClient, faturamentoAtual: fat, investimento: investAtual + investAdicional,
-      metaFaturamento: fatProjetado, dataInicio: new Date().toISOString().split('T')[0],
-      dataFim: new Date(Date.now() + horizonte * 30 * 86400000).toISOString().split('T')[0],
-      taxaCrescimento, servicos: servicos.map(s => servicosImpacto.find(x=>x.id===s)?.label || s),
-      status: 'ativa', atualizacoes: [],
-    });
-    addToast('Projeção salva com sucesso!'); setShowSave(false);
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      await addItem('resultProjections', {
+        clienteId: saveClient, faturamentoAtual: fat, investimento: investAtual + investAdicional,
+        metaFaturamento: fatProjetado, dataInicio: new Date().toISOString().split('T')[0],
+        dataFim: new Date(Date.now() + horizonte * 30 * 86400000).toISOString().split('T')[0],
+        taxaCrescimento, servicos: servicos.map(s => servicosImpacto.find(x=>x.id===s)?.label || s),
+        status: 'ativa', atualizacoes: [],
+      });
+      addToast('Projeção salva com sucesso!'); setShowSave(false);
+    } catch (error) {
+      console.error("Erro ao salvar projeção:", error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const toggleServ = (id) => setServicos(prev => prev.includes(id) ? prev.filter(s=>s!==id) : [...prev, id]);
@@ -192,7 +201,7 @@ export default function ProjecaoFaturamento() {
         </div>
       </div>
 
-      <Modal isOpen={showSave} onClose={()=>setShowSave(false)} title="Salvar Projeção" size="sm" footer={<><button className="btn btn-secondary" onClick={()=>setShowSave(false)}>Cancelar</button><button className="btn btn-primary" onClick={handleSave}>Salvar</button></>}>
+      <Modal isOpen={showSave} onClose={()=>setShowSave(false)} title="Salvar Projeção" size="sm" footer={<><button className="btn btn-secondary" onClick={()=>setShowSave(false)} disabled={isSaving}>Cancelar</button><button className="btn btn-primary" onClick={handleSave} disabled={isSaving}>{isSaving ? 'Salvando...' : 'Salvar'}</button></>}>
         <div className="form-group"><label className="form-label">Vincular a um cliente</label><select className="form-select" value={saveClient} onChange={e=>setSaveClient(e.target.value)}><option value="">Selecione...</option>{(clients||[]).map(c=><option key={c.id} value={c.id}>{c.empresa}</option>)}</select></div>
         <div style={{ padding:12, background:'var(--gray-bg)', borderRadius:8, fontSize:13 }}>
           <div>Fat. projetado: <strong style={{color:'#FFD600'}}>{fmt(fatProjetado)}</strong></div>

@@ -11,6 +11,7 @@ export default function Reports() {
   const [showModal, setShowModal] = useState(false);
   const [search, setSearch] = useState('');
   const [form, setForm] = useState({ nome: '', clienteId: '', contaAnuncioId: '', contaAnuncioNome: '', responsavelId: '' });
+  const [isSaving, setIsSaving] = useState(false);
 
   // Ad accounts
   const [adAccounts, setAdAccounts] = useState([]);
@@ -42,13 +43,15 @@ export default function Reports() {
     )).sort((a, b) => new Date(b.criadoEm || 0) - new Date(a.criadoEm || 0)),
     [reports, search]);
 
-  const activeClients = clients.filter(c => c.status === 'ativo');
+  const activeClients = (clients || []).filter(c => c && c.status !== 'cancelado');
   const totalReports = (reports || []).length;
   const activeReports = (reports || []).filter(r => r?.status === 'ativo').length;
 
   const handleCreate = async () => {
     if (!form.nome.trim()) { addToast('Digite o nome do relatório', 'error'); return; }
     if (!form.clienteId) { addToast('Selecione um cliente', 'error'); return; }
+    if (isSaving) return;
+    setIsSaving(true);
 
     try {
       const client = clients.find(c => c.id === form.clienteId);
@@ -72,6 +75,8 @@ export default function Reports() {
     } catch (error) {
       console.error("Erro ao salvar relatório:", error);
       addToast(`Erro ao salvar: ${error.message || error}`, 'error');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -210,7 +215,7 @@ export default function Reports() {
 
       {/* Create Modal */}
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="📊 Novo Relatório" size="md"
-        footer={<><button className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancelar</button><button className="btn btn-primary" onClick={handleCreate}>Criar Relatório</button></>}>
+        footer={<><button className="btn btn-secondary" onClick={() => setShowModal(false)} disabled={isSaving}>Cancelar</button><button className="btn btn-primary" onClick={handleCreate} disabled={isSaving}>{isSaving ? 'Criando...' : 'Criar Relatório'}</button></>}>
 
         <div className="form-group">
           <label className="form-label">Nome do Relatório *</label>

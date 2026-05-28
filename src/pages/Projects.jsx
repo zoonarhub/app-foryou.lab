@@ -47,12 +47,22 @@ export default function Projects() {
   const openCreate = (type = 'projeto') => { setFormType(type); setEditingItem(null); setFormData(type === 'projeto' ? emptyProject : emptyTask); setShowModal(true); };
   const openEdit = (item) => { setFormType(item.tipo); setEditingItem(item); setFormData({ ...item }); setShowModal(true); };
 
-  const handleSave = () => {
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async () => {
     if (!formData.titulo) { addToast('Título obrigatório', 'error'); return; }
-    const key = formType === 'projeto' ? 'projects' : 'tasks';
-    if (editingItem) { updateItem(key, editingItem.id, formData); addToast(`${formType === 'projeto' ? 'Projeto' : 'Tarefa'} atualizado!`); }
-    else { addItem(key, formData); addToast(`${formType === 'projeto' ? 'Projeto' : 'Tarefa'} criado!`); }
-    setShowModal(false);
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      const key = formType === 'projeto' ? 'projects' : 'tasks';
+      if (editingItem) { await updateItem(key, editingItem.id, formData); addToast(`${formType === 'projeto' ? 'Projeto' : 'Tarefa'} atualizado!`); }
+      else { await addItem(key, formData); addToast(`${formType === 'projeto' ? 'Projeto' : 'Tarefa'} criado!`); }
+      setShowModal(false);
+    } catch (error) {
+      console.error("Erro ao salvar projeto/tarefa:", error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDelete = () => {

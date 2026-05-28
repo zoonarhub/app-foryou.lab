@@ -25,6 +25,8 @@ export default function DiagnosticoEstrategico() {
   const [respostas, setRespostas] = useState({});
   const [concluido, setConcluido] = useState(false);
   const [salvo, setSalvo] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const setResposta = (blocoId, idx, val) => setRespostas(p => ({ ...p, [`${blocoId}_${idx}`]: val }));
   const getResposta = (blocoId, idx) => respostas[`${blocoId}_${idx}`] || 0;
@@ -80,6 +82,8 @@ export default function DiagnosticoEstrategico() {
   };
 
   const handleSalvar = async () => {
+    if (isSaving || salvo) return;
+    setIsSaving(true);
     const scores = {};
     blocos.forEach(b => { scores[b.id] = calcScore(b.id); });
 
@@ -96,14 +100,20 @@ export default function DiagnosticoEstrategico() {
       criadoEm: new Date().toISOString()
     };
 
-    await addItem('diagnosticos', diagnosticoData);
-    setSalvo(true);
-    addToast('Diagnóstico salvo no banco de dados! ✅');
-    // Ir para a lista após salvar
-    setTimeout(() => {
-      resetForm();
-      setTab('historico');
-    }, 1500);
+    try {
+      await addItem('diagnosticos', diagnosticoData);
+      setSalvo(true);
+      addToast('Diagnóstico salvo no banco de dados! ✅');
+      // Ir para a lista após salvar
+      setTimeout(() => {
+        resetForm();
+        setTab('historico');
+      }, 1500);
+    } catch (error) {
+      console.error("Erro ao salvar diagnóstico:", error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const resetForm = () => {
@@ -116,20 +126,28 @@ export default function DiagnosticoEstrategico() {
     setSalvo(false);
   };
 
-  const gerarPlano = (diagToUse) => {
-    const gaps = diagToUse.blocos ? diagToUse.blocos.filter(b => b.score < 60) : blocos.filter(b => calcScore(b.id) < 60);
-    gaps.forEach(b => {
-      addItem('tasks', { 
-        titulo: `Melhorar ${b.title.replace(/[^a-zA-Zà-úÀ-Ú ]/g, '')}`, 
-        descricao: `Score atual: ${b.score || calcScore(b.id)}% (Identificado no diagnóstico de ${diagToUse.nomeNegocio || getNomeCliente()})`, 
-        responsavel: '', 
-        status: 'a_fazer', 
-        prioridade: (b.score || calcScore(b.id)) < 40 ? 'alta' : 'media', 
-        projetoId: '', 
-        clienteId: diagToUse.clienteId || clienteId 
-      });
-    });
-    addToast(`${gaps.length} tarefas criadas no módulo Projetos!`);
+  const gerarPlano = async (diagToUse) => {
+    if (isGenerating) return;
+    setIsGenerating(true);
+    try {
+      const gaps = diagToUse.blocos ? diagToUse.blocos.filter(b => b.score < 60) : blocos.filter(b => calcScore(b.id) < 60);
+      await Promise.all(gaps.map(async (b) => {
+        await addItem('tasks', { 
+          titulo: `Melhorar ${b.title.replace(/[^a-zA-Zà-úÀ-Ú ]/g, '')}`, 
+          descricao: `Score atual: ${b.score || calcScore(b.id)}% (Identificado no diagnóstico de ${diagToUse.nomeNegocio || getNomeCliente()})`, 
+          responsavel: '', 
+          status: 'a_fazer', 
+          prioridade: (b.score || calcScore(b.id)) < 40 ? 'alta' : 'media', 
+          projetoId: '', 
+          clienteId: diagToUse.clienteId || clienteId 
+        });
+      }));
+      addToast(`${gaps.length} tarefas criadas no módulo Projetos!`);
+    } catch (error) {
+      console.error("Erro ao gerar plano de ação:", error);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleDelete = async (id, e) => {
@@ -263,8 +281,8 @@ export default function DiagnosticoEstrategico() {
                 })}
 
                 <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-                  <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => gerarPlano(selectedDiag)}>
-                    <Plus size={14} /> Gerar Plano de Ação (Projetos)
+                  <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => gerarPlano(selectedDiag)} disabled={isGenerating}>
+                    <Plus size={14} /> {isGenerating ? 'Gerando...' : 'Gerar Plano de Ação (Projetos)'}
                   </button>
                 </div>
               </div>
@@ -372,10 +390,10 @@ export default function DiagnosticoEstrategico() {
                       );
                     })}
                     <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-                      <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleSalvar} disabled={salvo}>
-                        <Save size={14} /> {salvo ? 'Salvo ✅' : 'Salvar Diagnóstico'}
+                      <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleSalvar} disabled={salvo || isSaving}>
+                        <Save size={14} /> {isSaving ? 'Salvando...' : (salvo ? 'Salvo ✅' : 'Salvar Diagnóstico')}
                       </button>
-                      <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => gerarPlano(null)}><Plus size={14} /> Gerar Plano de Ação</button>
+                      <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => gerarPlano(null)} disabled={isGenerating}><Plus size={14} /> {isGenerating ? 'Gerando...' : 'Gerar Plano de Ação'}</button>
                     </div>
                   </div>
                 </div>

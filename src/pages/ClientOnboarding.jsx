@@ -20,11 +20,21 @@ export default function ClientOnboarding() {
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
   const toggleServico = (s) => setForm(p => ({ ...p, servicos: p.servicos.includes(s) ? p.servicos.filter(x => x !== s) : [...p.servicos, s] }));
 
-  const handleFinish = () => {
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleFinish = async () => {
     if (!form.nome || !form.empresa) { addToast('Nome e empresa obrigatórios', 'error'); return; }
-    addItem('clients', { ...form, status: 'onboarding', etapaLaboratorio: 'diagnostico', nps: '' });
-    addToast('Cliente criado com status Onboarding! 🎉');
-    setDone(true);
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      await addItem('clients', { ...form, status: 'onboarding', etapaLaboratorio: 'diagnostico', nps: '' });
+      addToast('Cliente criado com status Onboarding! 🎉');
+      setDone(true);
+    } catch (error) {
+      console.error("Erro ao realizar onboarding do cliente:", error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (done) return (
@@ -107,7 +117,7 @@ export default function ClientOnboarding() {
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24 }}>
             <button className="btn btn-secondary" onClick={() => setStep(s => Math.max(0, s - 1))} disabled={step === 0}><ChevronLeft size={14} /> Voltar</button>
             {step < steps.length - 1 ? <button className="btn btn-primary" onClick={() => setStep(s => s + 1)}>Próximo <ChevronRight size={14} /></button>
-              : <button className="btn btn-primary" onClick={handleFinish}><Check size={14} /> Concluir Onboarding</button>}
+              : <button className="btn btn-primary" onClick={handleFinish} disabled={isSaving}><Check size={14} /> {isSaving ? 'Salvando...' : 'Concluir Onboarding'}</button>}
           </div>
         </div>
       </div>

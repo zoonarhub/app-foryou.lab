@@ -25,6 +25,7 @@ export default function Proposals() {
   const [showModular, setShowModular] = useState(false);
   const [modForm, setModForm] = useState({clienteId:'',titulo:'',modulos:[],desconto:0,fidelidade:'sem',observacoes:''});
   const [modSearch, setModSearch] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   // Classic
   const classicFiltered = (proposals||[]).filter(p => p && (!search || (p.nomeCliente||p.titulo||'').toLowerCase().includes(search.toLowerCase())));
@@ -34,8 +35,10 @@ export default function Proposals() {
   const openClassic = () => { setEditing(null); setForm({clienteId:'',leadId:'',titulo:'',servicosItems:[],desconto:0,descontoTipo:'pct',validade:'',periodo:'mensal',observacoes:'',responsavel:'tm1',diagnosticoId:'',linkPagamento:''}); setShowModal(true); };
   const editClassic = (p) => { setEditing(p); setForm({...p,servicosItems:p.servicosItems||[]}); setShowModal(true); };
 
-  const saveClassic = () => {
+  const saveClassic = async () => {
     if(!form.titulo && !form.nomeCliente){addToast('Preencha os campos obrigatórios','error');return;}
+    if (isSaving) return;
+    setIsSaving(true);
     const subtotal = (form.valorPlano||0) + (form.taxaSetup||0);
     const desc = form.descontoTipo==='pct' ? subtotal*(form.desconto/100) : form.desconto;
     const total = subtotal - desc;
@@ -48,10 +51,16 @@ export default function Proposals() {
       valStr = v.toISOString().split('T')[0];
     }
 
-    const data = {...form, valorTotal: total, validade: valStr, status: form.status||'rascunho'};
-    if(editing){updateItem('proposals',editing.id,data);addToast('Proposta atualizada!');}
-    else{addItem('proposals',data);addToast('Proposta criada!');}
-    setShowModal(false);
+    try {
+      const data = {...form, valorTotal: total, validade: valStr, status: form.status||'rascunho'};
+      if(editing){await updateItem('proposals',editing.id,data);addToast('Proposta atualizada!');}
+      else{await addItem('proposals',data);addToast('Proposta criada!');}
+      setShowModal(false);
+    } catch (error) {
+      console.error('Erro ao salvar proposta:', error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSend = (p) => {
@@ -74,12 +83,20 @@ export default function Proposals() {
   const fidDesc = {sem:0,'3m':0.05,'6m':0.05,'12m':0.10}[modForm.fidelidade]||0;
   const modTotal = modRecorrente*(1-fidDesc) - (modForm.desconto||0);
 
-  const saveModular = () => {
+  const saveModular = async () => {
     if(!modForm.clienteId||!modForm.modulos.length){addToast('Selecione cliente e módulos','error');return;}
-    const client = (clients||[]).find(c=>c?.id===modForm.clienteId);
-    addItem('modularProposals',{...modForm, nomeCliente:client?.empresa||'', valorRecorrente:modRecorrente, valorUnico:modUnico, valorTotal:modTotal, status:'rascunho'});
-    addToast('Proposta modular criada!'); setShowModular(false);
-    setModForm({clienteId:'',titulo:'',modulos:[],desconto:0,fidelidade:'sem',observacoes:''});
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      const client = (clients||[]).find(c=>c?.id===modForm.clienteId);
+      await addItem('modularProposals',{...modForm, nomeCliente:client?.empresa||'', valorRecorrente:modRecorrente, valorUnico:modUnico, valorTotal:modTotal, status:'rascunho'});
+      addToast('Proposta modular criada!'); setShowModular(false);
+      setModForm({clienteId:'',titulo:'',modulos:[],desconto:0,fidelidade:'sem',observacoes:''});
+    } catch (error) {
+      console.error('Erro ao salvar proposta modular:', error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (

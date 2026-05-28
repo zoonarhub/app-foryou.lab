@@ -43,15 +43,19 @@ export default function Alerts() {
 
   const handleCreate = async () => {
     if (!newAlert.title) { addToast('Preencha o título', 'error'); return; }
-    await addItem('alerts', {
-      ...newAlert,
-      status: 'aberto',
-      created_at: new Date().toISOString(),
-      created_by: currentUser?.id || auth?.email
-    });
-    addToast('Alerta criado com sucesso!');
-    setShowModal(false);
-    setNewAlert({ title: '', desc: '', priority: 'media', type: 'manual', assignedTo: '' });
+    try {
+      await addItem('alerts', {
+        ...newAlert,
+        status: 'aberto',
+        created_at: new Date().toISOString(),
+        created_by: currentUser?.id || auth?.email
+      });
+      addToast('Alerta criado com sucesso!');
+      setShowModal(false);
+      setNewAlert({ title: '', desc: '', priority: 'media', type: 'manual', assignedTo: '' });
+    } catch (error) {
+      console.error("Erro ao criar alerta:", error);
+    }
   };
 
   return (

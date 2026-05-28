@@ -26,6 +26,7 @@ export default function AvaliadorRestaurante() {
   const [scanStep, setScanStep] = useState(0);
   const [scanProgress, setScanProgress] = useState(0);
   const [saved, setSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
   // Custom manual search modal
   const [showManualModal, setShowManualModal] = useState(false);
@@ -336,22 +337,29 @@ export default function AvaliadorRestaurante() {
   };
 
   const handleSave = async () => {
-    if (!result) return;
-    const diagData = {
-      nomeNegocio: result.restaurante.nome,
-      categoria: result.restaurante.categoria,
-      cidade: `${result.restaurante.cidade}/${result.restaurante.uf}`,
-      scoreGeral: result.scoreGeral,
-      scores: result.scores,
-      quickWins: result.quickWins.map(w => ({ area: w.pilar, pergunta: w.acao, prioridade: w.impacto })),
-      blocos: PILARES.map(p => ({ id: p.id, title: `${p.icon} ${p.label}`, score: result.scores[p.id], status: result.scores[p.id] >= 70 ? 'Saudável' : result.scores[p.id] >= 40 ? 'Requer Atenção' : 'Crítico' })),
-      radarData: PILARES.map(p => ({ area: p.label.split(' ')[0], score: result.scores[p.id], fullMark: 100 })),
-      fonte: 'avaliador-automatico',
-      criadoEm: new Date().toISOString()
-    };
-    await addItem('diagnosticos', diagData);
-    setSaved(true);
-    addToast('Análise salva no módulo Diagnósticos! ✅');
+    if (!result || isSaving || saved) return;
+    setIsSaving(true);
+    try {
+      const diagData = {
+        nomeNegocio: result.restaurante.nome,
+        categoria: result.restaurante.categoria,
+        cidade: `${result.restaurante.cidade}/${result.restaurante.uf}`,
+        scoreGeral: result.scoreGeral,
+        scores: result.scores,
+        quickWins: result.quickWins.map(w => ({ area: w.pilar, pergunta: w.acao, prioridade: w.impacto })),
+        blocos: PILARES.map(p => ({ id: p.id, title: `${p.icon} ${p.label}`, score: result.scores[p.id], status: result.scores[p.id] >= 70 ? 'Saudável' : result.scores[p.id] >= 40 ? 'Requer Atenção' : 'Crítico' })),
+        radarData: PILARES.map(p => ({ area: p.label.split(' ')[0], score: result.scores[p.id], fullMark: 100 })),
+        fonte: 'avaliador-automatico',
+        criadoEm: new Date().toISOString()
+      };
+      await addItem('diagnosticos', diagData);
+      setSaved(true);
+      addToast('Análise salva no módulo Diagnósticos! ✅');
+    } catch (error) {
+      console.error("Erro ao salvar diagnóstico automático:", error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleReset = () => {
@@ -603,8 +611,8 @@ export default function AvaliadorRestaurante() {
                 </span>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button className="btn btn-primary" onClick={handleSave} disabled={saved}>
-                  <Save size={14}/> {saved ? 'Salvo no CRM ✅' : 'Salvar no CRM'}
+                <button className="btn btn-primary" onClick={handleSave} disabled={saved || isSaving}>
+                  <Save size={14}/> {isSaving ? 'Salvando...' : (saved ? 'Salvo no CRM ✅' : 'Salvar no CRM')}
                 </button>
               </div>
             </div>

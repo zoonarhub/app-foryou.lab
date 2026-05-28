@@ -22,6 +22,7 @@ export default function ResultProjections() {
   const [detail, setDetail] = useState(null);
   const [showUpdate, setShowUpdate] = useState(false);
   const [updForm, setUpdForm] = useState({ mes:'', faturamentoReal:0, investimentoReal:0, obs:'' });
+  const [isSaving, setIsSaving] = useState(false);
 
   const filtered = useMemo(() => projs.filter(p => {
     if (filterStatus && p.status !== filterStatus) return false;
@@ -37,11 +38,19 @@ export default function ResultProjections() {
 
   const openCreate = () => { setEditing(null); setForm(emptyProj); setShowModal(true); };
   const openEdit = (p) => { setEditing(p); setForm({...emptyProj,...p}); setShowModal(true); };
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.clienteId) { addToast('Selecione um cliente','error'); return; }
-    if (editing) { updateItem('resultProjections', editing.id, form); addToast('Projeção atualizada!'); }
-    else { addItem('resultProjections', form); addToast('Projeção criada!'); }
-    setShowModal(false);
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      if (editing) { await updateItem('resultProjections', editing.id, form); addToast('Projeção atualizada!'); }
+      else { await addItem('resultProjections', form); addToast('Projeção criada!'); }
+      setShowModal(false);
+    } catch (error) {
+      console.error("Erro ao salvar projeção:", error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const getProgress = (p) => {
@@ -135,7 +144,7 @@ export default function ResultProjections() {
       </div>
 
       {/* Create/Edit Modal */}
-      <Modal isOpen={showModal} onClose={()=>setShowModal(false)} title={editing ? '✏️ Editar Projeção' : '➕ Nova Projeção'} size="lg" footer={<><button className="btn btn-secondary" onClick={()=>setShowModal(false)}>Cancelar</button><button className="btn btn-primary" onClick={handleSave}>Salvar</button></>}>
+      <Modal isOpen={showModal} onClose={()=>setShowModal(false)} title={editing ? '✏️ Editar Projeção' : '➕ Nova Projeção'} size="lg" footer={<><button className="btn btn-secondary" onClick={()=>setShowModal(false)} disabled={isSaving}>Cancelar</button><button className="btn btn-primary" onClick={handleSave} disabled={isSaving}>{isSaving ? 'Salvando...' : 'Salvar'}</button></>}>
         <div className="form-group"><label className="form-label">Cliente *</label><select className="form-select" value={form.clienteId} onChange={e=>setForm({...form,clienteId:e.target.value})}><option value="">Selecione...</option>{(clients||[]).map(c=><option key={c.id} value={c.id}>{c.empresa}</option>)}</select></div>
         <div className="form-row">
           <div className="form-group"><label className="form-label">Faturamento Atual (R$)</label><input className="form-input" type="number" value={form.faturamentoAtual} onChange={e=>setForm({...form,faturamentoAtual:Number(e.target.value)})}/></div>
