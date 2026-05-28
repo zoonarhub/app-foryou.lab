@@ -75,9 +75,9 @@ export default function Laboratory() {
   const [newAction, setNewAction] = useState('');
 
   const activeClients = useMemo(() =>
-    clients.filter(c => c.status !== 'cancelado' && (!search ||
-      c.empresa.toLowerCase().includes(search.toLowerCase()) ||
-      c.nome.toLowerCase().includes(search.toLowerCase())
+    (clients || []).filter(c => c && c.status !== 'cancelado' && (!search ||
+      (c.empresa || '').toLowerCase().includes(search.toLowerCase()) ||
+      (c.nome || '').toLowerCase().includes(search.toLowerCase())
     )), [clients, search]);
 
   const selectedClient = useMemo(() =>

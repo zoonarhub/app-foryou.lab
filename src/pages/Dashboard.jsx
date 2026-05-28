@@ -8,30 +8,31 @@ const COLORS = ['#FFD600', '#22C55E', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444'
 export default function Dashboard() {
   const { clients, leads, proposals, tasks, financials, whatsappConversations, theme, toggleTheme } = useApp();
 
-  const activeClients = clients.filter(c => c.status === 'ativo');
-  const mrr = activeClients.reduce((s, c) => s + (c.mrr || 0), 0);
-  const recentLeads = leads.filter(l => {
+  const activeClients = (clients || []).filter(c => c && c.status === 'ativo');
+  const mrr = activeClients.reduce((s, c) => s + (Number(c.mrr) || 0), 0);
+  const recentLeads = (leads || []).filter(l => {
+    if (!l || !l.dataEntrada) return false;
     const d = new Date(l.dataEntrada);
     return Date.now() - d.getTime() < 30 * 86400000;
   });
-  const pendingTasks = tasks.filter(t => t.status !== 'concluido');
+  const pendingTasks = (tasks || []).filter(t => t && t.status !== 'concluido');
   
   // Calculate Overdue WhatsApp Interactions
-  const overdueChats = whatsappConversations.filter(c => 
-    c.status === 'aberta' && c.lastInteraction && (new Date() - new Date(c.lastInteraction)) > 1800000
+  const overdueChats = (whatsappConversations || []).filter(c => 
+    c && c.status === 'aberta' && c.lastInteraction && (new Date() - new Date(c.lastInteraction)) > 1800000
   );
 
   // Chart data
   const statusData = [
-    { name: 'Ativo', value: clients.filter(c => c.status === 'ativo').length },
-    { name: 'Onboarding', value: clients.filter(c => c.status === 'onboarding').length },
-    { name: 'Pausado', value: clients.filter(c => c.status === 'pausado').length },
+    { name: 'Ativo', value: (clients || []).filter(c => c && c.status === 'ativo').length },
+    { name: 'Onboarding', value: (clients || []).filter(c => c && c.status === 'onboarding').length },
+    { name: 'Pausado', value: (clients || []).filter(c => c && c.status === 'pausado').length },
   ].filter(d => d.value > 0);
 
   const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun'];
   const revenueData = months.map((m, i) => ({
     mes: m,
-    receita: financials.filter(f => f.tipo === 'receita').reduce((s, f) => s + (f.valor || 0), 0) / (months.length - i) * (i + 1) * (0.8 + Math.random() * 0.4),
+    receita: (financials || []).filter(f => f && f.tipo === 'receita').reduce((s, f) => s + (Number(f.valor) || 0), 0) / (months.length - i) * (i + 1) * (0.8 + Math.random() * 0.4),
   }));
 
   return (
