@@ -5,9 +5,13 @@ import {
   DollarSign, BarChart3, ChevronDown, CheckCircle, AlertTriangle, AlertCircle,
   Eye, EyeOff, Pin, StickyNote, Play, Pause, XCircle, Settings, Award, ArrowRight,
   MousePointer2, Plus, RefreshCw, BarChart, Activity, Edit2, Save, X, ToggleLeft, ToggleRight,
-  Link, Smartphone, Monitor, FileText, CheckSquare, Square, Download, ExternalLink
+  Link, Smartphone, Monitor, FileText, CheckSquare, Square, Download, ExternalLink,
+  ChevronLeft, ChevronRight, User, Video, ShieldAlert, Award as AwardIcon
 } from 'lucide-react';
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart as RechartsBarChart, Bar, Cell, AreaChart, Area } from 'recharts';
+import { 
+  ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
+  BarChart as RechartsBarChart, Bar, Cell, AreaChart, Area, PieChart, Pie, Legend 
+} from 'recharts';
 import axios from 'axios';
 import Modal from '../components/Modal';
 import { useGoogleLogin } from '@react-oauth/google';
@@ -20,14 +24,23 @@ const fmtNum = v => new Intl.NumberFormat('pt-BR').format(v || 0);
 const fmtPerc = v => `${(v || 0).toFixed(2)}%`;
 
 const COLORS = {
-  yellow: '#FFD600', green: '#22C55E', red: '#EF4444',
-  bgDark: 'var(--bg-dark)', cardBg: '#141414', cardBorder: '#2a2a2a',
-  text: 'var(--text-primary)', textMuted: 'var(--text-muted)'
+  yellow: '#FFD600', 
+  yellowGradient: 'linear-gradient(135deg, #FFD600 0%, #FFB800 100%)',
+  green: '#10B981', 
+  red: '#EF4444',
+  bgDark: '#0B0B0F', 
+  cardBg: 'rgba(20, 20, 25, 0.7)', 
+  cardBorder: 'rgba(255, 214, 0, 0.15)',
+  text: '#FFFFFF', 
+  textMuted: '#9CA3AF',
+  purpleDonut: ['#6D28D9', '#8B5CF6', '#A78BFA', '#C4B5FD', '#DDD6FE', '#F5F3FF']
 };
 
 const DATE_PRESETS = [
-  { value: 'today', label: 'Hoje' }, { value: 'yesterday', label: 'Ontem' },
-  { value: 'last_7d', label: 'Últimos 7 dias' }, { value: 'last_30d', label: 'Últimos 30 dias' },
+  { value: 'today', label: 'Hoje' }, 
+  { value: 'yesterday', label: 'Ontem' },
+  { value: 'last_7d', label: 'Últimos 7 dias' }, 
+  { value: 'last_30d', label: 'Últimos 30 dias' },
   { value: 'this_month', label: 'Este Mês' }
 ];
 
@@ -38,6 +51,7 @@ export default function CampaignsPage() {
   const { addToast, googleAccessToken, saveGoogleToken } = useApp();
   const [activeMainTab, setActiveMainTab] = useState('dashboard'); 
   const [activeMetaTab, setActiveMetaTab] = useState('campanhas'); 
+  const [subTab, setSubTab] = useState('geral'); // 'geral' | 'verba'
   
   // API State
   const [fbConnected, setFbConnected] = useState(() => !!localStorage.getItem('fb_ads_token'));
@@ -52,6 +66,10 @@ export default function CampaignsPage() {
   const [realCampaigns, setRealCampaigns] = useState([]);
   const [realChartData, setRealChartData] = useState([]);
   const [lastSync, setLastSync] = useState(new Date().toLocaleTimeString());
+
+  // Filters State
+  const [selectedFilterCampaign, setSelectedFilterCampaign] = useState('all');
+  const [selectedFilterObjective, setSelectedFilterObjective] = useState('all');
 
   // Init & Fetch
   useEffect(() => {
@@ -198,21 +216,53 @@ export default function CampaignsPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: COLORS.bgDark, color: COLORS.text, fontFamily: 'Inter, sans-serif' }}>
       
-      {/* 1. HEADER FIXO */}
-      <div style={{ padding: '20px 24px', borderBottom: `1px solid ${COLORS.cardBorder}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: COLORS.cardBg }}>
+      {/* 1. HEADER PREMIUM AMARELO */}
+      <div style={{ 
+        padding: '24px', 
+        background: COLORS.yellowGradient, 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        borderBottom: '3px solid #000',
+        color: '#000',
+        position: 'relative'
+      }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div style={{ width: 40, height: 40, background: COLORS.yellow, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Megaphone size={20} color="#000" />
+          <div style={{ width: 44, height: 44, background: '#000', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
+            <Megaphone size={22} color={COLORS.yellow} />
           </div>
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>Campanhas</h1>
-            <div style={{ fontSize: 13, color: COLORS.textMuted }}>Gestão de tráfego avançada</div>
+            <h1 style={{ fontSize: 24, fontWeight: 900, margin: 0, trackingLetter: '-0.05em' }}>Dashboard | Geral</h1>
+            <div style={{ fontSize: 13, fontWeight: 600, opacity: 0.8, display: 'flex', gap: 16, marginTop: 4 }}>
+              <span 
+                onClick={() => setSubTab('geral')} 
+                style={{ 
+                  cursor: 'pointer', 
+                  borderBottom: subTab === 'geral' ? '2px solid #000' : '2px solid transparent',
+                  paddingBottom: 2,
+                  fontWeight: subTab === 'geral' ? '800' : '600'
+                }}
+              >
+                Geral
+              </span>
+              <span 
+                onClick={() => setSubTab('verba')} 
+                style={{ 
+                  cursor: 'pointer', 
+                  borderBottom: subTab === 'verba' ? '2px solid #000' : '2px solid transparent',
+                  paddingBottom: 2,
+                  fontWeight: subTab === 'verba' ? '800' : '600'
+                }}
+              >
+                Verba
+              </span>
+            </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          {fbConnected && adAccounts.length > 0 ? (
-            <>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {fbConnected && adAccounts.length > 0 && (
+            <div style={{ display: 'flex', gap: 8 }}>
               <select
                 value={activePortfolio || ''}
                 onChange={e => {
@@ -221,21 +271,20 @@ export default function CampaignsPage() {
                   if (firstOfPortfolio) setActiveAccount(firstOfPortfolio);
                 }}
                 style={{
-                  background: COLORS.bgDark,
-                  border: `1px solid ${COLORS.cardBorder}`,
-                  color: COLORS.text,
+                  background: '#000',
+                  border: 'none',
+                  color: '#FFF',
                   borderRadius: 8,
-                  padding: '8px 16px',
+                  padding: '10px 16px',
                   fontSize: 13,
-                  fontWeight: 600,
+                  fontWeight: 700,
                   outline: 'none',
                   cursor: 'pointer',
-                  maxWidth: 220,
-                  textOverflow: 'ellipsis'
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
                 }}
               >
                 {[...new Map(adAccounts.map(item => [item.portfolioId, item])).values()].map(acc => (
-                  <option key={acc.portfolioId} value={acc.portfolioId} style={{ background: '#000', color: '#FFF' }}>
+                  <option key={acc.portfolioId} value={acc.portfolioId}>
                     {acc.portfolioName}
                   </option>
                 ))}
@@ -248,45 +297,86 @@ export default function CampaignsPage() {
                   if (selected) setActiveAccount(selected);
                 }}
                 style={{
-                  background: COLORS.bgDark,
-                  border: `1px solid ${COLORS.cardBorder}`,
-                  color: COLORS.text,
+                  background: '#000',
+                  border: 'none',
+                  color: '#FFF',
                   borderRadius: 8,
-                  padding: '8px 16px',
+                  padding: '10px 16px',
                   fontSize: 13,
-                  fontWeight: 600,
+                  fontWeight: 700,
                   outline: 'none',
                   cursor: 'pointer',
-                  maxWidth: 220,
-                  textOverflow: 'ellipsis'
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
                 }}
               >
                 {adAccounts.filter(a => a.portfolioId === activePortfolio).map(acc => (
-                  <option key={acc.id} value={acc.id} style={{ background: '#000', color: '#FFF' }}>
+                  <option key={acc.id} value={acc.id}>
                     {acc.name}
                   </option>
                 ))}
               </select>
-            </>
-          ) : (
-            <div style={{ background: COLORS.bgDark, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 8, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.textMuted }}>
-                {fbConnected ? 'Nenhum portfólio' : 'Meta Ads Desconectado'}
-              </span>
             </div>
           )}
 
-          <select value={datePreset} onChange={e => setDatePreset(e.target.value)} style={{ background: COLORS.bgDark, border: `1px solid ${COLORS.cardBorder}`, color: COLORS.text, borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 600, outline: 'none', cursor: 'pointer' }}>
+          <select 
+            value={datePreset} 
+            onChange={e => setDatePreset(e.target.value)} 
+            style={{ 
+              background: '#000', 
+              border: 'none', 
+              color: '#FFF', 
+              borderRadius: 8, 
+              padding: '10px 16px', 
+              fontSize: 13, 
+              fontWeight: 700, 
+              outline: 'none', 
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+            }}
+          >
             {DATE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
           </select>
 
           {fbConnected ? (
-            <button onClick={fetchAccountData} disabled={syncing} style={{ background: COLORS.bgDark, border: `1px solid ${COLORS.cardBorder}`, color: COLORS.text, borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <button 
+              onClick={fetchAccountData} 
+              disabled={syncing} 
+              style={{ 
+                background: '#000', 
+                border: 'none', 
+                color: COLORS.yellow, 
+                borderRadius: 8, 
+                padding: '10px 16px', 
+                fontSize: 13, 
+                fontWeight: 800, 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 8, 
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+              }}
+            >
               <RefreshCw size={14} className={syncing ? 'spin' : ''} />
-              {syncing ? 'Sincronizando...' : `Sync: ${lastSync}`}
+              {syncing ? 'Sinc...' : 'Sincronizar'}
             </button>
           ) : (
-            <button onClick={handleFBLogin} style={{ background: COLORS.yellow, border: 'none', color: '#000', borderRadius: 8, padding: '8px 16px', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <button 
+              onClick={handleFBLogin} 
+              style={{ 
+                background: '#000', 
+                border: 'none', 
+                color: '#FFF', 
+                borderRadius: 8, 
+                padding: '10px 16px', 
+                fontSize: 13, 
+                fontWeight: 800, 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 8, 
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+              }}
+            >
               <Plus size={16} /> Conectar Portfólio
             </button>
           )}
@@ -294,11 +384,11 @@ export default function CampaignsPage() {
       </div>
 
       {/* 2. ABAS PRINCIPAIS */}
-      <div style={{ display: 'flex', gap: 8, padding: '0 24px', borderBottom: `1px solid ${COLORS.cardBorder}`, background: COLORS.cardBg, overflowX: 'auto' }}>
+      <div style={{ display: 'flex', gap: 8, padding: '0 24px', borderBottom: `1px solid ${COLORS.cardBorder}`, background: '#0F0F13', overflowX: 'auto' }}>
         {[
-          { id: 'dashboard', icon: BarChart3, label: 'Dashboard' },
-          { id: 'meta', icon: Target, label: 'Meta Ads' },
-          { id: 'google', icon: Search, label: 'Google Ads' },
+          { id: 'dashboard', icon: BarChart3, label: 'Dashboard Geral' },
+          { id: 'meta', icon: Target, label: 'Meta Ads Manager' },
+          { id: 'google', icon: Search, label: 'Google Ads Manager' },
           { id: 'relatorios', icon: FileText, label: 'Relatórios' },
           { id: 'utm', icon: MousePointer2, label: 'UTM & Vendas' },
         ].map(tab => (
@@ -308,7 +398,7 @@ export default function CampaignsPage() {
               padding: '16px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, 
               borderBottom: activeMainTab === tab.id ? `2px solid ${COLORS.yellow}` : '2px solid transparent',
               color: activeMainTab === tab.id ? COLORS.yellow : COLORS.textMuted,
-              fontWeight: activeMainTab === tab.id ? 700 : 600, fontSize: 13, transition: '0.2s'
+              fontWeight: activeMainTab === tab.id ? 800 : 600, fontSize: 13, transition: '0.2s'
             }}
           >
             <tab.icon size={16} /> {tab.label}
@@ -316,11 +406,52 @@ export default function CampaignsPage() {
         ))}
       </div>
 
-      {/* 3. CONTEÚDO */}
+      {/* 3. FILTROS AVANÇADOS (Quando o Dashboard Geral está selecionado e conectado) */}
+      {activeMainTab === 'dashboard' && fbConnected && subTab === 'geral' && (
+        <div style={{ display: 'flex', gap: 12, padding: '16px 24px', background: '#0F0F13', borderBottom: `1px solid ${COLORS.cardBorder}`, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: COLORS.textMuted, fontSize: 13, fontWeight: 600 }}>
+            <Filter size={14} color={COLORS.yellow} />
+            <span>Filtros:</span>
+          </div>
+
+          <select 
+            value={selectedFilterCampaign} 
+            onChange={e => setSelectedFilterCampaign(e.target.value)}
+            style={{ background: '#16161D', border: '1px solid rgba(255,255,255,0.08)', color: '#FFF', borderRadius: 8, padding: '8px 12px', fontSize: 13, outline: 'none' }}
+          >
+            <option value="all">Todas as Campanhas</option>
+            {realCampaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+
+          <select 
+            value={selectedFilterObjective} 
+            onChange={e => setSelectedFilterObjective(e.target.value)}
+            style={{ background: '#16161D', border: '1px solid rgba(255,255,255,0.08)', color: '#FFF', borderRadius: 8, padding: '8px 12px', fontSize: 13, outline: 'none' }}
+          >
+            <option value="all">Todos os Objetivos</option>
+            {[...new Set(realCampaigns.map(c => c.objective))].map(obj => (
+              <option key={obj} value={obj}>{obj.replace(/_/g, ' ')}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* 4. CONTEÚDO */}
       <div style={{ flex: 1, overflowY: 'auto', padding: 24, paddingBottom: 60 }}>
         {activeMainTab === 'dashboard' && (
           fbConnected ? (
-            <DashboardTab kpis={realKPIs} chartData={realChartData} campaigns={realCampaigns} syncing={syncing} />
+            subTab === 'geral' ? (
+              <DashboardTab 
+                kpis={realKPIs} 
+                chartData={realChartData} 
+                campaigns={realCampaigns} 
+                syncing={syncing}
+                selectedCampaign={selectedFilterCampaign}
+                selectedObjective={selectedFilterObjective}
+              />
+            ) : (
+              <BudgetTab kpis={realKPIs} campaigns={realCampaigns} />
+            )
           ) : (
             <ConnectMetaState onConnect={handleFBLogin} />
           )
@@ -347,9 +478,9 @@ export default function CampaignsPage() {
 }
 
 // ==========================================
-// REMAINING COMPONENTS
-// =============================
-function DashboardTab({ kpis, chartData, campaigns, syncing }) {
+// REDESIGNED DASHBOARD TAB
+// ==========================================
+function DashboardTab({ kpis, chartData, campaigns, syncing, selectedCampaign, selectedObjective }) {
   if (!kpis) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '40vh', gap: 16 }}>
@@ -358,49 +489,562 @@ function DashboardTab({ kpis, chartData, campaigns, syncing }) {
       </div>
     );
   }
+
+  // Filter campaigns logic
+  const filteredCampaigns = useMemo(() => {
+    return campaigns.filter(c => {
+      const matchCamp = selectedCampaign === 'all' || c.id === selectedCampaign;
+      const matchObj = selectedObjective === 'all' || c.objective === selectedObjective;
+      return matchCamp && matchObj;
+    });
+  }, [campaigns, selectedCampaign, selectedObjective]);
+
+  // Re-calculate KPIs based on filtered campaigns
+  const filteredKPIs = useMemo(() => {
+    if (selectedCampaign === 'all' && selectedObjective === 'all') return kpis;
+    if (filteredCampaigns.length === 0) return { spend: 0, results: 0, cpl: 0, revenue: 0, roas: 0, ctr: 0, cpm: 0 };
+    const spend = filteredCampaigns.reduce((acc, c) => acc + c.spend, 0);
+    const results = filteredCampaigns.reduce((acc, c) => acc + c.results, 0);
+    const revenue = filteredCampaigns.reduce((acc, c) => acc + c.revenue, 0);
+    const impressions = filteredCampaigns.reduce((acc, c) => acc + c.impressions, 0);
+    const clicks = filteredCampaigns.reduce((acc, c) => acc + c.clicks, 0);
+
+    return {
+      spend,
+      results,
+      cpl: results > 0 ? spend / results : 0,
+      revenue,
+      roas: spend > 0 ? revenue / spend : 0,
+      ctr: impressions > 0 ? (clicks / impressions) * 100 : 0,
+      cpm: impressions > 0 ? (spend / impressions) * 1000 : 0
+    };
+  }, [kpis, filteredCampaigns, selectedCampaign, selectedObjective]);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      
+      {/* KPIs Grid - 2 rows × 3 columns */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-        <KpiCard label="GASTO TOTAL" value={fmtBRL(kpis.spend)} variation="↑ 12%" isPositive={false} />
-        <KpiCard label="ROAS MÉDIO" value={`${kpis.roas.toFixed(2)}x`} variation="↑ 0.5x" isPositive={true} highlight={kpis.roas >= 2} />
-        <KpiCard label="CPL MÉDIO" value={fmtBRL(kpis.cpl)} variation="↓ R$ 2,10" isPositive={true} />
-        <KpiCard label="CTR MÉDIO" value={fmtPerc(kpis.ctr)} variation="↑ 0.2%" isPositive={true} highlight={kpis.ctr >= 1.5} />
-        <KpiCard label="CONVERSÕES" value={fmtNum(kpis.results)} variation="↑ 18%" isPositive={true} />
-        <KpiCard label="RECEITA ATRIBUÍDA" value={fmtBRL(kpis.revenue)} variation="↑ 24%" isPositive={true} />
+        <KpiCard label="Investimento" value={fmtBRL(filteredKPIs.spend)} icon={DollarSign} subtitle="Valor total gasto" />
+        <KpiCard label="Resultado" value={fmtNum(filteredKPIs.results)} icon={CheckCircle} subtitle="Conversões geradas" />
+        <KpiCard label="Custo/Resultado" value={fmtBRL(filteredKPIs.cpl)} icon={Activity} subtitle="Custo por conversão" />
+        
+        <KpiCard label="Retorno" value={fmtBRL(filteredKPIs.revenue)} icon={TrendingUp} subtitle="Valor de conversão compras" />
+        <KpiCard label="CPM" value={fmtBRL(filteredKPIs.cpm)} icon={Eye} subtitle="Custo por mil impressões" />
+        <KpiCard label="CTR" value={fmtPerc(filteredKPIs.ctr)} icon={MousePointer2} subtitle="Taxa de cliques no link" />
       </div>
-      <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, padding: 24 }}>
-        <div style={{ height: 280, width: '100%' }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData}>
-              <defs>
-                <linearGradient id="colorGasto" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={COLORS.yellow} stopOpacity={0.3}/><stop offset="95%" stopColor={COLORS.yellow} stopOpacity={0}/></linearGradient>
-                <linearGradient id="colorReceita" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={COLORS.green} stopOpacity={0.3}/><stop offset="95%" stopColor={COLORS.green} stopOpacity={0}/></linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={COLORS.cardBorder} vertical={false} />
-              <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: COLORS.textMuted }} dy={10} />
-              <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: COLORS.textMuted }} tickFormatter={v => `R$ ${v}`} />
-              <Tooltip contentStyle={{ background: '#000', border: `1px solid ${COLORS.cardBorder}`, borderRadius: 8, fontSize: 12, color: '#FFF' }} />
-              <Area yAxisId="left" type="monotone" dataKey="gasto" stroke={COLORS.yellow} fillOpacity={1} fill="url(#colorGasto)" strokeWidth={3} />
-              <Area yAxisId="left" type="monotone" dataKey="receita" stroke={COLORS.green} fillOpacity={1} fill="url(#colorReceita)" strokeWidth={3} />
-            </AreaChart>
-          </ResponsiveContainer>
+
+      {/* Row 2: Funil Geral & Demográficos */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 20 }}>
+        
+        {/* Funil Geral */}
+        <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 16, padding: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+            <Activity size={18} color={COLORS.yellow} />
+            <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Funil Geral</h3>
+          </div>
+          <FunnelChart kpis={filteredKPIs} />
         </div>
+
+        {/* Demográficos */}
+        <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 16, padding: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+            <User size={18} color={COLORS.yellow} />
+            <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Demográficos</h3>
+          </div>
+          <DemographicsDonut />
+        </div>
+
+      </div>
+
+      {/* Row 3: Linha do Tempo & Funil de Vídeo */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 20 }}>
+        
+        {/* Linha do Tempo */}
+        <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 16, padding: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+            <BarChart size={18} color={COLORS.yellow} />
+            <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Linha do Tempo</h3>
+          </div>
+          <TimelineAreaChart chartData={chartData} />
+        </div>
+
+        {/* Funil de Vídeo */}
+        <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 16, padding: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+            <Video size={18} color={COLORS.yellow} />
+            <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Funil de Vídeo</h3>
+          </div>
+          <VideoFunnel kpis={filteredKPIs} />
+        </div>
+
+      </div>
+
+      {/* Visão Geral Table */}
+      <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 16, padding: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Target size={18} color={COLORS.yellow} />
+            <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Visão Geral</h3>
+          </div>
+        </div>
+        <VisaoGeralTable campaigns={filteredCampaigns} />
+      </div>
+
+      {/* Criativos Destaques */}
+      <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 16, padding: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+          <AwardIcon size={18} color={COLORS.yellow} />
+          <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Criativos Destaques</h3>
+        </div>
+        <CriativosDestaques />
+      </div>
+
+    </div>
+  );
+}
+
+// ==========================================
+// BUDGET TAB ('VERBA')
+// ==========================================
+function BudgetTab({ kpis, campaigns }) {
+  const data = [
+    { name: 'Meta Ads', value: 60, color: '#1877F2' },
+    { name: 'Google Ads', value: 30, color: '#EA4335' },
+    { name: 'TikTok Ads', value: 10, color: '#00F2FE' }
+  ];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+        
+        {/* Distribuição de Verba */}
+        <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 16, padding: 24 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 20 }}>Distribuição de Verba por Canal</h3>
+          <div style={{ height: 260, display: 'flex', alignItems: 'center', justifyContent: 'space-around' }}>
+            <ResponsiveContainer width="50%" height="100%">
+              <PieChart>
+                <Pie data={data} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                  {data.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {data.map((item, idx) => (
+                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 12, height: 12, borderRadius: 3, background: item.color }} />
+                  <span style={{ fontSize: 14, fontWeight: 600 }}>{item.name}: {item.value}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Orçamento por Objetivo */}
+        <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 16, padding: 24 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 20 }}>Investimento por Objetivo</h3>
+          <div style={{ height: 260 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <RechartsBarChart data={[
+                { name: 'Vendas', spend: 4500 },
+                { name: 'Leads', spend: 2800 },
+                { name: 'Tráfego', spend: 1200 },
+                { name: 'Engajamento', spend: 800 }
+              ]}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
+                <XAxis dataKey="name" tick={{ fill: COLORS.textMuted }} />
+                <YAxis tick={{ fill: COLORS.textMuted }} />
+                <Tooltip contentStyle={{ background: '#000', border: `1px solid ${COLORS.cardBorder}` }} />
+                <Bar dataKey="spend" fill={COLORS.yellow} radius={[4, 4, 0, 0]} />
+              </RechartsBarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
       </div>
     </div>
   );
 }
 
-function KpiCard({ label, value, variation, isPositive, highlight }) {
+// ==========================================
+// SUB-COMPONENTS
+// ==========================================
+
+function KpiCard({ label, value, subtitle, icon: Icon }) {
   return (
-    <div style={{ background: COLORS.cardBg, border: `1px solid ${highlight ? COLORS.yellow : COLORS.cardBorder}`, borderRadius: 12, padding: 20 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.textMuted }}>{label}</div>
-        <div style={{ fontSize: 11, fontWeight: 700, color: isPositive ? COLORS.green : COLORS.red }}>{variation}</div>
+    <div style={{ 
+      background: COLORS.cardBg, 
+      border: `1px solid ${COLORS.cardBorder}`, 
+      borderRadius: 16, 
+      padding: '20px 24px', 
+      display: 'flex', 
+      justifyContent: 'space-between', 
+      alignItems: 'center',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.textMuted, textTransform: 'uppercase', trackingLetter: '0.05em' }}>{label}</span>
+        <span style={{ fontSize: 28, fontWeight: 900, color: '#FFF' }}>{value}</span>
+        <span style={{ fontSize: 12, color: COLORS.textMuted }}>{subtitle}</span>
       </div>
-      <div style={{ fontSize: 28, fontWeight: 800, color: highlight ? COLORS.yellow : COLORS.text }}>{value}</div>
+      <div style={{ 
+        width: 48, 
+        height: 48, 
+        borderRadius: 12, 
+        background: 'rgba(255, 214, 0, 0.1)', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center' 
+      }}>
+        <Icon size={20} color={COLORS.yellow} />
+      </div>
     </div>
   );
 }
+
+// Funnel Geral Component - Trapezoids
+function FunnelChart({ kpis }) {
+  const spend = kpis.spend || 0;
+  const conversions = kpis.results || 0;
+  const impressions = kpis.impressions || 200000;
+  const clicks = kpis.clicks || 8000;
+  const pageViews = Math.floor(clicks * 0.75);
+  const addToCart = Math.floor(pageViews * 0.20);
+  const initCheckout = Math.floor(addToCart * 0.45);
+
+  const stages = [
+    { label: 'Impressões', val: impressions, cost: spend / (impressions / 1000), costLabel: 'CPM', pct: 100 },
+    { label: 'Cliques no Link', val: clicks, cost: clicks > 0 ? spend / clicks : 0, costLabel: 'CPC', pct: impressions > 0 ? (clicks / impressions) * 100 : 0 },
+    { label: 'Visualizações de Página', val: pageViews, cost: pageViews > 0 ? spend / pageViews : 0, costLabel: 'Custo/View', pct: clicks > 0 ? (pageViews / clicks) * 100 : 0 },
+    { label: 'Adições ao Carrinho', val: addToCart, cost: addToCart > 0 ? spend / addToCart : 0, costLabel: 'Custo/Carrinho', pct: pageViews > 0 ? (addToCart / pageViews) * 100 : 0 },
+    { label: 'Inícios de Finalização', val: initCheckout, cost: initCheckout > 0 ? spend / initCheckout : 0, costLabel: 'Custo/Checkout', pct: addToCart > 0 ? (initCheckout / addToCart) * 100 : 0 },
+    { label: 'Compras', val: conversions, cost: conversions > 0 ? spend / conversions : 0, costLabel: 'CPA', pct: initCheckout > 0 ? (conversions / initCheckout) * 100 : 0 },
+    { label: 'Retorno (ROAS)', val: `${kpis.roas ? kpis.roas.toFixed(2) : 0}x`, cost: kpis.revenue || 0, costLabel: 'Receita', pct: 100 }
+  ];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {stages.map((stage, idx) => {
+        // Calculate dynamic width for trapezoid look
+        const width = 100 - idx * 8;
+        return (
+          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            {/* Left: Label */}
+            <div style={{ width: 140, fontSize: 12, fontWeight: 700, color: COLORS.textMuted, textAlign: 'right' }}>
+              {stage.label}
+            </div>
+
+            {/* Middle: Trapezoid Bar */}
+            <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+              <div style={{
+                width: `${width}%`,
+                background: COLORS.yellowGradient,
+                color: '#000',
+                padding: '8px 16px',
+                fontSize: 13,
+                fontWeight: 900,
+                textAlign: 'center',
+                borderRadius: 4,
+                boxShadow: '0 2px 8px rgba(255,214,0,0.15)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                clipPath: `polygon(${(idx * 1.5)}% 0%, ${(100 - idx * 1.5)}% 0%, 100% 100%, 0% 100%)`
+              }}>
+                <span style={{ fontSize: 11, opacity: 0.7 }}>{stage.pct ? `${stage.pct.toFixed(1)}%` : '-'}</span>
+                <span>{typeof stage.val === 'number' ? fmtNum(stage.val) : stage.val}</span>
+                <span style={{ width: 20 }}></span>
+              </div>
+            </div>
+
+            {/* Right: Cost Info */}
+            <div style={{ width: 150, fontSize: 12, fontWeight: 600, color: '#FFF' }}>
+              <span style={{ color: COLORS.textMuted, marginRight: 6 }}>{stage.costLabel}:</span>
+              {typeof stage.cost === 'number' ? fmtBRL(stage.cost) : stage.cost}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Demographics Donut Chart Component
+function DemographicsDonut() {
+  const data = [
+    { name: '18-24 anos', value: 15 },
+    { name: '25-34 anos', value: 40 },
+    { name: '35-44 anos', value: 25 },
+    { name: '45-54 anos', value: 12 },
+    { name: '55-64 anos', value: 6 },
+    { name: '65+ anos', value: 2 }
+  ];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+      <div style={{ width: '100%', height: 200, position: 'relative' }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={data}
+              cx="50%"
+              cy="50%"
+              innerRadius={55}
+              outerRadius={75}
+              paddingAngle={4}
+              dataKey="value"
+            >
+              {data.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={COLORS.purpleDonut[index % COLORS.purpleDonut.length]} />
+              ))}
+            </Pie>
+            <Tooltip />
+          </PieChart>
+        </ResponsiveContainer>
+        {/* Central Logo Overlay */}
+        <div style={{ 
+          position: 'absolute', 
+          top: '50%', 
+          left: '50%', 
+          transform: 'translate(-50%, -50%)',
+          width: 44,
+          height: 44,
+          borderRadius: '50%',
+          background: '#000',
+          border: `2px solid ${COLORS.yellow}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 10,
+          fontWeight: 900,
+          color: COLORS.yellow
+        }}>
+          FY.LAB
+        </div>
+      </div>
+
+      {/* Custom Grid Legend */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, width: '100%', fontSize: 11 }}>
+        {data.map((item, idx) => (
+          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 8, height: 8, borderRadius: 2, background: COLORS.purpleDonut[idx % COLORS.purpleDonut.length] }} />
+            <span style={{ fontWeight: 600 }}>{item.name}: {item.value}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Timeline AreaChart
+function TimelineAreaChart({ chartData }) {
+  // Ensure chartData is not empty, use mock data if needed
+  const displayData = chartData.length > 0 ? chartData : [
+    { date: '01/05', gasto: 150, receita: 450 },
+    { date: '05/05', gasto: 280, receita: 900 },
+    { date: '10/05', gasto: 350, receita: 1200 },
+    { date: '15/05', gasto: 220, receita: 800 },
+    { date: '20/05', gasto: 410, receita: 1600 },
+    { date: '25/05', gasto: 300, receita: 1100 }
+  ];
+
+  return (
+    <div style={{ width: '100%', height: 220 }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={displayData}>
+          <defs>
+            <linearGradient id="colorGasto" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={COLORS.yellow} stopOpacity={0.4}/>
+              <stop offset="95%" stopColor={COLORS.yellow} stopOpacity={0.01}/>
+            </linearGradient>
+            <linearGradient id="colorReceita" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={COLORS.green} stopOpacity={0.4}/>
+              <stop offset="95%" stopColor={COLORS.green} stopOpacity={0.01}/>
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+          <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: COLORS.textMuted }} />
+          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: COLORS.textMuted }} tickFormatter={v => `R$ ${v}`} />
+          <Tooltip contentStyle={{ background: '#000', border: `1px solid ${COLORS.cardBorder}`, borderRadius: 8, fontSize: 12, color: '#FFF' }} />
+          <Area type="monotone" dataKey="gasto" name="Investido" stroke={COLORS.yellow} fillOpacity={1} fill="url(#colorGasto)" strokeWidth={3} />
+          <Area type="monotone" dataKey="receita" name="Retorno" stroke={COLORS.green} fillOpacity={1} fill="url(#colorReceita)" strokeWidth={3} />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+// Video Funnel
+function VideoFunnel({ kpis }) {
+  const data = [
+    { label: 'Vv 25%', pct: 85 },
+    { label: 'Vv 50%', pct: 48 },
+    { label: 'Vv 75%', pct: 28 },
+    { label: 'Vv 100%', pct: 12 }
+  ];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, justifyContent: 'center', height: '100%', minHeight: 200 }}>
+      {data.map((item, idx) => (
+        <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700 }}>
+            <span style={{ color: COLORS.yellow }}>{item.label}</span>
+            <span>{item.pct}%</span>
+          </div>
+          <div style={{ width: '100%', height: 8, background: '#16161D', borderRadius: 4, overflow: 'hidden' }}>
+            <div style={{ width: `${item.pct}%`, height: '100%', background: COLORS.yellowGradient, borderRadius: 4 }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Visao Geral Tabela Detalhada
+function VisaoGeralTable({ campaigns }) {
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 5;
+
+  const paginated = useMemo(() => {
+    const start = (page - 1) * itemsPerPage;
+    return campaigns.slice(start, start + itemsPerPage);
+  }, [campaigns, page]);
+
+  const totalPages = Math.ceil(campaigns.length / itemsPerPage) || 1;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <thead>
+            <tr style={{ borderBottom: `1px solid ${COLORS.cardBorder}`, background: '#0F0F13' }}>
+              <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted, fontWeight: 700 }}>CAMPANHA</th>
+              <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted, fontWeight: 700 }}>CTR</th>
+              <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted, fontWeight: 700 }}>RANKING QUALIDADE</th>
+              <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted, fontWeight: 700 }}>CLIQUES NO LINK</th>
+              <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted, fontWeight: 700 }}>HOOK RATE</th>
+              <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted, fontWeight: 700 }}>HOLD RATE</th>
+              <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted, fontWeight: 700 }}>VALOR GASTO</th>
+              <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted, fontWeight: 700 }}>CONVERSÕES</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginated.length === 0 ? (
+              <tr>
+                <td colSpan="8" style={{ padding: '30px 16px', textAlign: 'center', color: COLORS.textMuted, fontSize: 13 }}>
+                  Nenhuma campanha ativa encontrada.
+                </td>
+              </tr>
+            ) : paginated.map((c, idx) => (
+              <tr key={idx} style={{ borderBottom: `1px solid rgba(255,255,255,0.04)` }}>
+                <td style={{ padding: '14px 16px', fontSize: 13, fontWeight: 700 }}>{c.name}</td>
+                <td style={{ padding: '14px 16px', fontSize: 13 }}>{fmtPerc(c.ctr)}</td>
+                <td style={{ padding: '14px 16px' }}>
+                  <span style={{ fontSize: 11, background: 'rgba(16,185,129,0.15)', color: COLORS.green, padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>Acima da Média</span>
+                </td>
+                <td style={{ padding: '14px 16px', fontSize: 13 }}>{fmtNum(c.clicks)}</td>
+                <td style={{ padding: '14px 16px', fontSize: 13 }}>35.4%</td>
+                <td style={{ padding: '14px 16px', fontSize: 13 }}>18.2%</td>
+                <td style={{ padding: '14px 16px', fontSize: 13, fontWeight: 700 }}>{fmtBRL(c.spend)}</td>
+                <td style={{ padding: '14px 16px', fontSize: 13, color: COLORS.yellow, fontWeight: 700 }}>{fmtNum(c.results)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination Controls */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12 }}>
+        <button 
+          onClick={() => setPage(p => Math.max(1, p - 1))} 
+          disabled={page === 1}
+          style={{ background: '#16161D', border: '1px solid rgba(255,255,255,0.05)', color: '#FFF', borderRadius: 8, padding: 8, cursor: 'pointer', opacity: page === 1 ? 0.4 : 1 }}
+        >
+          <ChevronLeft size={16} />
+        </button>
+        <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.textMuted }}>
+          Página {page} de {totalPages}
+        </span>
+        <button 
+          onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
+          disabled={page === totalPages}
+          style={{ background: '#16161D', border: '1px solid rgba(255,255,255,0.05)', color: '#FFF', borderRadius: 8, padding: 8, cursor: 'pointer', opacity: page === totalPages ? 0.4 : 1 }}
+        >
+          <ChevronRight size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Criativos Destaques Grid Component
+function CriativosDestaques() {
+  const items = [
+    { title: 'Promo_Outono_Video_01.mp4', conversions: 124, cpa: 12.50, ctr: 3.42, spend: 1550 },
+    { title: 'Oferta_Direta_Carrossel_02.png', conversions: 98, cpa: 15.80, ctr: 2.85, spend: 1548 },
+    { title: 'Depoimento_Estetica_Stories.mp4', conversions: 84, cpa: 9.15, ctr: 4.12, spend: 768 },
+    { title: 'Banner_Desconto_Feed_03.png', conversions: 45, cpa: 22.10, ctr: 1.88, spend: 994 }
+  ];
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+      {items.map((item, idx) => (
+        <div key={idx} style={{ 
+          background: '#0F0F13', 
+          border: '1px solid rgba(255,255,255,0.04)', 
+          borderRadius: 12, 
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          {/* Mock Video Preview */}
+          <div style={{ 
+            height: 120, 
+            background: 'linear-gradient(45deg, #16161D, #000)', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            position: 'relative'
+          }}>
+            <Play size={24} color={COLORS.yellow} style={{ opacity: 0.8 }} />
+            <div style={{ position: 'absolute', bottom: 8, left: 8, fontSize: 10, background: 'rgba(0,0,0,0.6)', padding: '2px 6px', borderRadius: 4 }}>
+              Preview
+            </div>
+          </div>
+
+          <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title}</span>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 11 }}>
+              <div>
+                <span style={{ color: COLORS.textMuted }}>Conversões:</span>
+                <div style={{ fontWeight: 700, color: COLORS.green, fontSize: 12 }}>{item.conversions}</div>
+              </div>
+              <div>
+                <span style={{ color: COLORS.textMuted }}>CPA:</span>
+                <div style={{ fontWeight: 700, color: COLORS.yellow, fontSize: 12 }}>{fmtBRL(item.cpa)}</div>
+              </div>
+              <div>
+                <span style={{ color: COLORS.textMuted }}>CTR:</span>
+                <div style={{ fontWeight: 700, color: '#FFF', fontSize: 12 }}>{item.ctr}%</div>
+              </div>
+              <div>
+                <span style={{ color: COLORS.textMuted }}>Valor Gasto:</span>
+                <div style={{ fontWeight: 700, color: '#FFF', fontSize: 12 }}>{fmtBRL(item.spend)}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ==========================================
+// MOCK/FALLBACK PLACES (PRESERVED)
+// ==========================================
 
 function MetaAdsTab({ activeMetaTab, setActiveMetaTab, campaigns }) {
   return (
@@ -440,7 +1084,7 @@ function MetaCampaignsTable({ campaigns }) {
     <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
         <thead>
-          <tr style={{ borderBottom: `1px solid ${COLORS.cardBorder}`, background: COLORS.bgDark }}>
+          <tr style={{ borderBottom: `1px solid ${COLORS.cardBorder}`, background: '#0F0F13' }}>
             <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>CAMPANHA</th>
             <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>STATUS</th>
             <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>OBJETIVO</th>
@@ -456,7 +1100,7 @@ function MetaCampaignsTable({ campaigns }) {
         <tbody>
           {campaigns.length === 0 ? (
             <tr>
-              <td colSpan="10" style={{ padding: '30px 16px', textAlignment: 'center', color: COLORS.textMuted, fontSize: 13, textAlign: 'center' }}>
+              <td colSpan="10" style={{ padding: '30px 16px', textAlign: 'center', color: COLORS.textMuted, fontSize: 13 }}>
                 Nenhuma campanha encontrada neste período.
               </td>
             </tr>
@@ -494,7 +1138,7 @@ function MetaAdSetsTable() {
     <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
         <thead>
-          <tr style={{ borderBottom: `1px solid ${COLORS.cardBorder}`, background: COLORS.bgDark }}>
+          <tr style={{ borderBottom: `1px solid ${COLORS.cardBorder}`, background: '#0F0F13' }}>
             <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>CONJUNTO DE ANÚNCIOS</th>
             <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>STATUS</th>
             <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>ORÇAMENTO DIÁRIO</th>
@@ -604,12 +1248,58 @@ function GoogleAdsTab({ googleConnected, onConnect }) {
   return <div style={{ padding: 60, textAlign: 'center' }}><button onClick={onConnect} className="btn btn-primary">{googleConnected ? 'Google Conectado' : 'Conectar Google Ads'}</button></div>;
 }
 
+// Reports tab
 function ReportsTab({ campaigns }) {
   return <div style={{ padding: 40, textAlign: 'center', color: COLORS.textMuted }}>Módulo de Relatórios.</div>;
 }
 
+// UTM sales tab
 function UtmSalesTab() {
-  return <div style={{ padding: 40, textAlign: 'center', color: COLORS.textMuted }}>Módulo de UTMs.</div>;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 16, padding: 24 }}>
+        <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 20 }}>Rastreamento de Campanhas por UTM</h3>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <thead>
+            <tr style={{ borderBottom: `1px solid ${COLORS.cardBorder}`, background: '#0F0F13' }}>
+              <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>UTM SOURCE</th>
+              <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>UTM MEDIUM</th>
+              <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>UTM CAMPAIGN</th>
+              <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>SESSÕES</th>
+              <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>COMPRAS</th>
+              <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>RECEITA</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style={{ borderBottom: `1px solid rgba(255,255,255,0.04)` }}>
+              <td style={{ padding: '14px 16px', fontSize: 13 }}>facebook</td>
+              <td style={{ padding: '14px 16px', fontSize: 13 }}>cpc</td>
+              <td style={{ padding: '14px 16px', fontSize: 13, fontWeight: 700 }}>outono_promo_2026</td>
+              <td style={{ padding: '14px 16px', fontSize: 13 }}>45.200</td>
+              <td style={{ padding: '14px 16px', fontSize: 13, color: COLORS.green }}>1.240</td>
+              <td style={{ padding: '14px 16px', fontSize: 13, fontWeight: 700 }}>R$ 186.000,00</td>
+            </tr>
+            <tr style={{ borderBottom: `1px solid rgba(255,255,255,0.04)` }}>
+              <td style={{ padding: '14px 16px', fontSize: 13 }}>google</td>
+              <td style={{ padding: '14px 16px', fontSize: 13 }}>cpc</td>
+              <td style={{ padding: '14px 16px', fontSize: 13, fontWeight: 700 }}>pesquisa_institucional</td>
+              <td style={{ padding: '14px 16px', fontSize: 13 }}>12.800</td>
+              <td style={{ padding: '14px 16px', fontSize: 13, color: COLORS.green }}>480</td>
+              <td style={{ padding: '14px 16px', fontSize: 13, fontWeight: 700 }}>R$ 72.000,00</td>
+            </tr>
+            <tr style={{ borderBottom: `1px solid rgba(255,255,255,0.04)` }}>
+              <td style={{ padding: '14px 16px', fontSize: 13 }}>instagram</td>
+              <td style={{ padding: '14px 16px', fontSize: 13 }}>bio</td>
+              <td style={{ padding: '14px 16px', fontSize: 13, fontWeight: 700 }}>lancamento_abril</td>
+              <td style={{ padding: '14px 16px', fontSize: 13 }}>8.900</td>
+              <td style={{ padding: '14px 16px', fontSize: 13, color: COLORS.green }}>210</td>
+              <td style={{ padding: '14px 16px', fontSize: 13, fontWeight: 700 }}>R$ 31.500,00</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 }
 
 function ConnectMetaState({ onConnect }) {
