@@ -215,31 +215,36 @@ export function AppProvider({ children }) {
   // Initialize Supabase Auth and load data
   useEffect(() => {
     const handleSession = async (session) => {
-      const user = session?.user;
-      if (!user) {
-        setAuth(null);
-        setAgencyId(null);
-        agencyIdRef.current = null;
-        setLoadingData(false);
-        stopSync();
-        return;
-      }
-      setAuth(user);
-      
-      let currentAgencyId = user.id;
       try {
-        const { data: profile } = await supabase.from('user_profiles').select('agency_id').eq('id', user.id).maybeSingle();
-        if (profile?.agency_id) {
-          currentAgencyId = profile.agency_id;
+        const user = session?.user;
+        if (!user) {
+          setAuth(null);
+          setAgencyId(null);
+          agencyIdRef.current = null;
+          stopSync();
+          return;
         }
+        setAuth(user);
+        
+        let currentAgencyId = user.id;
+        try {
+          const { data: profile } = await supabase.from('user_profiles').select('agency_id').eq('id', user.id).maybeSingle();
+          if (profile?.agency_id) {
+            currentAgencyId = profile.agency_id;
+          }
+        } catch (err) {
+          console.error("[Auth] Erro ao carregar user_profile:", err);
+        }
+        
+        setAgencyId(currentAgencyId);
+        agencyIdRef.current = currentAgencyId;
+        console.log('[Auth] agencyId definido:', currentAgencyId);
+        await fetchDataRef.current(currentAgencyId);
       } catch (err) {
-        console.error("[Auth] Erro ao carregar user_profile:", err);
+        console.error("[Auth] Erro crítico no handleSession:", err);
+      } finally {
+        setLoadingData(false);
       }
-      
-      setAgencyId(currentAgencyId);
-      agencyIdRef.current = currentAgencyId;
-      console.log('[Auth] agencyId definido:', currentAgencyId);
-      await fetchDataRef.current(currentAgencyId);
     };
 
     supabase.auth.getSession().then(({ data: { session } }) => handleSession(session));
