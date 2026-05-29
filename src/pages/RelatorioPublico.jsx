@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import {
   BarChart3, TrendingUp, DollarSign, Target, Users, Eye, MousePointer2,
   Activity, ArrowUpRight, ArrowDownRight, Calendar, AlertTriangle,
-  Zap, Award, ChevronDown, Sun, Moon, Play, Video, Award as AwardIcon,
+  Zap, ChevronDown, Sun, Moon, Play, Video, Award as AwardIcon,
   ChevronLeft, ChevronRight, CheckCircle
 } from 'lucide-react';
 import {

@@ -150,7 +150,7 @@ export function AppProvider({ children }) {
             return { key, val: null };
           }
           if (rows) {
-            return { key, val: rows.map(r => ({ ...r.data, _dbId: r.id })) };
+            return { key, val: rows.map(r => ({ ...(r.data || {}), _dbId: r.id })) };
           }
           return { key, val: [] };
         } catch (e) {
