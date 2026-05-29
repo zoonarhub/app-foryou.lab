@@ -5,7 +5,7 @@ import {
   BarChart3, TrendingUp, DollarSign, Target, Users, Eye, MousePointer2,
   Activity, ArrowUpRight, ArrowDownRight, Calendar, AlertTriangle,
   Zap, Award, ChevronDown, Sun, Moon, Play, Video, Award as AwardIcon,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, CheckCircle
 } from 'lucide-react';
 import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis,
@@ -18,9 +18,18 @@ const supabaseAnon = createClient(
   { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
 );
 
-const fmt = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 }).format(v || 0);
-const fmtNum = v => new Intl.NumberFormat('pt-BR').format(v || 0);
-const fmtPerc = v => `${(v || 0).toFixed(2)}%`;
+const fmt = v => {
+  const num = parseFloat(v);
+  return isNaN(num) ? 'R$ 0' : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 }).format(num);
+};
+const fmtNum = v => {
+  const num = parseInt(v);
+  return isNaN(num) ? '0' : new Intl.NumberFormat('pt-BR').format(num);
+};
+const fmtPerc = v => {
+  const num = parseFloat(v);
+  return isNaN(num) ? '0.00%' : `${num.toFixed(2)}%`;
+};
 
 const COLORS = {
   yellow: '#FFD600',
