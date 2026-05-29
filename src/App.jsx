@@ -45,6 +45,48 @@ function PageLoader() {
   );
 }
 
+function SyncIndicator() {
+  const { syncStatus, triggerSync } = useApp();
+  const { pending, isSyncing, lastSync } = syncStatus;
+
+  const getColor = () => {
+    if (isSyncing) return '#FFD600';
+    if (pending > 0) return '#F59E0B';
+    return '#22C55E';
+  };
+
+  const getLabel = () => {
+    if (isSyncing) return 'Sincronizando...';
+    if (pending > 0) return `${pending} pendente${pending > 1 ? 's' : ''}`;
+    return 'Sincronizado';
+  };
+
+  return (
+    <div
+      onClick={pending > 0 ? triggerSync : undefined}
+      title={lastSync ? `Último sync: ${new Date(lastSync).toLocaleTimeString('pt-BR')}` : 'Nenhum sync ainda'}
+      style={{
+        position: 'fixed', bottom: 16, right: 16, zIndex: 9999,
+        display: 'flex', alignItems: 'center', gap: 6,
+        padding: '6px 12px', borderRadius: 20,
+        background: 'rgba(20,20,25,0.85)', backdropFilter: 'blur(10px)',
+        border: `1px solid ${getColor()}33`,
+        fontSize: 11, color: getColor(), fontWeight: 600,
+        cursor: pending > 0 ? 'pointer' : 'default',
+        transition: 'all 0.3s ease',
+        boxShadow: `0 2px 12px ${getColor()}22`
+      }}
+    >
+      <div style={{
+        width: 8, height: 8, borderRadius: '50%',
+        background: getColor(),
+        animation: isSyncing ? 'pulse 1.5s ease-in-out infinite' : 'none'
+      }} />
+      {getLabel()}
+    </div>
+  );
+}
+
 function AuthGuard() {
   const { auth, loadingData } = useApp();
 
@@ -86,6 +128,7 @@ function AuthGuard() {
         </Suspense>
       </main>
       <ToastContainer />
+      <SyncIndicator />
     </div>
   );
 }

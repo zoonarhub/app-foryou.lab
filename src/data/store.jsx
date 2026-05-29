@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { saveCollection, loadCollection, addToSyncQueue, getSyncStats, getLastSyncTime } from '../lib/localDB';
+import { startSync, stopSync, forceSync } from '../lib/syncEngine';
 
 const AppContext = createContext(null);
 const THEME_KEY = 'foryoulab_theme';
@@ -31,6 +33,9 @@ export function AppProvider({ children }) {
   const [theme, setThemeState] = useState(() => localStorage.getItem(THEME_KEY) || 'dark');
   const [loadingData, setLoadingData] = useState(true);
 
+  // ── Sync Status (para indicador visual) ───────────────────
+  const [syncStatus, setSyncStatus] = useState({ pending: 0, lastSync: null, isSyncing: false });
+
   const [evolutionApiUrl, setEvolutionApiUrl] = useState(localStorage.getItem('evo_url') || 'https://evo.zoonar.com.br');
   const [evolutionApiKey, setEvolutionApiKey] = useState(localStorage.getItem('evo_key') || '54A0DAA1396B-4570-A1CF-665D425E8171');
   const [googleAccessToken, setGoogleAccessToken] = useState(localStorage.getItem('google_token') || null);
@@ -50,49 +55,133 @@ export function AppProvider({ children }) {
     setThemeState(prev => prev === 'dark' ? 'light' : 'dark');
   }, []);
 
-  // Fetch Data from Supabase
+  // ── Atualizar status de sync via eventos customizados ─────
+  useEffect(() => {
+    const handleSyncStart = () => setSyncStatus(prev => ({ ...prev, isSyncing: true }));
+    const handleSyncComplete = (e) => {
+      const stats = getSyncStats();
+      setSyncStatus({
+        pending: stats.pending,
+        lastSync: getLastSyncTime(),
+        isSyncing: false
+      });
+    };
+
+    window.addEventListener('sync-start', handleSyncStart);
+    window.addEventListener('sync-complete', handleSyncComplete);
+    return () => {
+      window.removeEventListener('sync-start', handleSyncStart);
+      window.removeEventListener('sync-complete', handleSyncComplete);
+    };
+  }, []);
+
+  // ═══════════════════════════════════════════════════════════
+  // fetchData — LOCAL-FIRST: carrega do localStorage primeiro,
+  // depois sincroniza com Supabase em background
+  // ═══════════════════════════════════════════════════════════
   const fetchData = useCallback(async (forcedAgencyId) => {
     const activeAgencyId = forcedAgencyId || agencyIdRef.current;
     if (!activeAgencyId) {
       setLoadingData(false);
       return;
     }
-    setLoadingData(true);
-    
+
+    // ── PASSO 1: Carregar do localStorage (instantâneo) ─────
+    const keys = Object.keys(emptyData);
+    const localData = { ...emptyData };
+    let hasLocalData = false;
+
+    keys.forEach(key => {
+      const items = loadCollection(key);
+      if (items.length > 0) {
+        localData[key] = items;
+        hasLocalData = true;
+      }
+    });
+
+    if (hasLocalData) {
+      setData(localData);
+      setLoadingData(false);
+      console.log('[Store] ⚡ Dados carregados do localStorage (instantâneo)');
+    } else {
+      setLoadingData(true);
+    }
+
+    // ── PASSO 2: Fetch do Supabase em background ────────────
     try {
-      const keys = Object.keys(emptyData);
       const results = await Promise.all(keys.map(async (key) => {
         const table = toSnakeCase(key);
         try {
           if (STRUCTURED_TABLES.includes(key)) {
             const { data: rows, error } = await supabase.from(table).select('*').eq('user_id', activeAgencyId);
-            if (error) console.warn(`[fetchData] Erro em ${table}:`, error.message);
-            return { key, val: !error && rows ? rows : [] };
+            if (error) {
+              console.warn(`[fetchData] Erro em ${table}:`, error.message);
+              return { key, val: null }; // null = manter dados locais
+            }
+            return { key, val: rows || [] };
           }
           
           const { data: rows, error } = await supabase.from(table).select('id, data').eq('user_id', activeAgencyId);
-          if (error) console.warn(`[fetchData] Erro em ${table}:`, error.message);
-          if (!error && rows) {
+          if (error) {
+            console.warn(`[fetchData] Erro em ${table}:`, error.message);
+            return { key, val: null };
+          }
+          if (rows) {
             return { key, val: rows.map(r => ({ ...r.data, _dbId: r.id })) };
           }
           return { key, val: [] };
         } catch (e) {
           console.warn(`[fetchData] Exceção em ${table}:`, e);
-          return { key, val: [] };
+          return { key, val: null };
         }
       }));
 
-      const newData = { ...emptyData };
+      // ── PASSO 3: Merge — Supabase ganha quando disponível ──
+      const mergedData = { ...localData };
+      let supabaseHadData = false;
+
       results.forEach(({ key, val }) => {
-        newData[key] = val;
+        if (val !== null) {
+          // Supabase respondeu: usar dados dele (mais confiáveis)
+          // Mas fazer merge com items locais que ainda não foram sincronizados
+          const syncQueue = getSyncStats();
+          if (val.length > 0 || syncQueue.pending === 0) {
+            mergedData[key] = mergeWithLocalPending(key, val, localData[key]);
+            supabaseHadData = true;
+          } else {
+            // Supabase vazio mas temos items pendentes locais
+            mergedData[key] = localData[key];
+          }
+        }
+        // Se val === null (erro Supabase), manter dados locais
       });
-      
-      setData(newData);
+
+      setData(mergedData);
+
+      // Persistir os dados do Supabase no localStorage
+      if (supabaseHadData) {
+        keys.forEach(key => {
+          saveCollection(key, mergedData[key]);
+        });
+        console.log('[Store] 🔄 Dados sincronizados do Supabase → localStorage');
+      }
     } catch (error) {
-      console.error("[fetchData] Erro geral:", error);
+      console.error("[fetchData] Erro geral (usando dados locais):", error);
+      // Em caso de erro total, os dados locais já estão carregados
     } finally {
       setLoadingData(false);
     }
+
+    // ── PASSO 4: Iniciar sync engine ────────────────────────
+    startSync(supabase, () => agencyIdRef.current);
+    
+    // Atualizar status inicial
+    const stats = getSyncStats();
+    setSyncStatus({
+      pending: stats.pending,
+      lastSync: getLastSyncTime(),
+      isSyncing: false
+    });
   }, []);
 
   const fetchDataRef = useRef(fetchData);
@@ -109,6 +198,7 @@ export function AppProvider({ children }) {
         setAgencyId(null);
         agencyIdRef.current = null;
         setLoadingData(false);
+        stopSync();
         return;
       }
       setAuth(user);
@@ -131,7 +221,10 @@ export function AppProvider({ children }) {
 
     supabase.auth.getSession().then(({ data: { session } }) => handleSession(session));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => handleSession(session));
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      stopSync();
+    };
   }, []);
 
   const login = async (email, password) => {
@@ -160,70 +253,63 @@ export function AppProvider({ children }) {
   };
 
   const logout = async () => {
+    stopSync();
     await supabase.auth.signOut();
   };
 
-  // ═══════════════════════════════════════════════════════════════
-  // addItem — Usa agencyIdRef para evitar stale closure
-  // ═══════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════
+  // addItem — LOCAL-FIRST: salva no localStorage, enfileira sync
+  // NUNCA bloqueia, NUNCA lança erro para o usuário
+  // ═══════════════════════════════════════════════════════════
   const addItem = useCallback(async (key, item) => {
     const currentAgencyId = agencyIdRef.current;
+    const table = toSnakeCase(key);
     
     const generateId = () => {
       if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
       return Date.now().toString(36) + Math.random().toString(36).substr(2);
     };
     const id = item.id || generateId();
-    const table = toSnakeCase(key);
     const newItem = { ...item, id };
     
-    // 1) Atualização otimista local
-    setData(prev => ({ ...prev, [key]: [...(prev[key] || []), newItem] }));
+    // 1) Atualizar state React (instantâneo)
+    setData(prev => {
+      const updated = { ...prev, [key]: [...(prev[key] || []), newItem] };
+      // 2) Salvar no localStorage (instantâneo)
+      saveCollection(key, updated[key]);
+      return updated;
+    });
     
-    // 2) Persistir no Supabase
-    if (!currentAgencyId) {
-      console.warn(`[addItem] agencyId não disponível para ${table}. Dados salvos apenas localmente.`);
-      addToast('Sessão não encontrada. Faça login novamente.', 'warning');
-      return id;
-    }
+    // 3) Enfileirar sync com Supabase (background)
+    if (currentAgencyId) {
+      const payload = STRUCTURED_TABLES.includes(key)
+        ? { ...newItem, user_id: currentAgencyId }
+        : newItem;
 
-    console.log(`[addItem] Inserindo em ${table}:`, { id, user_id: currentAgencyId });
-    
-    try {
-      let payload;
-      if (STRUCTURED_TABLES.includes(key)) {
-        payload = { ...newItem, user_id: currentAgencyId };
-      } else {
-        payload = { id, user_id: currentAgencyId, data: newItem };
-      }
-      
-      const { error } = await supabase.from(table).insert(payload);
-      
-      if (error) {
-        console.error(`[addItem] ERRO Supabase em ${table}:`, error);
-        // Reverter atualização otimista
-        setData(prev => ({ ...prev, [key]: (prev[key] || []).filter(i => i.id !== id) }));
-        addToast(`Erro ao salvar: ${error.message}`, 'error');
-        throw new Error(error.message);
-      }
-      
-      console.log(`[addItem] ✅ Sucesso em ${table}, id: ${id}`);
-    } catch (err) {
-      if (err.message && !err.message.startsWith('Erro ao salvar')) {
-        // Erro de rede (não Supabase)
-        console.error(`[addItem] Erro de rede em ${table}:`, err);
-        setData(prev => ({ ...prev, [key]: (prev[key] || []).filter(i => i.id !== id) }));
-        addToast(`Erro de conexão: ${err.message}`, 'error');
-      }
-      throw err;
+      addToSyncQueue({
+        action: 'insert',
+        table,
+        key,
+        payload,
+        itemId: id,
+        agencyId: currentAgencyId
+      });
+
+      // Atualizar status
+      const stats = getSyncStats();
+      setSyncStatus(prev => ({ ...prev, pending: stats.pending }));
+
+      console.log(`[addItem] ✅ Salvo localmente + enfileirado: ${table}, id: ${id}`);
+    } else {
+      console.warn(`[addItem] Sem agencyId — salvo apenas localmente: ${table}`);
     }
     
     return id;
-  }, [addToast]);
+  }, []);
 
-  // ═══════════════════════════════════════════════════════════════
-  // updateItem — Usa agencyIdRef para evitar stale closure
-  // ═══════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════
+  // updateItem — LOCAL-FIRST
+  // ═══════════════════════════════════════════════════════════
   const updateItem = useCallback(async (key, id, updates) => {
     const currentAgencyId = agencyIdRef.current;
     const table = toSnakeCase(key);
@@ -237,84 +323,76 @@ export function AppProvider({ children }) {
     
     const updatedItem = { ...currentItem, ...updates };
     
-    // 1) Atualização otimista
-    setData(prev => ({
-      ...prev,
-      [key]: (prev[key] || []).map(item => item.id === id ? updatedItem : item)
-    }));
+    // 1) Atualizar state React (instantâneo)
+    setData(prev => {
+      const updated = {
+        ...prev,
+        [key]: (prev[key] || []).map(item => item.id === id ? updatedItem : item)
+      };
+      // 2) Salvar no localStorage (instantâneo)
+      saveCollection(key, updated[key]);
+      return updated;
+    });
 
-    // 2) Persistir no Supabase
-    if (!currentAgencyId) {
-      console.warn(`[updateItem] agencyId não disponível para ${table}.`);
-      addToast('Sessão não encontrada. Faça login novamente.', 'warning');
-      return;
+    // 3) Enfileirar sync com Supabase (background)
+    if (currentAgencyId) {
+      const payload = STRUCTURED_TABLES.includes(key)
+        ? { ...updatedItem, user_id: currentAgencyId }
+        : updatedItem;
+
+      addToSyncQueue({
+        action: 'update',
+        table,
+        key,
+        payload,
+        itemId: id,
+        agencyId: currentAgencyId
+      });
+
+      const stats = getSyncStats();
+      setSyncStatus(prev => ({ ...prev, pending: stats.pending }));
+
+      console.log(`[updateItem] ✅ Atualizado localmente + enfileirado: ${table}, id: ${id}`);
     }
+  }, []);
 
-    console.log(`[updateItem] Atualizando ${table}, id: ${id}`);
-
-    try {
-      let result;
-      if (STRUCTURED_TABLES.includes(key)) {
-        result = await supabase.from(table).update({ ...updates }).eq('id', id).eq('user_id', currentAgencyId);
-      } else {
-        result = await supabase.from(table).update({ data: updatedItem }).eq('id', id).eq('user_id', currentAgencyId);
-      }
-      
-      if (result.error) {
-        console.error(`[updateItem] ERRO Supabase em ${table}:`, result.error);
-        setData(prev => ({
-          ...prev,
-          [key]: (prev[key] || []).map(item => item.id === id ? currentItem : item)
-        }));
-        addToast(`Erro ao atualizar: ${result.error.message}`, 'error');
-        throw new Error(result.error.message);
-      }
-      
-      console.log(`[updateItem] ✅ Sucesso em ${table}, id: ${id}`);
-    } catch (err) {
-      if (err.message && !err.message.startsWith('Erro ao atualizar')) {
-        console.error(`[updateItem] Erro de rede em ${table}:`, err);
-        setData(prev => ({
-          ...prev,
-          [key]: (prev[key] || []).map(item => item.id === id ? currentItem : item)
-        }));
-        addToast(`Erro de conexão: ${err.message}`, 'error');
-      }
-      throw err;
-    }
-  }, [addToast]);
-
-  // ═══════════════════════════════════════════════════════════════
-  // deleteItem — Usa agencyIdRef
-  // ═══════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════
+  // deleteItem — LOCAL-FIRST
+  // ═══════════════════════════════════════════════════════════
   const deleteItem = useCallback(async (key, id) => {
     const currentAgencyId = agencyIdRef.current;
     const table = toSnakeCase(key);
     
-    // 1) Atualização otimista
-    const previousList = dataRef.current[key] || [];
-    setData(prev => ({ ...prev, [key]: (prev[key] || []).filter(item => item.id !== id) }));
+    // 1) Remover do state React (instantâneo)
+    setData(prev => {
+      const updated = { ...prev, [key]: (prev[key] || []).filter(item => item.id !== id) };
+      // 2) Salvar no localStorage (instantâneo)
+      saveCollection(key, updated[key]);
+      return updated;
+    });
     
-    // 2) Persistir no Supabase
-    if (!currentAgencyId) {
-      console.warn(`[deleteItem] agencyId não disponível para ${table}.`);
-      return;
-    }
+    // 3) Enfileirar sync com Supabase (background)
+    if (currentAgencyId) {
+      addToSyncQueue({
+        action: 'delete',
+        table,
+        key,
+        payload: null,
+        itemId: id,
+        agencyId: currentAgencyId
+      });
 
-    try {
-      const { error } = await supabase.from(table).delete().eq('id', id).eq('user_id', currentAgencyId);
-      if (error) {
-        console.error(`[deleteItem] ERRO Supabase em ${table}:`, error);
-        setData(prev => ({ ...prev, [key]: previousList }));
-        addToast(`Erro ao excluir: ${error.message}`, 'error');
-      } else {
-        console.log(`[deleteItem] ✅ Sucesso em ${table}, id: ${id}`);
-      }
-    } catch (err) {
-      console.error(`[deleteItem] Erro de rede em ${table}:`, err);
-      setData(prev => ({ ...prev, [key]: previousList }));
+      const stats = getSyncStats();
+      setSyncStatus(prev => ({ ...prev, pending: stats.pending }));
+
+      console.log(`[deleteItem] ✅ Removido localmente + enfileirado: ${table}, id: ${id}`);
     }
-  }, [addToast]);
+  }, []);
+
+  // ── Forçar sync manual ────────────────────────────────────
+  const triggerSync = useCallback(async () => {
+    await forceSync(supabase, () => agencyIdRef.current);
+  }, []);
 
   const setEvoConfig = useCallback((url, key) => {
     localStorage.setItem('evo_url', url);
@@ -344,11 +422,27 @@ export function AppProvider({ children }) {
       addToast, getTeamMember, getClient,
       login, signup, logout, toggleTheme,
       evolutionApiUrl, evolutionApiKey, setEvoConfig,
-      googleAccessToken, saveGoogleToken, supabase
+      googleAccessToken, saveGoogleToken, supabase,
+      syncStatus, triggerSync
     }}>
       {children}
     </AppContext.Provider>
   );
+}
+
+// ── Helper: Merge dados do Supabase com items pendentes locais ──
+function mergeWithLocalPending(key, supabaseItems, localItems) {
+  if (!localItems || localItems.length === 0) return supabaseItems;
+  if (!supabaseItems || supabaseItems.length === 0) return localItems;
+
+  // Criar mapa de IDs do Supabase
+  const supabaseIds = new Set(supabaseItems.map(item => item.id || item._dbId));
+  
+  // Encontrar items locais que NÃO existem no Supabase (pendentes de sync)
+  const pendingLocal = localItems.filter(item => !supabaseIds.has(item.id));
+  
+  // Merge: dados do Supabase + items pendentes locais
+  return [...supabaseItems, ...pendingLocal];
 }
 
 export function useApp() {
