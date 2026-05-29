@@ -39,6 +39,29 @@ export function AppProvider({ children }) {
   const [evolutionApiUrl, setEvolutionApiUrl] = useState(localStorage.getItem('evo_url') || 'https://evo.zoonar.com.br');
   const [evolutionApiKey, setEvolutionApiKey] = useState(localStorage.getItem('evo_key') || '54A0DAA1396B-4570-A1CF-665D425E8171');
   const [googleAccessToken, setGoogleAccessToken] = useState(localStorage.getItem('google_token') || null);
+  const [fbToken, setFbToken] = useState(localStorage.getItem('fb_ads_token') || null);
+
+  useEffect(() => {
+    if (data.integrations && data.integrations.length > 0) {
+      const fb = data.integrations.find(i => i.id === 'facebook_ads');
+      const gg = data.integrations.find(i => i.id === 'google_ads');
+      
+      if (fb?.token && fb.token !== fbToken) {
+        localStorage.setItem('fb_ads_token', fb.token);
+        setFbToken(fb.token);
+      }
+      if (gg?.token && gg.token !== googleAccessToken) {
+        localStorage.setItem('google_token', gg.token);
+        setGoogleAccessToken(gg.token);
+      }
+      if (gg?.devToken) {
+        const storedDev = localStorage.getItem('google_ads_dev_token');
+        if (storedDev !== gg.devToken) {
+          localStorage.setItem('google_ads_dev_token', gg.devToken);
+        }
+      }
+    }
+  }, [data.integrations]);
 
   const addToast = useCallback((message, type = 'success') => {
     const id = Date.now().toString();
@@ -406,11 +429,59 @@ export function AppProvider({ children }) {
     if (token) {
       localStorage.setItem('google_token', token);
       setGoogleAccessToken(token);
+      const existing = dataRef.current.integrations.find(i => i.id === 'google_ads' || i.key === 'google_ads');
+      if (existing) {
+        updateItem('integrations', existing.id, { token });
+      } else {
+        addItem('integrations', { id: 'google_ads', key: 'google_ads', token });
+      }
     } else {
       localStorage.removeItem('google_token');
       setGoogleAccessToken(null);
+      const existing = dataRef.current.integrations.find(i => i.id === 'google_ads' || i.key === 'google_ads');
+      if (existing) {
+        deleteItem('integrations', existing.id);
+      }
     }
-  }, []);
+  }, [updateItem, addItem, deleteItem]);
+
+  const saveFacebookToken = useCallback((token) => {
+    if (token) {
+      localStorage.setItem('fb_ads_token', token);
+      setFbToken(token);
+      const existing = dataRef.current.integrations.find(i => i.id === 'facebook_ads' || i.key === 'facebook_ads');
+      if (existing) {
+        updateItem('integrations', existing.id, { token });
+      } else {
+        addItem('integrations', { id: 'facebook_ads', key: 'facebook_ads', token });
+      }
+    } else {
+      localStorage.removeItem('fb_ads_token');
+      setFbToken(null);
+      const existing = dataRef.current.integrations.find(i => i.id === 'facebook_ads' || i.key === 'facebook_ads');
+      if (existing) {
+        deleteItem('integrations', existing.id);
+      }
+    }
+  }, [updateItem, addItem, deleteItem]);
+
+  const saveGoogleDevToken = useCallback((devToken) => {
+    if (devToken) {
+      localStorage.setItem('google_ads_dev_token', devToken);
+      const existing = dataRef.current.integrations.find(i => i.id === 'google_ads' || i.key === 'google_ads');
+      if (existing) {
+        updateItem('integrations', existing.id, { devToken });
+      } else {
+        addItem('integrations', { id: 'google_ads', key: 'google_ads', devToken });
+      }
+    } else {
+      localStorage.removeItem('google_ads_dev_token');
+      const existing = dataRef.current.integrations.find(i => i.id === 'google_ads' || i.key === 'google_ads');
+      if (existing) {
+        updateItem('integrations', existing.id, { devToken: null });
+      }
+    }
+  }, [updateItem, addItem]);
 
   const getTeamMember = useCallback((id) => data.teamMembers.find(m => m.id === id), [data.teamMembers]);
   const getClient = useCallback((id) => data.clients.find(c => c.id === id), [data.clients]);
@@ -422,8 +493,9 @@ export function AppProvider({ children }) {
       addToast, getTeamMember, getClient,
       login, signup, logout, toggleTheme,
       evolutionApiUrl, evolutionApiKey, setEvoConfig,
-      googleAccessToken, saveGoogleToken, supabase,
-      syncStatus, triggerSync
+      googleAccessToken, saveGoogleToken, 
+      fbToken, saveFacebookToken, saveGoogleDevToken,
+      supabase, syncStatus, triggerSync
     }}>
       {children}
     </AppContext.Provider>

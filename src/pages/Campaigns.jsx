@@ -48,13 +48,13 @@ const DATE_PRESETS = [
 // MAIN COMPONENT
 // ==========================================
 export default function CampaignsPage() {
-  const { addToast, googleAccessToken, saveGoogleToken } = useApp();
+  const { addToast, googleAccessToken, saveGoogleToken, fbToken, saveFacebookToken, saveGoogleDevToken } = useApp();
   const [activeMainTab, setActiveMainTab] = useState('dashboard'); 
   const [activeMetaTab, setActiveMetaTab] = useState('campanhas'); 
   const [subTab, setSubTab] = useState('geral'); // 'geral' | 'verba'
   
   // Facebook API State
-  const [fbConnected, setFbConnected] = useState(() => !!localStorage.getItem('fb_ads_token'));
+  const fbConnected = !!fbToken;
   const [syncing, setSyncing] = useState(false);
   const [adAccounts, setAdAccounts] = useState([]);
   const [activePortfolio, setActivePortfolio] = useState(null);
@@ -74,7 +74,7 @@ export default function CampaignsPage() {
   const [selectedFilterObjective, setSelectedFilterObjective] = useState('all');
 
   // Google Ads State
-  const [googleConnected, setGoogleConnected] = useState(() => !!localStorage.getItem('google_token'));
+  const googleConnected = !!googleAccessToken;
   const [googleDevToken, setGoogleDevToken] = useState(() => localStorage.getItem('google_ads_dev_token') || '');
   const [googleAccounts, setGoogleAccounts] = useState([]);
   const [selectedGoogleAccount, setSelectedGoogleAccount] = useState(null);
@@ -279,8 +279,7 @@ export default function CampaignsPage() {
     window.FB.login((response) => {
       if (response.authResponse) {
         const token = response.authResponse.accessToken;
-        localStorage.setItem('fb_ads_token', token);
-        setFbConnected(true);
+        saveFacebookToken(token);
         fetchAdAccounts(token);
         addToast('Conectado ao Meta Ads!');
       }
@@ -293,9 +292,7 @@ export default function CampaignsPage() {
   // Google Ads Login
   const loginWithGoogle = useGoogleLogin({
     onSuccess: tokenResponse => {
-      localStorage.setItem('google_token', tokenResponse.access_token);
       saveGoogleToken(tokenResponse.access_token);
-      setGoogleConnected(true);
       addToast('Google Ads autenticado com sucesso!');
     },
     scope: 'https://www.googleapis.com/auth/adwords'
@@ -410,9 +407,7 @@ export default function CampaignsPage() {
   };
 
   const handleSaveDevToken = (val) => {
-    localStorage.setItem('google_ads_dev_token', val);
-    setGoogleDevToken(val);
-    addToast('Developer Token salvo com sucesso!');
+    saveGoogleDevToken(val);
   };
 
   return (
