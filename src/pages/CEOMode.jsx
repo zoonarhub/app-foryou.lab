@@ -6,15 +6,20 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, R
 const fmt = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 }).format(v);
 
 export default function CEOMode() {
-  const { clients, leads } = useApp();
+  const { clients, leads, financials } = useApp();
   const activeClients = clients.filter(c => c.status === 'ativo');
-  const mrr = activeClients.reduce((s, c) => s + (c.mrr || 0), 0);
+  const mrr = activeClients.reduce((s, c) => s + (Number(c.mrr) || 0), 0);
   const churn = clients.filter(c => c.status === 'cancelado').length;
   const avgNps = activeClients.filter(c => c.nps).reduce((s, c, _, a) => s + Number(c.nps) / a.length, 0);
   const ltv = mrr * 12;
   const cac = 850;
   const totalLeadsAndClients = clients.length + leads.length;
   const convRate = totalLeadsAndClients > 0 ? Math.round((clients.length / totalLeadsAndClients) * 100) : 0;
+
+  // Real financial calculations
+  const totalReceitasReal = (financials || []).filter(f => f.tipo === 'receita').reduce((s, f) => s + (Number(f.valor) || 0), 0);
+  const totalDespesasReal = (financials || []).filter(f => f.tipo === 'despesa').reduce((s, f) => s + (Number(f.valor) || 0), 0);
+  const lucroReal = totalReceitasReal - totalDespesasReal;
 
   const kpis = [
     { label: 'MRR Total', value: fmt(mrr), icon: DollarSign, color: '#FFD600', bg: 'rgba(255,214,0,.12)', change: '+12%', up: true },
@@ -25,7 +30,7 @@ export default function CEOMode() {
     { label: 'NPS Geral', value: avgNps > 0 ? avgNps.toFixed(1) : 'N/A', icon: Star, color: '#F59E0B', bg: 'rgba(245,158,11,.12)', change: 'Bom', up: true },
   ];
 
-  const clientRank = [...activeClients].sort((a, b) => (b.mrr || 0) - (a.mrr || 0));
+  const clientRank = [...activeClients].sort((a, b) => (Number(b.mrr) || 0) - (Number(a.mrr) || 0));
   
   const growthData = useMemo(() => {
     const months = [];
@@ -37,7 +42,7 @@ export default function CEOMode() {
       
       const mrrAtMonth = activeClients.reduce((sum, c) => {
         const joined = c.dataEntrada ? new Date(c.dataEntrada) : new Date(); // If no date, assume today
-        if (joined <= endOfMonth) return sum + (c.mrr || 0);
+        if (joined <= endOfMonth) return sum + (Number(c.mrr) || 0);
         return sum;
       }, 0);
       months.push({ mes: monthStr.charAt(0).toUpperCase() + monthStr.slice(1), mrr: mrrAtMonth });
@@ -141,13 +146,16 @@ export default function CEOMode() {
                   <div style={{ fontWeight: 600, fontSize: 13 }}>{c.empresa}</div>
                   <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{c.plano || 'Assinatura Padrão'}</div>
                 </div>
-                <span style={{ fontWeight: 700, color: '#22C55E' }}>{fmt(c.mrr || 0)}</span>
+                <span style={{ fontWeight: 700, color: '#22C55E' }}>{fmt(Number(c.mrr) || 0)}</span>
               </div>
             ))}
           </div>
           <div className="card" style={{ padding: 20 }}>
             <h4 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>📋 Métricas Chave</h4>
             {[
+              ['Faturamento Real (Entradas)', fmt(totalReceitasReal)],
+              ['Despesas Reais (Saídas)', fmt(totalDespesasReal)],
+              ['Lucro Operacional Real', fmt(lucroReal)],
               ['Total Clientes', clients.length],
               ['Clientes Ativos', activeClients.length],
               ['Receita Anual Projetada', fmt(mrr * 12)],

@@ -30,10 +30,18 @@ export default function Dashboard() {
   ].filter(d => d.value > 0);
 
   const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun'];
-  const revenueData = months.map((m, i) => ({
-    mes: m,
-    receita: (financials || []).filter(f => f && f.tipo === 'receita').reduce((s, f) => s + (Number(f.valor) || 0), 0) / (months.length - i) * (i + 1) * (0.8 + Math.random() * 0.4),
-  }));
+  const revenueData = months.map((m, i) => {
+    const monthNum = String(i + 1).padStart(2, '0');
+    const realRevenue = (financials || [])
+      .filter(f => f && f.tipo === 'receita' && (f.dataPagamento || f.dataVencimento || '').includes(`-${monthNum}-`))
+      .reduce((s, f) => s + (Number(f.valor) || 0), 0);
+    // Se não houver dados reais no financeiro, projeta uma curva de crescimento determinística baseada no MRR atual
+    const receita = realRevenue > 0 ? realRevenue : mrr * (0.8 + (i * 0.04));
+    return {
+      mes: m,
+      receita,
+    };
+  });
 
   return (
     <>

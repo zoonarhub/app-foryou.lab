@@ -404,13 +404,33 @@ function KpiCard({ label, value, variation, isPositive, highlight }) {
 
 function MetaAdsTab({ activeMetaTab, setActiveMetaTab, campaigns }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 10, overflowX: 'auto', paddingBottom: 4 }}>
         {['Campanhas', 'Conjuntos', 'Anúncios', 'Demográficos'].map(tab => (
-          <button key={tab} onClick={() => setActiveMetaTab(tab.toLowerCase())} style={{ background: activeMetaTab === tab.toLowerCase() ? '#222' : 'transparent', border: `1px solid ${COLORS.cardBorder}`, color: '#FFF', padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>{tab}</button>
+          <button 
+            key={tab} 
+            onClick={() => setActiveMetaTab(tab.toLowerCase())} 
+            style={{ 
+              background: activeMetaTab === tab.toLowerCase() ? 'rgba(255,214,0,0.15)' : 'transparent', 
+              border: `1px solid ${activeMetaTab === tab.toLowerCase() ? COLORS.yellow : COLORS.cardBorder}`, 
+              color: activeMetaTab === tab.toLowerCase() ? COLORS.yellow : '#FFF', 
+              padding: '8px 18px', 
+              borderRadius: 8, 
+              fontSize: 13, 
+              fontWeight: 700, 
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              outline: 'none'
+            }}
+          >
+            {tab}
+          </button>
         ))}
       </div>
       {activeMetaTab === 'campanhas' && <MetaCampaignsTable campaigns={campaigns} />}
+      {activeMetaTab === 'conjuntos' && <MetaAdSetsTable />}
+      {activeMetaTab === 'anúncios' && <MetaAdsGrid />}
+      {activeMetaTab === 'demográficos' && <MetaDemographics />}
     </div>
   );
 }
@@ -423,21 +443,159 @@ function MetaCampaignsTable({ campaigns }) {
           <tr style={{ borderBottom: `1px solid ${COLORS.cardBorder}`, background: COLORS.bgDark }}>
             <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>CAMPANHA</th>
             <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>STATUS</th>
+            <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>OBJETIVO</th>
+            <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>IMPRESSÕES</th>
+            <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>CLIQUES</th>
+            <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>CTR</th>
             <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>GASTO</th>
+            <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>CPL</th>
+            <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>CONVERSÕES</th>
             <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>ROAS</th>
           </tr>
         </thead>
         <tbody>
-          {campaigns.map(c => (
+          {campaigns.length === 0 ? (
+            <tr>
+              <td colSpan="10" style={{ padding: '30px 16px', textAlignment: 'center', color: COLORS.textMuted, fontSize: 13, textAlign: 'center' }}>
+                Nenhuma campanha encontrada neste período.
+              </td>
+            </tr>
+          ) : campaigns.map(c => (
             <tr key={c.id} style={{ borderBottom: `1px solid ${COLORS.cardBorder}` }}>
-              <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600 }}>{c.name}</td>
-              <td style={{ padding: '12px 16px', fontSize: 11 }}>{c.status.toUpperCase()}</td>
-              <td style={{ padding: '12px 16px', fontSize: 13 }}>{fmtBRL(c.spend)}</td>
-              <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 700 }}>{c.roas.toFixed(2)}x</td>
+              <td style={{ padding: '14px 16px', fontSize: 13, fontWeight: 600 }}>{c.name}</td>
+              <td style={{ padding: '14px 16px' }}>
+                <span className={`badge ${c.status === 'ativo' ? 'badge-green' : 'badge-gray'}`}>{c.status.toUpperCase()}</span>
+              </td>
+              <td style={{ padding: '14px 16px', fontSize: 11, color: COLORS.textMuted }}>{(c.objective || '').replace(/_/g, ' ')}</td>
+              <td style={{ padding: '14px 16px', fontSize: 13 }}>{fmtNum(c.impressions)}</td>
+              <td style={{ padding: '14px 16px', fontSize: 13 }}>{fmtNum(c.clicks)}</td>
+              <td style={{ padding: '14px 16px', fontSize: 13 }}>{fmtPerc(c.ctr)}</td>
+              <td style={{ padding: '14px 16px', fontSize: 13 }}>{fmtBRL(c.spend)}</td>
+              <td style={{ padding: '14px 16px', fontSize: 13, color: COLORS.yellow }}>{fmtBRL(c.cpl)}</td>
+              <td style={{ padding: '14px 16px', fontSize: 13 }}>{fmtNum(c.results)}</td>
+              <td style={{ padding: '14px 16px', fontSize: 13, fontWeight: 700, color: c.roas >= 2.0 ? COLORS.green : '#FFF' }}>{c.roas.toFixed(2)}x</td>
             </tr>
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function MetaAdSetsTable() {
+  const adSets = [
+    { name: '01. Lookalike 1% - Clientes Compradores', status: 'ativo', budget: 50, spend: 1250, cpl: 12.50, conversions: 100, roas: 3.2 },
+    { name: '02. Interesses - Marketing Digital & CRM', status: 'ativo', budget: 40, spend: 980, cpl: 15.80, conversions: 62, roas: 2.8 },
+    { name: '03. Remarketing - Visitantes do Site 30d', status: 'ativo', budget: 30, spend: 620, cpl: 8.40, conversions: 74, roas: 4.5 },
+    { name: '04. Público Aberto - Geolocalizado 10km', status: 'inativo', budget: 0, spend: 450, cpl: 22.10, conversions: 20, roas: 1.5 }
+  ];
+
+  return (
+    <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+        <thead>
+          <tr style={{ borderBottom: `1px solid ${COLORS.cardBorder}`, background: COLORS.bgDark }}>
+            <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>CONJUNTO DE ANÚNCIOS</th>
+            <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>STATUS</th>
+            <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>ORÇAMENTO DIÁRIO</th>
+            <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>GASTO TOTAL</th>
+            <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>CPL</th>
+            <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>CONVERSÕES</th>
+            <th style={{ padding: '12px 16px', fontSize: 11, color: COLORS.textMuted }}>ROAS</th>
+          </tr>
+        </thead>
+        <tbody>
+          {adSets.map((s, idx) => (
+            <tr key={idx} style={{ borderBottom: `1px solid ${COLORS.cardBorder}` }}>
+              <td style={{ padding: '14px 16px', fontSize: 13, fontWeight: 600 }}>{s.name}</td>
+              <td style={{ padding: '14px 16px' }}>
+                <span className={`badge ${s.status === 'ativo' ? 'badge-green' : 'badge-gray'}`}>{s.status.toUpperCase()}</span>
+              </td>
+              <td style={{ padding: '14px 16px', fontSize: 13 }}>{s.budget > 0 ? fmtBRL(s.budget) : 'Pausado'}</td>
+              <td style={{ padding: '14px 16px', fontSize: 13 }}>{fmtBRL(s.spend)}</td>
+              <td style={{ padding: '14px 16px', fontSize: 13, color: COLORS.yellow }}>{fmtBRL(s.cpl)}</td>
+              <td style={{ padding: '14px 16px', fontSize: 13 }}>{fmtNum(s.conversions)}</td>
+              <td style={{ padding: '14px 16px', fontSize: 13, fontWeight: 700, color: s.roas >= 3 ? COLORS.green : '#FFF' }}>{s.roas.toFixed(2)}x</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function MetaAdsGrid() {
+  const ads = [
+    { name: 'Banner Promoção de Outono - Carrossel', ctr: 2.45, spend: 450, cpl: 10.20, conversions: 44, status: 'ativo', image: '🍁 Promoção 20% OFF' },
+    { name: 'Vídeo Depoimento Cliente Case de Sucesso', ctr: 3.12, spend: 680, cpl: 9.15, conversions: 74, status: 'ativo', image: '🎥 Case Estética' },
+    { name: 'Criativo Estático Oferta Direta - Vagas Limitadas', ctr: 1.88, spend: 320, cpl: 14.50, conversions: 22, status: 'ativo', image: '⚡ Vagas Limitadas' },
+    { name: 'Story Dinâmico - Bastidores da Agência', ctr: 1.25, spend: 180, cpl: 18.00, conversions: 10, status: 'inativo', image: '📱 Stories Bastidores' }
+  ];
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
+      {ads.map((ad, idx) => (
+        <div key={idx} style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ background: '#1c1c22', height: 140, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, color: COLORS.yellow, borderBottom: `1px solid ${COLORS.cardBorder}` }}>
+            {ad.image}
+          </div>
+          <div style={{ padding: 20, flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#FFF', flex: 1, marginRight: 8 }}>{ad.name}</div>
+              <span className={`badge ${ad.status === 'ativo' ? 'badge-green' : 'badge-gray'}`}>{ad.status.toUpperCase()}</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: 12 }}>
+              <div>
+                <div style={{ color: COLORS.textMuted }}>CTR</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#FFF' }}>{fmtPerc(ad.ctr)}</div>
+              </div>
+              <div>
+                <div style={{ color: COLORS.textMuted }}>Gasto</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#FFF' }}>{fmtBRL(ad.spend)}</div>
+              </div>
+              <div>
+                <div style={{ color: COLORS.textMuted }}>CPL</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.yellow }}>{fmtBRL(ad.cpl)}</div>
+              </div>
+              <div>
+                <div style={{ color: COLORS.textMuted }}>Conversões</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.green }}>{fmtNum(ad.conversions)}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MetaDemographics() {
+  const data = [
+    { range: '18-24', Homens: 120, Mulheres: 210 },
+    { range: '25-34', Homens: 340, Mulheres: 480 },
+    { range: '35-44', Homens: 280, Mulheres: 390 },
+    { range: '45-54', Homens: 150, Mulheres: 220 },
+    { range: '55-64', Homens: 60, Mulheres: 90 },
+    { range: '65+', Homens: 20, Mulheres: 40 }
+  ];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div style={{ background: COLORS.cardBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 12, padding: 24 }}>
+        <h4 style={{ fontSize: 15, fontWeight: 700, marginBottom: 20 }}>Distritos e Conversões por Faixa Etária e Gênero</h4>
+        <div style={{ height: 300, width: '100%' }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <RechartsBarChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" stroke={COLORS.cardBorder} vertical={false} />
+              <XAxis dataKey="range" tick={{ fill: COLORS.textMuted, fontSize: 12 }} />
+              <YAxis tick={{ fill: COLORS.textMuted, fontSize: 12 }} />
+              <Tooltip contentStyle={{ background: '#000', border: `1px solid ${COLORS.cardBorder}`, borderRadius: 8, color: '#FFF' }} />
+              <Bar dataKey="Homens" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Mulheres" fill="#EC4899" radius={[4, 4, 0, 0]} />
+            </RechartsBarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
     </div>
   );
 }

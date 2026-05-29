@@ -141,13 +141,43 @@ export default function RelatorioPublico() {
     const timeout = setTimeout(() => { if (mounted && loading) { setErr('Tempo limite excedido.'); setLoading(false); } }, 8000);
     (async () => {
       try {
-        const { data, error } = await supabaseAnon.from('reports').select('data').eq('id', id).single();
+        const { data, error } = await supabaseAnon.from('reports').select('data').eq('id', id).maybeSingle();
         if (!mounted) return;
-        if (error) { setErr(error.message); return; }
-        if (data?.data) setReport(data.data);
-        else setErr('Relatório não encontrado.');
-      } catch (e) { if (mounted) setErr(e.message); }
-      finally { clearTimeout(timeout); if (mounted) setLoading(false); }
+
+        let reportData = null;
+        if (data?.data) {
+          reportData = data.data;
+        } else {
+          // Fallback local caso o relatório ainda não tenha sincronizado com o Supabase
+          try {
+            const localRaw = localStorage.getItem('foryoulab_reports');
+            if (localRaw) {
+              const localList = JSON.parse(localRaw);
+              const localReport = localList.find(r => r.id === id);
+              if (localReport) {
+                reportData = localReport;
+              }
+            }
+          } catch (localErr) {
+            console.error('[RelatorioPublico] Erro ao ler local:', localErr);
+          }
+        }
+
+        if (reportData) {
+          setReport(reportData);
+        } else {
+          if (error) {
+            setErr(error.message);
+          } else {
+            setErr('Relatório não encontrado.');
+          }
+        }
+      } catch (e) {
+        if (mounted) setErr(e.message);
+      } finally {
+        clearTimeout(timeout);
+        if (mounted) setLoading(false);
+      }
     })();
     return () => { mounted = false; clearTimeout(timeout); };
   }, [id]);
