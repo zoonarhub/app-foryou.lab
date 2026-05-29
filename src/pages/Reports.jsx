@@ -7,11 +7,12 @@ import axios from 'axios';
 const fmt = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 }).format(v || 0);
 
 export default function Reports() {
-  const { clients, teamMembers, reports, addItem, deleteItem, addToast } = useApp();
+  const { clients, teamMembers, reports, addItem, updateItem, deleteItem, addToast } = useApp();
   const [showModal, setShowModal] = useState(false);
   const [search, setSearch] = useState('');
   const [form, setForm] = useState({ nome: '', clienteId: '', contaAnuncioId: '', contaAnuncioNome: '', responsavelId: '' });
   const [isSaving, setIsSaving] = useState(false);
+  const [syncingReportId, setSyncingReportId] = useState(null);
 
   // Ad accounts
   const [adAccounts, setAdAccounts] = useState([]);
@@ -33,6 +34,128 @@ export default function Reports() {
       console.warn('Erro ao carregar contas:', e);
     } finally {
       setLoadingAccounts(false);
+    }
+  };
+
+  const fetchReportSnapshot = async (contaAnuncioId) => {
+    if (!contaAnuncioId || !fbToken) return null;
+    try {
+      // 1) Fetch main insights
+      const kpiRes = await axios.get(`https://graph.facebook.com/v18.0/${contaAnuncioId}/insights`, {
+        params: { access_token: fbToken, date_preset: 'last_30d', fields: 'spend,clicks,cpm,cpc,ctr,frequency,impressions,actions' }
+      });
+      const accountData = kpiRes.data.data[0] || {};
+      
+      let results = 0, revenue = 0;
+      let pageViews = 0, addToCart = 0, initCheckout = 0;
+      
+      if (accountData.actions) {
+        const targetActions = accountData.actions.filter(a => ['lead', 'purchase', 'messages'].includes(a.action_type));
+        results = targetActions.reduce((sum, a) => sum + parseInt(a.value), 0);
+        revenue = results * 150; 
+
+        const pvAct = accountData.actions.find(a => ['page_view', 'landing_page_view'].includes(a.action_type));
+        pageViews = pvAct ? parseInt(pvAct.value) : 0;
+        
+        const atcAct = accountData.actions.find(a => ['add_to_cart'].includes(a.action_type));
+        addToCart = atcAct ? parseInt(atcAct.value) : 0;
+        
+        const icAct = accountData.actions.find(a => ['initiate_checkout'].includes(a.action_type));
+        initCheckout = icAct ? parseInt(icAct.value) : 0;
+      }
+      
+      const spend = parseFloat(accountData.spend || 0);
+      const realKPIs = {
+        spend, revenue, roas: spend > 0 ? (revenue / spend) : 0, clicks: parseInt(accountData.clicks || 0),
+        cpm: parseFloat(accountData.cpm || 0), cpc: parseFloat(accountData.cpc || 0), ctr: parseFloat(accountData.ctr || 0),
+        frequency: parseFloat(accountData.frequency || 0), impressions: parseInt(accountData.impressions || 0),
+        results, cpl: results > 0 ? spend / results : 0,
+        pageViews, addToCart, initCheckout
+      };
+
+      // 2) Fetch campaigns
+      const campRes = await axios.get(`https://graph.facebook.com/v18.0/${contaAnuncioId}/campaigns`, {
+        params: { access_token: fbToken, fields: `id,name,status,objective,daily_budget,lifetime_budget,insights.date_preset(last_30d){spend,actions,impressions,clicks,cpc,ctr}`, limit: 50 }
+      });
+      const realCampaigns = campRes.data.data.map(c => {
+        const ins = c.insights?.data?.[0] || {};
+        const cSpend = parseFloat(ins.spend || 0);
+        let cResults = 0;
+        if (ins.actions) {
+           const cTarget = ins.actions.filter(a => ['lead', 'purchase', 'messages'].includes(a.action_type));
+           cResults = cTarget.reduce((sum, a) => sum + parseInt(a.value), 0);
+        }
+        return {
+          id: c.id, name: c.name, status: c.status === 'ACTIVE' ? 'ativo' : 'inativo', objective: c.objective || 'CONVERSIONS',
+          budget: parseFloat(c.daily_budget || c.lifetime_budget || 0) / 100,
+          spend: cSpend, revenue: cResults * 150, roas: cSpend > 0 ? (cResults * 150) / cSpend : 0,
+          cpl: cResults > 0 ? cSpend / cResults : 0, ctr: parseFloat(ins.ctr || 0), cpc: parseFloat(ins.cpc || 0),
+          impressions: parseInt(ins.impressions || 0), clicks: parseInt(ins.clicks || 0), results: cResults
+        };
+      });
+
+      // 3) Fetch chart data
+      const chartRes = await axios.get(`https://graph.facebook.com/v18.0/${contaAnuncioId}/insights`, {
+        params: { access_token: fbToken, date_preset: 'last_30d', time_increment: 1, fields: 'date_start,spend,actions' }
+      });
+      const realChartData = chartRes.data.data.map(d => {
+        let dRes = 0;
+        if (d.actions) {
+           const dTarget = d.actions.filter(a => ['lead', 'purchase', 'messages'].includes(a.action_type));
+           dRes = dTarget.reduce((sum, a) => sum + parseInt(a.value), 0);
+        }
+        const dt = new Date(d.date_start);
+        return { date: `${dt.getDate()}/${dt.getMonth()+1}`, gasto: parseFloat(d.spend || 0), receita: dRes * 150 };
+      });
+
+      // 4) Fetch Demographics
+      const demoRes = await axios.get(`https://graph.facebook.com/v18.0/${contaAnuncioId}/insights`, {
+        params: { access_token: fbToken, date_preset: 'last_30d', breakdowns: 'age,gender', fields: 'impressions,spend' }
+      });
+      const demoData = demoRes.data.data || [];
+      const ageGroups = {};
+      demoData.forEach(d => {
+        const age = d.age || 'Desconhecido';
+        const imp = parseInt(d.impressions || 0);
+        ageGroups[age] = (ageGroups[age] || 0) + imp;
+      });
+      const totalDemoImpressions = Object.values(ageGroups).reduce((a, b) => a + b, 0);
+      const realDemographics = Object.entries(ageGroups).map(([range, val]) => ({
+        name: `${range} anos`,
+        value: totalDemoImpressions > 0 ? Math.round((val / totalDemoImpressions) * 100) : 0
+      })).sort((a, b) => a.name.localeCompare(b.name));
+
+      // 5) Fetch Ads / Creatives
+      const adsRes = await axios.get(`https://graph.facebook.com/v18.0/${contaAnuncioId}/ads`, {
+        params: {
+          access_token: fbToken,
+          fields: `name,creative{id,name,thumbnail_url},insights.date_preset(last_30d){spend,actions,ctr,cpc}`,
+          limit: 12
+        }
+      });
+      const adsData = adsRes.data.data || [];
+      const realCreatives = adsData.map(ad => {
+        const ins = ad.insights?.data?.[0] || {};
+        const spend = parseFloat(ins.spend || 0);
+        let conversions = 0;
+        if (ins.actions) {
+          const target = ins.actions.filter(a => ['lead', 'purchase', 'messages'].includes(a.action_type));
+          conversions = target.reduce((sum, a) => sum + parseInt(a.value), 0);
+        }
+        return {
+          title: ad.name || ad.creative?.name || 'Anúncio sem nome',
+          thumbnail: ad.creative?.thumbnail_url || null,
+          conversions,
+          cpa: conversions > 0 ? spend / conversions : 0,
+          ctr: parseFloat(ins.ctr || 0),
+          spend
+        };
+      });
+
+      return { realKPIs, realCampaigns, realChartData, realDemographics, realCreatives };
+    } catch (err) {
+      console.error('Error getting snapshot for report:', err);
+      return null;
     }
   };
 
@@ -58,6 +181,10 @@ export default function Reports() {
       const member = teamMembers.find(m => m.id === form.responsavelId);
       const account = adAccounts.find(a => a.id === form.contaAnuncioId);
 
+      // Get real data snapshot
+      addToast('Buscando dados em tempo real do Meta Ads...', 'info');
+      const snapshot = await fetchReportSnapshot(form.contaAnuncioId);
+
       await addItem('reports', {
         nome: form.nome.trim(),
         clienteId: form.clienteId,
@@ -68,8 +195,9 @@ export default function Reports() {
         responsavelNome: member?.nome || '',
         status: 'ativo',
         criadoEm: new Date().toISOString(),
+        snapshot: snapshot || null
       });
-      addToast('Relatório criado com sucesso!');
+      addToast('Relatório criado com dados reais!');
       setShowModal(false);
       setForm({ nome: '', clienteId: '', contaAnuncioId: '', contaAnuncioNome: '', responsavelId: '' });
     } catch (error) {
@@ -77,6 +205,32 @@ export default function Reports() {
       addToast(`Erro ao salvar: ${error.message || error}`, 'error');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSyncReport = async (report) => {
+    if (!report.contaAnuncioId) {
+      addToast('Este relatório não tem conta de anúncios vinculada.', 'warning');
+      return;
+    }
+    setSyncingReportId(report.id);
+    addToast('Sincronizando dados reais do relatório...', 'info');
+    try {
+      const snapshot = await fetchReportSnapshot(report.contaAnuncioId);
+      if (snapshot) {
+        await updateItem('reports', report.id, {
+          snapshot,
+          atualizadoEm: new Date().toISOString()
+        });
+        addToast('Dados do relatório atualizados com sucesso!');
+      } else {
+        addToast('Não foi possível carregar os dados reais da API.', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      addToast('Erro ao sincronizar relatório.', 'error');
+    } finally {
+      setSyncingReportId(null);
     }
   };
 
@@ -170,8 +324,15 @@ export default function Reports() {
                   </div>
                 </div>
 
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Calendar size={11} /> Criado em {r.criadoEm ? new Date(r.criadoEm).toLocaleDateString('pt-BR') : '—'}
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Calendar size={11} /> Criado em {r.criadoEm ? new Date(r.criadoEm).toLocaleDateString('pt-BR') : '—'}
+                  </div>
+                  {r.atualizadoEm && (
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                      Atualizado: {new Date(r.atualizadoEm).toLocaleTimeString('pt-BR')}
+                    </div>
+                  )}
                 </div>
 
                 {/* Link público */}
@@ -188,8 +349,17 @@ export default function Reports() {
                   <button className="btn btn-sm btn-secondary" onClick={() => openPublic(r)} title="Visualizar dashboard">
                     <ExternalLink size={12} /> Abrir
                   </button>
+                  <button 
+                    className="btn btn-sm btn-secondary" 
+                    onClick={() => handleSyncReport(r)} 
+                    disabled={syncingReportId === r.id}
+                    title="Atualizar dados do Facebook Ads"
+                  >
+                    <RefreshCw size={12} className={syncingReportId === r.id ? 'spin' : ''} /> 
+                    {syncingReportId === r.id ? 'Sinc...' : 'Sincronizar'}
+                  </button>
                   <button className="btn btn-sm btn-secondary" onClick={() => copyLink(r)} title="Copiar link">
-                    <Copy size={12} /> Copiar Link
+                    <Copy size={12} /> Copiar
                   </button>
                   <button className="btn btn-sm btn-primary" onClick={() => sendWhatsApp(r)} title="Enviar via WhatsApp">
                     <Send size={12} /> WhatsApp
