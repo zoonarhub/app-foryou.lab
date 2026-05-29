@@ -37,12 +37,11 @@ export default function Reports() {
     }
   };
 
-  const fetchReportSnapshot = async (contaAnuncioId) => {
-    if (!contaAnuncioId || !fbToken) return null;
+  const fetchPeriodData = async (contaAnuncioId, preset) => {
     try {
       // 1) Fetch main insights
       const kpiRes = await axios.get(`https://graph.facebook.com/v18.0/${contaAnuncioId}/insights`, {
-        params: { access_token: fbToken, date_preset: 'last_30d', fields: 'spend,clicks,cpm,cpc,ctr,frequency,impressions,actions' }
+        params: { access_token: fbToken, date_preset: preset, fields: 'spend,clicks,cpm,cpc,ctr,frequency,impressions,actions' }
       });
       const accountData = kpiRes.data.data[0] || {};
       
@@ -75,7 +74,7 @@ export default function Reports() {
 
       // 2) Fetch campaigns
       const campRes = await axios.get(`https://graph.facebook.com/v18.0/${contaAnuncioId}/campaigns`, {
-        params: { access_token: fbToken, fields: `id,name,status,objective,daily_budget,lifetime_budget,insights.date_preset(last_30d){spend,actions,impressions,clicks,cpc,ctr}`, limit: 50 }
+        params: { access_token: fbToken, fields: `id,name,status,objective,daily_budget,lifetime_budget,insights.date_preset(${preset}){spend,actions,impressions,clicks,cpc,ctr}`, limit: 50 }
       });
       const realCampaigns = campRes.data.data.map(c => {
         const ins = c.insights?.data?.[0] || {};
@@ -96,7 +95,7 @@ export default function Reports() {
 
       // 3) Fetch chart data
       const chartRes = await axios.get(`https://graph.facebook.com/v18.0/${contaAnuncioId}/insights`, {
-        params: { access_token: fbToken, date_preset: 'last_30d', time_increment: 1, fields: 'date_start,spend,actions' }
+        params: { access_token: fbToken, date_preset: preset, time_increment: 1, fields: 'date_start,spend,actions' }
       });
       const realChartData = chartRes.data.data.map(d => {
         let dRes = 0;
@@ -110,7 +109,7 @@ export default function Reports() {
 
       // 4) Fetch Demographics
       const demoRes = await axios.get(`https://graph.facebook.com/v18.0/${contaAnuncioId}/insights`, {
-        params: { access_token: fbToken, date_preset: 'last_30d', breakdowns: 'age,gender', fields: 'impressions,spend' }
+        params: { access_token: fbToken, date_preset: preset, breakdowns: 'age,gender', fields: 'impressions,spend' }
       });
       const demoData = demoRes.data.data || [];
       const ageGroups = {};
@@ -129,7 +128,7 @@ export default function Reports() {
       const adsRes = await axios.get(`https://graph.facebook.com/v18.0/${contaAnuncioId}/ads`, {
         params: {
           access_token: fbToken,
-          fields: `name,creative{id,name,thumbnail_url},insights.date_preset(last_30d){spend,actions,ctr,cpc}`,
+          fields: `name,creative{id,name,thumbnail_url},insights.date_preset(${preset}){spend,actions,ctr,cpc}`,
           limit: 12
         }
       });
@@ -153,6 +152,30 @@ export default function Reports() {
       });
 
       return { realKPIs, realCampaigns, realChartData, realDemographics, realCreatives };
+    } catch (err) {
+      console.error(`Erro ao carregar período ${preset}:`, err);
+      return null;
+    }
+  };
+
+  const fetchReportSnapshot = async (contaAnuncioId) => {
+    if (!contaAnuncioId || !fbToken) return null;
+    try {
+      const presets = [
+        { key: 'last_7d', val: 'last_7d' },
+        { key: 'last_15d', val: 'last_15d' },
+        { key: 'last_30d', val: 'last_30d' },
+        { key: 'last_90d', val: 'last_90d' }
+      ];
+      const results = await Promise.all(presets.map(async (p) => {
+        const data = await fetchPeriodData(contaAnuncioId, p.val);
+        return { key: p.key, data };
+      }));
+      const snapshot = {};
+      results.forEach(r => {
+        if (r.data) snapshot[r.key] = r.data;
+      });
+      return snapshot;
     } catch (err) {
       console.error('Error getting snapshot for report:', err);
       return null;

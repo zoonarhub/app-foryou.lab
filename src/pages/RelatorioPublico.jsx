@@ -143,26 +143,28 @@ export default function RelatorioPublico() {
     return () => obs.disconnect();
   }, [report]);
 
-  // Extract snapshot fields
+  // Extract snapshot fields based on selected period
   const snapshot = report?.snapshot || null;
+  const periodKey = `last_${period}d`;
+  const periodSnapshot = snapshot?.[periodKey] || snapshot || null;
 
-  const spend = snapshot?.realKPIs?.spend ?? 0;
-  const results = snapshot?.realKPIs?.results ?? 0;
-  const cpl = snapshot?.realKPIs?.cpl ?? 0;
-  const revenue = snapshot?.realKPIs?.revenue ?? 0;
-  const roas = snapshot?.realKPIs?.roas ?? 0;
-  const ctr = snapshot?.realKPIs?.ctr ?? 0;
-  const cpm = snapshot?.realKPIs?.cpm ?? 0;
-  const clicks = snapshot?.realKPIs?.clicks ?? 0;
-  const impressions = snapshot?.realKPIs?.impressions ?? 0;
-  const pageViews = snapshot?.realKPIs?.pageViews ?? 0;
-  const addToCart = snapshot?.realKPIs?.addToCart ?? 0;
-  const initCheckout = snapshot?.realKPIs?.initCheckout ?? 0;
+  const spend = periodSnapshot?.realKPIs?.spend ?? 0;
+  const results = periodSnapshot?.realKPIs?.results ?? 0;
+  const cpl = periodSnapshot?.realKPIs?.cpl ?? 0;
+  const revenue = periodSnapshot?.realKPIs?.revenue ?? 0;
+  const roas = periodSnapshot?.realKPIs?.roas ?? 0;
+  const ctr = periodSnapshot?.realKPIs?.ctr ?? 0;
+  const cpm = periodSnapshot?.realKPIs?.cpm ?? 0;
+  const clicks = periodSnapshot?.realKPIs?.clicks ?? 0;
+  const impressions = periodSnapshot?.realKPIs?.impressions ?? 0;
+  const pageViews = periodSnapshot?.realKPIs?.pageViews ?? 0;
+  const addToCart = periodSnapshot?.realKPIs?.addToCart ?? 0;
+  const initCheckout = periodSnapshot?.realKPIs?.initCheckout ?? 0;
 
-  const displayCampaigns = snapshot?.realCampaigns ?? [];
-  const displayChartData = snapshot?.realChartData ?? [];
-  const displayDemographics = snapshot?.realDemographics ?? [];
-  const displayCreatives = snapshot?.realCreatives ?? [];
+  const displayCampaigns = periodSnapshot?.realCampaigns ?? [];
+  const displayChartData = periodSnapshot?.realChartData ?? [];
+  const displayDemographics = periodSnapshot?.realDemographics ?? [];
+  const displayCreatives = periodSnapshot?.realCreatives ?? [];
 
   if (loading) return <div style={S.wrap}><div style={S.spin} /><p style={{ color: '#666', marginTop: 16, fontSize: 13 }}>Carregando dados reais do relatório...</p></div>;
   if (!report || err) return (
@@ -256,6 +258,58 @@ export default function RelatorioPublico() {
                 <BarChart3 size={14} color="#FFD600" /> Conta: <strong style={{ color: isDark ? '#ccc' : '#334155' }}>{report.contaAnuncioNome}</strong>
               </div>
             )}
+          </div>
+        </div>
+      </section>
+
+      {/* FILTROS E SELETOR DE PERÍODO */}
+      <section style={{ padding: '0 24px', marginTop: -20, position: 'relative', zIndex: 10 }}>
+        <div style={{ 
+          maxWidth: 900, 
+          margin: '0 auto', 
+          background: isDark ? 'rgba(20,20,25,0.7)' : '#ffffff', 
+          border: `1px solid ${isDark ? 'rgba(255,214,0,0.15)' : 'rgba(255,214,0,0.25)'}`, 
+          borderRadius: 16, 
+          padding: '16px 24px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 16,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+          backdropFilter: 'blur(20px)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Calendar size={18} color="#FFD600" />
+            <span style={{ fontSize: 13, fontWeight: 700, color: isDark ? '#9CA3AF' : '#475569' }}>Período de Análise:</span>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {[
+              { label: '7 Dias', value: 7 },
+              { label: '15 Dias', value: 15 },
+              { label: '30 Dias', value: 30 },
+              { label: '90 Dias', value: 90 }
+            ].map(p => (
+              <button
+                key={p.value}
+                onClick={() => setPeriod(p.value)}
+                style={{
+                  background: period === p.value ? COLORS.yellowGradient : (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)'),
+                  border: `1px solid ${period === p.value ? '#FFD600' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)')}`,
+                  color: period === p.value ? '#000' : (isDark ? '#FFF' : '#334155'),
+                  padding: '8px 16px',
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: period === p.value ? '0 4px 12px rgba(255,214,0,0.2)' : 'none'
+                }}
+              >
+                {p.label}
+              </button>
+            ))}
           </div>
         </div>
       </section>
