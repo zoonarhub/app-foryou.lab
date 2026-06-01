@@ -2,6 +2,41 @@ import { createContext, useContext, useState, useCallback, useEffect, useRef } f
 import { supabase } from '../lib/supabase';
 import { saveCollection, loadCollection, addToSyncQueue, getSyncStats, getLastSyncTime } from '../lib/localDB';
 import { startSync, stopSync, forceSync } from '../lib/syncEngine';
+import axios from 'axios';
+
+// Web Audio API synthesized pristine polyphonic bell chime sound
+export function playBellSound() {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const now = ctx.currentTime;
+    
+    const playTone = (freq, gainVal, decay) => {
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now);
+      
+      gainNode.gain.setValueAtTime(gainVal, now);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, now + decay);
+      
+      osc.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + decay);
+    };
+    
+    // Polyphonic desk bell chime frequencies
+    playTone(880, 0.35, 1.5);   // Fundamental A5
+    playTone(1320, 0.18, 0.8);  // Perfect fifth E6
+    playTone(1760, 0.12, 0.5);  // Octave A6
+    playTone(2200, 0.08, 0.3);  // Major third C#7
+    playTone(2640, 0.04, 0.2);  // Perfect fifth E7
+  } catch (e) {
+    console.warn('[Audio] Failed to synthesize bell chime:', e);
+  }
+}
 
 const AppContext = createContext(null);
 const THEME_KEY = 'foryoulab_theme';
@@ -40,6 +75,7 @@ export function AppProvider({ children }) {
   const [evolutionApiKey, setEvolutionApiKey] = useState(localStorage.getItem('evo_key') || '54A0DAA1396B-4570-A1CF-665D425E8171');
   const [googleAccessToken, setGoogleAccessToken] = useState(localStorage.getItem('google_token') || null);
   const [fbToken, setFbToken] = useState(localStorage.getItem('fb_ads_token') || null);
+  const [googleEvents, setGoogleEvents] = useState([]);
 
   useEffect(() => {
     if (data.integrations && data.integrations.length > 0) {
@@ -214,17 +250,23 @@ export function AppProvider({ children }) {
 
   // Initialize Supabase Auth and load data
   useEffect(() => {
+    let active = true;
     const handleSession = async (session) => {
       try {
         const user = session?.user;
         if (!user) {
-          setAuth(null);
-          setAgencyId(null);
-          agencyIdRef.current = null;
-          stopSync();
+          if (active) {
+            setAuth(null);
+            setAgencyId(null);
+            agencyIdRef.current = null;
+            stopSync();
+            setLoadingData(false);
+          }
           return;
         }
-        setAuth(user);
+        if (active) {
+          setAuth(user);
+        }
         
         let currentAgencyId = user.id;
         try {
@@ -236,21 +278,46 @@ export function AppProvider({ children }) {
           console.error("[Auth] Erro ao carregar user_profile:", err);
         }
         
-        setAgencyId(currentAgencyId);
-        agencyIdRef.current = currentAgencyId;
-        console.log('[Auth] agencyId definido:', currentAgencyId);
-        await fetchDataRef.current(currentAgencyId);
+        if (active) {
+          setAgencyId(currentAgencyId);
+          agencyIdRef.current = currentAgencyId;
+          console.log('[Auth] agencyId definido:', currentAgencyId);
+          await fetchDataRef.current(currentAgencyId);
+        }
       } catch (err) {
         console.error("[Auth] Erro crítico no handleSession:", err);
       } finally {
-        setLoadingData(false);
+        if (active) {
+          setLoadingData(false);
+        }
       }
     };
 
-    supabase.auth.getSession().then(({ data: { session } }) => handleSession(session));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => handleSession(session));
+    let subscription = null;
+    try {
+      supabase.auth.getSession()
+        .then(({ data: { session } }) => {
+          if (active) handleSession(session);
+        })
+        .catch(err => {
+          console.error('[Auth] getSession failed:', err);
+          if (active) setLoadingData(false);
+        });
+
+      const res = supabase.auth.onAuthStateChange((_event, session) => {
+        if (active) handleSession(session);
+      });
+      subscription = res?.data?.subscription || res?.subscription || null;
+    } catch (e) {
+      console.error('[Auth] Error setting up auth listeners:', e);
+      if (active) setLoadingData(false);
+    }
+
     return () => {
-      subscription.unsubscribe();
+      active = false;
+      if (subscription && typeof subscription.unsubscribe === 'function') {
+        subscription.unsubscribe();
+      }
       stopSync();
     };
   }, []);
@@ -491,6 +558,114 @@ export function AppProvider({ children }) {
   const getTeamMember = useCallback((id) => data.teamMembers.find(m => m.id === id), [data.teamMembers]);
   const getClient = useCallback((id) => data.clients.find(c => c.id === id), [data.clients]);
 
+  // ── Google Calendar Poll for Notifications ─────────────
+  useEffect(() => {
+    if (!googleAccessToken) {
+      setGoogleEvents([]);
+      return;
+    }
+    
+    const fetchEvents = async () => {
+      try {
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+        const end = new Date();
+        end.setDate(end.getDate() + 2); // today and tomorrow
+        
+        const res = await axios.get('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+          headers: { Authorization: `Bearer ${googleAccessToken}` },
+          params: { timeMin: start.toISOString(), timeMax: end.toISOString(), singleEvents: true }
+        });
+        setGoogleEvents(res.data.items || []);
+      } catch (err) {
+        console.error('[Store GCal] Error fetching events for notifications:', err);
+      }
+    };
+    
+    fetchEvents();
+    const interval = setInterval(fetchEvents, 120000); // every 2 minutes
+    return () => clearInterval(interval);
+  }, [googleAccessToken]);
+
+  // ── Global Deadline & Events Notification Checker (10s) ──
+  const notifiedRef = useRef({});
+
+  useEffect(() => {
+    const checkAlerts = () => {
+      const now = new Date();
+      const unified = [];
+
+      // 1. Manual alerts
+      (data.alerts || []).forEach(a => {
+        if (a.status !== 'resolvido' && a.prazo) {
+          unified.push({ id: `alert-${a.id}`, title: a.title, time: new Date(a.prazo) });
+        }
+      });
+
+      // 2. Projects
+      (data.projects || []).forEach(p => {
+        if (p.status !== 'concluido' && p.prazo) {
+          unified.push({ id: `project-${p.id}`, title: `Projeto: ${p.titulo}`, time: new Date(p.prazo) });
+        }
+      });
+
+      // 3. Tasks
+      (data.tasks || []).forEach(t => {
+        if (t.status !== 'concluido' && t.prazo) {
+          unified.push({ id: `task-${t.id}`, title: `Tarefa: ${t.titulo}`, time: new Date(t.prazo) });
+        }
+      });
+
+      // 4. Financials
+      (data.financials || []).forEach(f => {
+        if ((f.status === 'pendente' || f.status === 'atrasado') && f.dataVencimento) {
+          // Defaults to 9:00 AM on due day if only date is specified
+          const dateStr = f.dataVencimento.includes('T') ? f.dataVencimento : `${f.dataVencimento}T09:00:00`;
+          unified.push({ id: `financial-${f.id}`, title: `Vencimento: ${f.descricao}`, time: new Date(dateStr) });
+        }
+      });
+
+      // 5. Google Calendar events
+      googleEvents.forEach(e => {
+        if (e.start && e.start.dateTime) {
+          unified.push({ id: `gcal-${e.id}`, title: `Google Agenda: ${e.summary}`, time: new Date(e.start.dateTime) });
+        }
+      });
+
+      // Scan and check timings
+      unified.forEach(item => {
+        if (isNaN(item.time.getTime())) return;
+        
+        const diffMs = item.time.getTime() - now.getTime();
+        const diffMins = diffMs / 60000;
+        const itemId = item.id;
+        
+        if (!notifiedRef.current[itemId]) {
+          notifiedRef.current[itemId] = { min5: false, min1: false };
+        }
+        
+        const state = notifiedRef.current[itemId];
+        
+        // 5 Minutes alert (between 4.5 and 5.5 minutes)
+        if (diffMins > 4.5 && diffMins <= 5.5 && !state.min5) {
+          state.min5 = true;
+          playBellSound();
+          addToast(`🔔 Em 5 minutos: ${item.title}`, 'warning');
+        }
+        
+        // 1 Minute alert (between 0.5 and 1.5 minutes)
+        if (diffMins > 0.5 && diffMins <= 1.5 && !state.min1) {
+          state.min1 = true;
+          playBellSound();
+          addToast(`🔔 Em 1 minuto: ${item.title}`, 'info');
+        }
+      });
+    };
+
+    const interval = setInterval(checkAlerts, 10000); // check every 10 seconds
+    return () => clearInterval(interval);
+  }, [data.alerts, data.projects, data.tasks, data.financials, googleEvents, addToast]);
+
   return (
     <AppContext.Provider value={{
       ...data, toasts, auth, theme, loadingData, user: auth,
@@ -500,7 +675,8 @@ export function AppProvider({ children }) {
       evolutionApiUrl, evolutionApiKey, setEvoConfig,
       googleAccessToken, saveGoogleToken, 
       fbToken, saveFacebookToken, saveGoogleDevToken,
-      supabase, syncStatus, triggerSync
+      supabase, syncStatus, triggerSync,
+      googleEvents, playBellSound
     }}>
       {children}
     </AppContext.Provider>
